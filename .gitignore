@@ -1,0 +1,32 @@
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Local/runtime data
+.data/
+.vercel/
+
+# Product uploads
+public/uploads/products/*
+!public/uploads/products/.gitkeep
+
+# Build output
+dist/
+build/
+
+# Local tools/files
+.grok/
+attachments/
+artifacts/
+screenshots/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Accidental empty file
+{}

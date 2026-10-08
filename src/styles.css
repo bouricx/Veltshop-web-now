@@ -1,0 +1,219 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Prompt", "Be Vietnam Pro", "Noto Sans Thai", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-teal: var(--teal);
+  --color-danger: var(--danger);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-border: var(--border);
+  --color-ring: var(--accent);
+  --color-line: var(--line);
+  --color-cat-wallet: #111111;
+  --color-cat-premium: #2a2a2a;
+  --color-cat-mail: #3d3d3d;
+  --color-cat-otp: #525252;
+  --color-cat-house: #1a1a1a;
+  --color-cat-line: #06c755;
+  --color-cat-stock: #6b6b6b;
+  --color-cat-ready: #000000;
+  --color-soft: var(--soft);
+
+  --radius-xs: 4px;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+
+  --shadow-border: var(--elev-border);
+}
+
+/* Streetwear B&W light is the product default — never boot into charcoal or cream–orange. */
+:root {
+  --bg: #f6f6f4;
+  --surface: #ffffff;
+  --surface-2: #ebebe9;
+  --fg: #000000;
+  --muted: #3f3f3f;
+  --subtle: #7a7a7a;
+  --accent: #000000;
+  --accent-fg: #ffffff;
+  --teal: #0d9488;
+  --danger: #e11d48;
+  --ok: #10b981;
+  --warn: #f59e0b;
+  --line: #06c755;
+  --soft: #ececeb;
+  --border: color-mix(in oklab, #000000 16%, transparent);
+  --elev-border: 0 0 0 1.5px color-mix(in oklab, #000000 20%, transparent),
+    0 14px 32px color-mix(in oklab, #000000 7%, transparent);
+  --hero-wash: transparent;
+  color-scheme: light;
+}
+
+[data-theme="dark"]:not([data-shop]) {
+  --bg: #0c0d0f;
+  --surface: #141518;
+  --surface-2: #1c1d21;
+  --fg: #f2f3f4;
+  --muted: #9aa1a8;
+  --subtle: #6c737a;
+  --accent: #e4eaed;
+  --accent-fg: #0c0d0f;
+  --teal: #5eead4;
+  --danger: #e07a6a;
+  --ok: #7dcca8;
+  --warn: #d4b483;
+  --line: #06c755;
+  --soft: #1a1b1e;
+  --border: color-mix(in oklab, var(--fg) 12%, transparent);
+  --elev-border: 0 0 0 1px color-mix(in oklab, var(--fg) 10%, transparent);
+  --hero-wash: color-mix(in oklab, var(--bg) 72%, transparent);
+  color-scheme: dark;
+}
+
+html[data-shop],
+[data-shop] {
+  --bg: #f6f6f4;
+  --surface: #ffffff;
+  --surface-2: #ebebe9;
+  --fg: #000000;
+  --muted: #3f3f3f;
+  --subtle: #7a7a7a;
+  --accent: #000000;
+  --accent-fg: #ffffff;
+  --teal: #0d9488;
+  --danger: #e11d48;
+  --ok: #10b981;
+  --warn: #f59e0b;
+  --line: #06c755;
+  --soft: #ececeb;
+  --border: color-mix(in oklab, #000000 16%, transparent);
+  --elev-border: 0 0 0 1.5px color-mix(in oklab, #000000 20%, transparent),
+    0 14px 32px color-mix(in oklab, #000000 7%, transparent);
+  --hero-wash: transparent;
+  color-scheme: light;
+}
+
+html[data-shop][data-accent="ice"],
+html[data-shop][data-accent="teal"],
+html[data-shop][data-accent="slate"],
+[data-shop] {
+  --accent: #000000;
+  --accent-fg: #ffffff;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--bg);
+    color: var(--fg);
+    overflow-x: clip;
+    color-scheme: light;
+  }
+
+  body {
+    min-height: 100dvh;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:not(:disabled):active {
+    scale: 0.96;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  img {
+    outline: none;
+  }
+
+  input,
+  select,
+  textarea {
+    color-scheme: light;
+    background: var(--bg);
+    color: var(--fg);
+  }
+
+  option {
+    background: var(--surface);
+    color: var(--fg);
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--accent) 35%, transparent);
+    color: var(--fg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.shadow-border {
+  box-shadow: var(--elev-border);
+}
+
+.stagger-in > * {
+  animation: rise 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.stagger-in > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-in > *:nth-child(2) { animation-delay: 70ms; }
+.stagger-in > *:nth-child(3) { animation-delay: 140ms; }
+.stagger-in > *:nth-child(4) { animation-delay: 210ms; }
+.stagger-in > *:nth-child(5) { animation-delay: 280ms; }
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes spin-wheel {
+  from { transform: rotate(0deg); }
+}
+
+.wheel-disc {
+  transition-property: transform;
+  transition-duration: 2.8s;
+  transition-timing-function: cubic-bezier(0.12, 0.7, 0.16, 1);
+}
