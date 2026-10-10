@@ -29,3 +29,7 @@ Google login, transactional email/password reset delivery and Slip2Go live valid
 The supplied image was successfully opened. The hero now follows its black/charcoal gradient, white typography and V. emblem. Catalog cards use a single column below 640px to avoid cramped controls. Checkbox/radio widths are separated from full-width text inputs, mobile input text uses 16px to prevent iOS focus zoom, and the bottom navigation flexes without fixed minimum item widths.
 
 The production build, TypeScript and isolated browser flows passed after these changes. Home screenshots were checked at widths 320, 360, 375, 390, 414, 430, 540, 640, 768 and 1024px; catalog card bounds and overflow were checked at 320, 360, 390, 430, 640 and 768px. Desktop and mobile admin views and reduced-motion behavior passed. These are viewport checks, not a claim of testing every physical device. The owner account was confirmed to retain super_admin; no password or role was changed.
+
+## Follow-up: grouped admin navigation and readable app status
+
+Admin menus are grouped into overview, products/media, sales/finance, members/security, marketing and system/settings. Desktop uses labelled sections; mobile uses native optgroups while preserving permission filtering and direct tab URLs. The system panel replaces raw JSON with Thai status cards, real checked timestamps and a 30-second refresh. Credentials configured but not live-tested remain explicitly unverified. Errors preserve the prior result with a stale-data warning.

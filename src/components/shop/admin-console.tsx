@@ -1240,30 +1240,63 @@ export function MediaLibrary() {
 }
 export function SystemPanel() {
   const [health, setHealth] = useState<Awaited<ReturnType<typeof systemHealth>> | null>(null);
-  const load = () => void systemHealth().then(setHealth);
-  useEffect(load, []);
+  const [error, setError] = useState(false);
+  const load = () => void systemHealth().then((value) => { setHealth(value); setError(false); }).catch(() => setError(true));
+  useEffect(() => {
+    let active = true;
+    const refresh = () => void systemHealth().then((value) => { if (active) { setHealth(value); setError(false); } }).catch(() => { if (active) setError(true); });
+    refresh();
+    const timer = setInterval(refresh, 30000);
+    return () => { active = false; clearInterval(timer); };
+  }, []);
+  const statuses: Record<string, { label: string; style: string }> = {
+    healthy: { label: "ทำงานปกติ", style: "bg-emerald-50 text-emerald-800" },
+    warning: { label: "ต้องตรวจสอบ", style: "bg-amber-50 text-amber-900" },
+    configured: { label: "ตั้งค่าแล้ว", style: "bg-blue-50 text-blue-800" },
+    "configured-unverified": { label: "ตั้งค่าแล้ว · รอทดสอบจริง", style: "bg-amber-50 text-amber-900" },
+    "requires-credentials": { label: "รอข้อมูลเชื่อมต่อ", style: "bg-rose-50 text-rose-800" },
+    "requires-key": { label: "รอกุญแจเข้ารหัส", style: "bg-rose-50 text-rose-800" },
+    database: { label: "จัดเก็บในฐานข้อมูล", style: "bg-blue-50 text-blue-800" },
+  };
+  const cards = health ? [
+    { title: "ฐานข้อมูล", status: health.database.status, detail: `เวลาตรวจ ${health.database.milliseconds} ms` },
+    { title: "ตรวจสลิป Slip2Go", status: health.payment.status, detail: "การเติมเครดิตจากสลิป" },
+    { title: "เข้าสู่ระบบ Google", status: health.google.status, detail: "ต้องทดสอบเข้าสู่ระบบและ callback จริง" },
+    { title: "อีเมลและรีเซ็ตรหัส", status: health.email.status, detail: "ต้องทดสอบการส่งและรับอีเมลจริง" },
+    { title: "เข้ารหัสสินค้าดิจิทัล", status: health.inventory.status, detail: "ปกป้องข้อมูลส่งมอบให้ผู้ซื้อ" },
+    { title: "พื้นที่เก็บไฟล์", status: health.storage.status, detail: "ไฟล์สินค้าส่วนตัวตรวจสิทธิ์ก่อนดาวน์โหลด" },
+    { title: "งานเบื้องหลัง", status: health.queue.failed ? "warning" : "healthy", detail: `รอทำ ${health.queue.pending} · ล้มเหลวถาวร ${health.queue.failed}` },
+    { title: "งานอัตโนมัติ", status: health.scheduler.configured ? "configured" : "requires-credentials", detail: health.scheduler.schedule },
+    { title: "สำรองข้อมูล", status: health.backup.configured ? "configured" : "requires-key", detail: health.backup.everyHours ? `รอบสำรองทุก ${health.backup.everyHours} ชั่วโมง` : "ยังไม่ได้กำหนดรอบสำรอง" },
+  ] : [];
   return (
-    <div className="space-y-4">
-      <h2 className="font-medium">สถานะระบบ</h2>
-      {Object.entries(health ?? {}).map(([k, v]) => (
-        <p key={k} className="text-sm">
-          {k}: {typeof v === "object" ? JSON.stringify(v) : String(v)}
-        </p>
-      ))}
-      <Button
-        onClick={() =>
-          void runJobs().then((r) => {
-            toast.success(`ประมวลผล ${r.processed} งาน`);
-            load();
-          })
-        }
-      >
-        ประมวลผลงานพร้อมทำ
-      </Button>
-      <p className="text-sm text-muted">
-        การชำระเงินและ Google แสดงพร้อมตั้งค่าจนกว่าจะทดสอบกับผู้ให้บริการจริง
-      </p>
-    </div>
+    <section className="space-y-5" aria-label="สถานะแอป">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div><h2 className="text-lg font-semibold">สถานะแอปและบริการ</h2>
+          <p className="mt-1 text-sm text-muted">{health ? `รุ่น ${health.version} · ตรวจล่าสุด ${new Date(health.checkedAt).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })}` : "กำลังตรวจสถานะ…"}</p>
+        </div>
+        <Button variant="secondary" onClick={load}>ตรวจสถานะอีกครั้ง</Button>
+      </div>
+      {error ? <p role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-800">ตรวจสถานะไม่สำเร็จ ข้อมูลที่เห็นอาจเป็นผลตรวจครั้งก่อน</p> : null}
+      {!health && !error ? <p role="status">กำลังเชื่อมต่อระบบ…</p> : null}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {cards.map((card) => {
+          const state = statuses[card.status] ?? statuses.warning;
+          return <article key={card.title} className="min-w-0 rounded-2xl border border-border bg-surface p-5">
+            <h3 className="font-semibold">{card.title}</h3>
+            <p className={`mt-3 inline-flex rounded-full px-3 py-1 text-xs font-medium ${state.style}`}>{state.label}</p>
+            <p className="mt-3 text-sm text-muted">{card.detail}</p>
+          </article>;
+        })}
+      </div>
+      <div className="rounded-2xl border border-border bg-surface p-5 space-y-3">
+        <h3 className="font-semibold">ประวัติงานอัตโนมัติล่าสุด</h3>
+        {health && health.scheduler.recent.length === 0 ? <p className="text-sm text-muted">ยังไม่มีผลการทำงานที่บันทึกไว้</p> : null}
+        {health?.scheduler.recent.map((run, index) => <p key={`${run.started_at}-${index}`} className="text-sm break-words">{run.kind} · {run.status} · {new Date(run.started_at).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })}</p>)}
+        <Button onClick={() => void runJobs().then((r) => { toast.success(`ประมวลผล ${r.processed} งาน`); load(); }).catch(() => toast.error("ประมวลผลงานไม่สำเร็จ"))}>ประมวลผลงานพร้อมทำ</Button>
+      </div>
+      <p className="text-sm text-muted">ตั้งค่าแล้วไม่ได้หมายถึงทดสอบกับผู้ให้บริการจริงแล้ว ผลนี้เป็นสถานะจากระบบปัจจุบัน</p>
+    </section>
   );
 }
 export function BackupPanel() {
