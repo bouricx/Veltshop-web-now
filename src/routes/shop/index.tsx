@@ -80,6 +80,30 @@ function ShopHome() {
   const config = useSiteConfiguration((s) => s.value);
   return (
     <div className="space-y-5">
+      <section className="relative isolate overflow-hidden rounded-3xl bg-[#080a0d] text-white shadow-border">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_78%_45%,rgba(83,96,116,0.42),transparent_45%),linear-gradient(110deg,#080a0d_12%,#151a21_62%,#080a0d)]" />
+        <div aria-hidden="true" className="pointer-events-none absolute right-[-3rem] top-[-4rem] h-64 w-64 rounded-full border border-white/10 sm:right-12 sm:top-[-5rem] sm:h-80 sm:w-80" />
+        <div aria-hidden="true" className="pointer-events-none absolute right-8 bottom-[-5rem] h-52 w-52 rotate-[-18deg] rounded-[2.5rem] border border-white/10 bg-white/[0.03] sm:right-32 sm:h-64 sm:w-64" />
+        <div className="relative grid min-h-[240px] items-center gap-5 p-6 sm:min-h-[280px] sm:grid-cols-[1.2fr_0.8fr] sm:p-9 lg:min-h-[320px] lg:p-12">
+          <div className="max-w-xl">
+            <p className="mb-3 inline-flex rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs tracking-wide text-white/75">VELTSHOP · DIGITAL STORE</p>
+            <h1 className="text-3xl leading-tight font-bold tracking-tight sm:text-4xl lg:text-5xl">สินค้าดิจิทัลคุณภาพ<br />ครบ จบ ในที่เดียว</h1>
+            <p className="mt-3 max-w-lg text-sm leading-6 text-white/70 sm:text-base">เกม · แอปพรีเมียม · บริการออนไลน์ · บัตรเติมเงิน</p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link to="/shop/catalog" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-black transition hover:bg-white/90">ดูสินค้าทั้งหมด <span aria-hidden="true">→</span></Link>
+              <a href={config.discord || shopMeta.discordInvite} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/25 px-5 text-sm font-medium text-white transition hover:bg-white/10">ติดต่อแอดมิน</a>
+            </div>
+          </div>
+          <div aria-hidden="true" className="relative hidden min-h-44 sm:block">
+            <div className="absolute right-2 top-1/2 grid size-40 -translate-y-1/2 place-items-center rounded-[2rem] border border-white/15 bg-white/[0.06] shadow-2xl backdrop-blur-sm lg:right-8 lg:size-52">
+              <div className="grid size-28 place-items-center rounded-full border border-white/20 bg-gradient-to-br from-white/20 to-white/[0.02] lg:size-36">
+                <span className="text-4xl font-black tracking-[-0.12em] lg:text-5xl">V.</span>
+              </div>
+            </div>
+            <div className="absolute right-36 bottom-2 rounded-2xl border border-white/15 bg-black/50 px-4 py-3 text-xs text-white/75 backdrop-blur-sm lg:right-48">DIGITAL GOODS<br /><span className="font-semibold text-white">FAST · SIMPLE · SECURE</span></div>
+          </div>
+        </div>
+      </section>
       <section className="rounded-3xl bg-surface p-5 shadow-border sm:p-6">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
