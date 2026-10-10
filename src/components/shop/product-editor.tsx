@@ -276,7 +276,7 @@ export function ProductEditor({
                 <img
                   src={form.image || "/images/cat-stream.jpg"}
                   alt=""
-                  className="h-28 w-28 object-cover"
+                  className="h-28 w-28 bg-white object-contain p-1"
                 />
               </div>
               <div className="min-w-0 flex-1 space-y-2">
