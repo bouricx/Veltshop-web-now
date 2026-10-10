@@ -8,6 +8,7 @@ export async function exportPersonalData(sql: Sql, userId: string) {
     profile: 'SELECT id,name,email,image,"emailVerified","createdAt" FROM "user" WHERE id=$1',
     membership: "SELECT rank,rank_color,disabled FROM member_profiles WHERE user_id=$1",
     wallet: "SELECT balance FROM wallet_accounts WHERE user_id=$1",
+    cartRequests: "SELECT id,contact,note,items,total,status,created_at,updated_at FROM cart_requests WHERE user_id=$1 ORDER BY created_at,id",
     orders:
       "SELECT id,status,total,subtotal,created_at,warranty_end FROM orders WHERE user_id=$1 ORDER BY created_at,id",
     payments:
@@ -68,7 +69,7 @@ export async function reviewDeletion(
       );
       await tx.query('SELECT id FROM "user" WHERE id=$1 FOR UPDATE', [row.user_id]);
       const [blocked] = await tx.query<{ blocked: boolean }>(
-        "SELECT EXISTS(SELECT 1 FROM user_roles WHERE user_id=$1 AND role_id IN ('super_admin','admin','staff')) OR EXISTS(SELECT 1 FROM wallet_accounts WHERE user_id=$1 AND balance<>0) OR EXISTS(SELECT 1 FROM payments WHERE user_id=$1 AND status IN ('pending','reconciliation_required')) OR EXISTS(SELECT 1 FROM claims WHERE user_id=$1 AND status IN ('pending','accepted')) AS blocked",
+        "SELECT EXISTS(SELECT 1 FROM user_roles WHERE user_id=$1 AND role_id IN ('super_admin','admin','staff')) OR EXISTS(SELECT 1 FROM wallet_accounts WHERE user_id=$1 AND balance<>0) OR EXISTS(SELECT 1 FROM payments WHERE user_id=$1 AND status IN ('pending','reconciliation_required')) OR EXISTS(SELECT 1 FROM claims WHERE user_id=$1 AND status IN ('pending','accepted')) OR EXISTS(SELECT 1 FROM cart_requests WHERE user_id=$1 AND status IN ('pending','received')) AS blocked",
         [row.user_id],
       );
       if (blocked.blocked)
@@ -81,6 +82,7 @@ export async function reviewDeletion(
         "INSERT INTO member_profiles(user_id,disabled) VALUES($1,true) ON CONFLICT(user_id) DO UPDATE SET disabled=true,updated_at=now()",
         [row.user_id],
       );
+      await tx.query("UPDATE cart_requests SET contact='บัญชีที่ปิดแล้ว',note='' WHERE user_id=$1", [row.user_id]);
       await tx.query('DELETE FROM session WHERE "userId"=$1', [row.user_id]);
       await tx.query('DELETE FROM account WHERE "userId"=$1', [row.user_id]);
     } else await notify(tx, row.user_id, "ผลคำขอปิดบัญชี", reply);
