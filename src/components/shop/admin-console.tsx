@@ -1256,12 +1256,12 @@ export function SystemPanel() {
     "configured-unverified": { label: "ตั้งค่าแล้ว · รอทดสอบจริง", style: "bg-amber-50 text-amber-900" },
     "requires-credentials": { label: "รอข้อมูลเชื่อมต่อ", style: "bg-rose-50 text-rose-800" },
     "requires-key": { label: "รอกุญแจเข้ารหัส", style: "bg-rose-50 text-rose-800" },
-    database: { label: "จัดเก็บในฐานข้อมูล", style: "bg-blue-50 text-blue-800" },
+    database: { label: "พร้อมจัดเก็บไฟล์", style: "bg-blue-50 text-blue-800" },
   };
   const cards = health ? [
     { title: "ฐานข้อมูล", status: health.database.status, detail: `เวลาตรวจ ${health.database.milliseconds} ms` },
     { title: "ตรวจสลิป Slip2Go", status: health.payment.status, detail: "การเติมเครดิตจากสลิป" },
-    { title: "เข้าสู่ระบบ Google", status: health.google.status, detail: "ต้องทดสอบเข้าสู่ระบบและ callback จริง" },
+    { title: "เข้าสู่ระบบ Google", status: health.google.status, detail: "ต้องทดสอบการเข้าสู่ระบบให้สำเร็จ" },
     { title: "อีเมลและรีเซ็ตรหัส", status: health.email.status, detail: "ต้องทดสอบการส่งและรับอีเมลจริง" },
     { title: "เข้ารหัสสินค้าดิจิทัล", status: health.inventory.status, detail: "ปกป้องข้อมูลส่งมอบให้ผู้ซื้อ" },
     { title: "พื้นที่เก็บไฟล์", status: health.storage.status, detail: "ไฟล์สินค้าส่วนตัวตรวจสิทธิ์ก่อนดาวน์โหลด" },
@@ -1282,7 +1282,7 @@ export function SystemPanel() {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {cards.map((card) => {
           const state = statuses[card.status] ?? statuses.warning;
-          return <article key={card.title} className="min-w-0 rounded-2xl border border-border bg-surface p-5">
+          return <article key={card.title} className={`min-w-0 rounded-2xl border border-border bg-surface p-5 shadow-sm ${card.status === "healthy" ? "border-t-4 border-t-emerald-400" : card.status === "requires-credentials" || card.status === "requires-key" ? "border-t-4 border-t-rose-400" : card.status === "configured-unverified" || card.status === "warning" ? "border-t-4 border-t-amber-400" : "border-t-4 border-t-sky-400"}`}>
             <h3 className="font-semibold">{card.title}</h3>
             <p className={`mt-3 inline-flex rounded-full px-3 py-1 text-xs font-medium ${state.style}`}>{state.label}</p>
             <p className="mt-3 text-sm text-muted">{card.detail}</p>
@@ -1292,7 +1292,7 @@ export function SystemPanel() {
       <div className="rounded-2xl border border-border bg-surface p-5 space-y-3">
         <h3 className="font-semibold">ประวัติงานอัตโนมัติล่าสุด</h3>
         {health && health.scheduler.recent.length === 0 ? <p className="text-sm text-muted">ยังไม่มีผลการทำงานที่บันทึกไว้</p> : null}
-        {health?.scheduler.recent.map((run, index) => <p key={`${run.started_at}-${index}`} className="text-sm break-words">{run.kind} · {run.status} · {new Date(run.started_at).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })}</p>)}
+        {health?.scheduler.recent.map((run, index) => <p key={`${run.started_at}-${index}`} className="text-sm break-words">{({maintenance: "บำรุงรักษาระบบ", backup: "สำรองข้อมูล", jobs: "ประมวลผลงาน"} as Record<string, string>)[run.kind] ?? "งานระบบ"} · {({success: "สำเร็จ", completed: "สำเร็จ", failed: "ไม่สำเร็จ", running: "กำลังทำงาน", pending: "รอดำเนินการ"} as Record<string, string>)[run.status] ?? "รอตรวจสอบ"} · {new Date(run.started_at).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })}</p>)}
         <Button onClick={() => void runJobs().then((r) => { toast.success(`ประมวลผล ${r.processed} งาน`); load(); }).catch(() => toast.error("ประมวลผลงานไม่สำเร็จ"))}>ประมวลผลงานพร้อมทำ</Button>
       </div>
       <p className="text-sm text-muted">ตั้งค่าแล้วไม่ได้หมายถึงทดสอบกับผู้ให้บริการจริงแล้ว ผลนี้เป็นสถานะจากระบบปัจจุบัน</p>
