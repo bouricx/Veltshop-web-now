@@ -9,7 +9,6 @@ import {
   MessageSquare,
   MonitorPlay,
   Package,
-  Shield,
   Store,
   Users,
   ShoppingCart,
@@ -62,14 +61,6 @@ const tiles: {
     search: { cat: "otp" },
     tint: "bg-cat-otp/12 text-cat-otp",
     icon: MessageSquare,
-  },
-  {
-    label: "ยืนยันครัวเรือน",
-    hint: "HOUSEHOLD",
-    to: "/shop/catalog",
-    search: { cat: "otp" },
-    tint: "bg-cat-house/12 text-cat-house",
-    icon: Shield,
   },
   {
     label: "ติดต่อแอดมิน",
