@@ -77,7 +77,7 @@ export async function createCartRequest(sql: Sql, user: string, data: CartReques
       tx,
       user,
       "ร้านได้รับรายการจากตะกร้าแล้ว",
-      `เลขรายการ ${id} · ยังไม่มีการชำระเงินหรือจัดส่งสินค้า`,
+      `เลขรายการ ${id} · แคปหน้าจอรายการส่งทางเพจ Facebook/Discord เพื่อรับรายละเอียดชำระเงิน · จัดส่งภายใน 5–10 นาทีหลังยืนยันชำระและสต็อก`,
     );
     return { ok: true as const, id, total };
   });
