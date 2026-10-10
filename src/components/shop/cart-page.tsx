@@ -166,7 +166,9 @@ export function CartPage() {
                 </div>
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
-                    <span className="mr-1 text-xs text-muted">จำนวน</span>
+                    <span className="mr-1 shrink-0 whitespace-nowrap text-xs text-muted">
+                      จำนวน
+                    </span>
                     <Button
                       type="button"
                       variant="outline"
