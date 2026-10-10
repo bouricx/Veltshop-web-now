@@ -271,7 +271,7 @@ function ProductCard({
             {product.badge}
           </span>
         ) : null}
-        <div className="relative aspect-[4/3] w-full overflow-hidden bg-white sm:aspect-[5/4]">
+        <div className="relative aspect-square w-full overflow-hidden bg-white">
           <img
             src={product.image}
             alt={product.name}
