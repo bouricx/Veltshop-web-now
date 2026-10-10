@@ -135,6 +135,21 @@ function csv(rows: Row[]) {
     ].join("\r\n")
   );
 }
+function readableDate(value: unknown) {
+  if (!value) return "ยังไม่มีข้อมูล";
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("th-TH", {
+    timeZone: "Asia/Bangkok", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+}
+function memberCell(key: string, row: Row) {
+  if (key === "name") return <div className="space-y-1"><p className="font-semibold text-fg">{String(row.name || "ไม่ระบุชื่อ")}</p><p className="break-all text-xs text-muted">{String(row.email || "—")}</p></div>;
+  if (key === "rank") return <span className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1 font-medium text-violet-900"><span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ backgroundColor: /^#[a-f\d]{6}$/i.test(String(row.color)) ? String(row.color) : "#64748b" }} />{row.rank === "New Member" ? "สมาชิกทั่วไป" : String(row.rank || "สมาชิกทั่วไป")}</span>;
+  if (key === "disabled") return <span className={`inline-flex rounded-full px-3 py-1 font-medium ${row.disabled ? "bg-rose-50 text-rose-800" : "bg-emerald-50 text-emerald-800"}`}>{row.disabled ? "ระงับบัญชี" : "ใช้งานได้"}</span>;
+  if (key === "balance" || key === "spending") return <span className="tabular whitespace-nowrap font-medium">{formatBaht(Number(row[key] || 0))}</span>;
+  if (key === "created_at" || key === "last_login") return <span className="text-muted">{key === "last_login" && !row[key] ? "ยังไม่เคยเข้าสู่ระบบ" : readableDate(row[key])}</span>;
+  return String(row[key] ?? "—");
+}
 export function AdminRecords({
   kind,
   permissions,
@@ -463,6 +478,10 @@ export function AdminRecords({
                   ),
               }
             : null;
+  const visibleKeys = kind === "users"
+    ? ["name", "rank", "disabled", "balance", "spending", "orders", "created_at", "last_login"]
+    : Object.keys(rows[0] ?? {}).filter((k) => !["total_rows", "metadata", "image", "body", "message", "reply", "customer_input", "user_agent"].includes(k));
+  const columnLabel = (key: string) => kind === "users" && key === "name" ? "สมาชิก" : kind === "users" && key === "disabled" ? "สถานะบัญชี" : kind === "users" && key === "created_at" ? "สมัครเมื่อ" : labels[key] ?? key;
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap gap-2">
@@ -524,54 +543,22 @@ export function AdminRecords({
       ) : null}
       <p className="text-xs text-muted">{total} รายการ · อัปเดตทุก 15 วินาที</p>
       <div className="overflow-auto rounded-2xl border border-border bg-surface">
-        <table className="w-full text-xs">
+        <table className={`w-full text-sm ${kind === "users" ? "member-table" : ""}`}>
           <thead>
             <tr>
-              {Object.keys(rows[0] ?? {})
-                .filter(
-                  (k) =>
-                    ![
-                      "total_rows",
-                      "metadata",
-                      "image",
-                      "body",
-                      "message",
-                      "reply",
-                      "customer_input",
-                      "user_agent",
-                    ].includes(k),
-                )
-                .map((k) => (
-                  <th key={k} className="whitespace-nowrap p-3 text-left">
-                    {labels[k] ?? k}
-                  </th>
-                ))}
+              {visibleKeys.map((key) => <th key={key} className="whitespace-nowrap p-3 text-left text-xs text-muted">{columnLabel(key)}</th>)}
               <th className="p-3">จัดการ</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
               <tr key={String(row.id)} className="border-t border-border">
-                {Object.entries(row)
-                  .filter(
-                    ([k]) =>
-                      ![
-                        "total_rows",
-                        "metadata",
-                        "image",
-                        "body",
-                        "message",
-                        "reply",
-                        "customer_input",
-                        "user_agent",
-                      ].includes(k),
-                  )
-                  .map(([k, v]) => (
-                    <td key={k} className="max-w-56 break-words p-3">
-                      {typeof v === "boolean" ? (v ? "ใช่" : "ไม่") : String(v ?? "—")}
-                    </td>
-                  ))}
-                <td className="min-w-40 p-3">
+                {visibleKeys.map((key) => (
+                  <td key={key} data-label={columnLabel(key)} className={`p-3 align-top ${kind === "users" ? "min-w-28 max-w-64" : "max-w-56 break-words"}`}>
+                    {kind === "users" ? memberCell(key, row) : typeof row[key] === "boolean" ? row[key] ? "ใช่" : "ไม่" : String(row[key] ?? "—")}
+                  </td>
+                ))}
+                <td data-label="จัดการ" className="min-w-40 p-3 align-top">
                   <div className="flex flex-wrap gap-2">
                     {actions(row).map((a) => (
                       <Button
