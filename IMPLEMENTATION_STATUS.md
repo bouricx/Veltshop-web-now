@@ -18,7 +18,7 @@ This release extends the original repository and the supplied Thai brief. It is 
 
 ## Database and configuration
 
-Additive migrations 0009–0011 retain existing shop data. 0011 adds operational tables, permissions, reference fences, immutable history triggers, category/product metadata and encrypted gift evidence. No production migration was run. Production must use durable PostgreSQL; the embedded preview database is ephemeral.
+Additive migrations 0009–0011 retain existing shop data. 0011 adds operational tables, permissions, reference fences, immutable history triggers, category/product metadata and encrypted gift evidence. Production migrations through 0011 applied during the owner-requested administrator repair on 2026-10-10. Production must use durable PostgreSQL; the embedded preview database is ephemeral.
 
 New dependencies: sharp and bundled Noto Sans Thai. Package version: 0.3.0. Secrets are documented in `.env.example`; none are included in source. See RELEASE_RUNBOOK.md for exact setup, first administrator, jobs, recovery, rotation, staging tests and rollback procedures.
 
@@ -32,7 +32,7 @@ New dependencies: sharp and bundled Noto Sans Thai. Package version: 0.3.0. Secr
 
 ## External and deferred requirements
 
-No deployment, live bank/provider transaction, production database write, real Google callback or real email send was performed. Actual multi-connection PostgreSQL concurrency, live provider failure/reconciliation and real PostgreSQL disaster recovery require staging credentials and hosting setup.
+Production deployment a14ad56b33825776536f07f13175a5d9613dab88 is READY, migrations through 0011 applied, and the requested existing owner account was granted super_admin with an audit event. No live bank/provider transaction, real Google callback or real email send was performed. Actual multi-connection PostgreSQL concurrency, live provider failure/reconciliation and real PostgreSQL disaster recovery require staging credentials and hosting setup.
 
 There is no signed provider webhook contract/receiver, automatic TrueMoney redemption, satang-precision migration, retention purge or protected binary file-hosting subsystem in this release. Public image storage must not hold paid private files. Encrypted delivery can contain owner-supplied file links; the external host's access controls remain its responsibility. Database backup/media storage needs monitoring and off-site copies configured by the operator. Polling updates run every 15 seconds rather than claiming push delivery. Older HANDOFF.md/DEPLOY_STATUS.md describe a legacy localhost slip verifier; this status and the release runbook supersede those payment instructions.
 
