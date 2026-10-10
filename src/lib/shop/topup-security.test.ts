@@ -20,7 +20,7 @@ test("actions.ts never reads client slipVerified / verifiedAmount", () => {
   assert.equal(/data\.slipVerified/.test(src), false, "must not read data.slipVerified");
   assert.equal(/data\.verifiedAmount/.test(src), false, "must not read data.verifiedAmount");
   assert.match(src, /export const topupWithSlip/);
-  assert.match(src, /verifySlipWithSharedApi/);
+  assert.match(src, /verifySlip2Go/);
   // Public processPayment validator must not list those fields
   const validatorBlock = src.slice(
     src.indexOf("export const processPayment"),
@@ -47,7 +47,7 @@ test("True Wallet slips are stored for manual review and cannot reach auto-credi
 test("PromptPay credit requires verified destination and exact amount", () => {
   const src = readFileSync(join(here, "actions.ts"), "utf8");
   assert.match(src, /!verify\.promptpayMatched/);
-  assert.match(src, /Math\.round\(verify\.amountFound\) === amount/);
+  assert.match(src, /verify\.amountFound === amount/);
 });
 
 test("admin cannot change the QR destination without changing the fixed verifier target", () => {

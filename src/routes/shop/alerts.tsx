@@ -32,7 +32,7 @@ function AlertsPage() {
           Facebook
         </a>
       </div>
-      <p className="mt-3 text-xs text-subtle">LINE {shopMeta.lineId}</p>
+
     </div>
   );
 }

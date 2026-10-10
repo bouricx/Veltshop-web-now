@@ -55,7 +55,7 @@ export function SiteFooter() {
             >
               Facebook
             </a>
-            <p className="text-muted">LINE {shopMeta.lineId}</p>
+
             <p className="text-muted">ทุกวัน 09:00–24:00</p>
           </div>
         </div>

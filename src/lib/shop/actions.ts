@@ -1,3 +1,6 @@
+import { verifySlip2Go } from "./slip2go.server";
+import { z } from "zod";
+import { CommerceError, purchase, creditVerifiedSlip } from "./commerce.server";
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { requireAdmin } from "@/lib/shop/require-admin.server";
@@ -6,11 +9,7 @@ import { categories as seedCats, type Product } from "@/lib/shop/catalog";
 import { uid } from "@/lib/utils";
 import { productImageStorage } from "./storage";
 import { categoryInputSchema, productInputSchema } from "./validation";
-import {
-  slipImageToBlob,
-  verifySlipWithSharedApi,
-  VERIFIER_PROMPTPAY,
-} from "@/lib/shop/slip-verify-upstream.server";
+import { slipImageToBlob, VERIFIER_PROMPTPAY } from "@/lib/shop/slip-verify-upstream.server";
 
 function bearerOf(context: { bearerToken?: string }): string | undefined {
   return context.bearerToken;
@@ -54,7 +53,7 @@ export type PaymentRow = {
 };
 
 export type ShopSettings = {
-  /** Legacy UI field only — not used for live credit. Shared :8787 is the verifier. */
+  /** Legacy UI field; wallet verification uses the official Slip2Go adapter. */
   slip_provider: "thunder" | "slip2go";
   wallet_fee: number;
   /**
@@ -222,7 +221,7 @@ export const listAllProducts = createServerFn({ method: "GET" })
 
 export const saveProduct = createServerFn({ method: "POST" })
   .validator((d: ProductInput) => productInputSchema.parse(d))
-  
+
   .middleware([authMiddleware])
   .handler(async ({ data, context }) => {
     await requireAdmin(bearerOf(context));
@@ -265,29 +264,46 @@ export const saveProduct = createServerFn({ method: "POST" })
   });
 
 export const checkoutProduct = createServerFn({ method: "POST" })
-  .validator((d: { id: string }) => d)
+  .validator((value: unknown) =>
+    z
+      .object({ id: z.string().trim().min(1).max(160), idempotencyKey: z.string().uuid() })
+      .parse(value),
+  )
   .middleware([authMiddleware])
   .handler(async ({ data, context }) => {
+    try {
+      const result = await purchase(
+        await getSql(),
+        String(context.userId),
+        data.id,
+        data.idempotencyKey,
+      );
+      return { ok: true as const, ...result, message: "รับคำสั่งซื้อแล้ว · รอดำเนินการจัดส่ง" };
+    } catch (error) {
+      if (error instanceof CommerceError) return { ok: false as const, message: error.message };
+      throw error;
+    }
+  });
+
+export const getMyWallet = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
     const sql = await getSql();
-    const actorId = String(context.userId || "");
-    const rows = await sql<ProductRow>`
-      with decremented as (
-        update products
-        set stock = stock - 1, updated_at = now()
-        where id = ${data.id} and stock > 0 and active = true
-        returning id, name, subtitle, category_id, price, compare_at, stock, image, delivery, featured, flash, active
-      ), movement as (
-        insert into inventory_movements (id, product_id, quantity, reason, actor_id, created_at)
-        select ${uid("inv")}, id, -1, 'purchase', ${actorId}, now()
-        from decremented
-        returning product_id
-      )
-      select decremented.*
-      from decremented
-      inner join movement on movement.product_id = decremented.id
+    const rows = await sql<{
+      balance: number;
+    }>`select balance from wallet_accounts where user_id = ${context.userId}`;
+    return { balance: Number(rows[0]?.balance ?? 0) };
+  });
+
+export const listMyOrders = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    const sql = await getSql();
+    return sql<{ id: string; name: string; price: number; status: string; created_at: string }>`
+      select o.id, i.product_name as name, o.total as price, o.status, o.created_at::text as created_at
+      from orders o join order_items i on i.order_id = o.id
+      where o.user_id = ${context.userId} order by o.created_at desc limit 100
     `;
-    if (!rows[0]) return { ok: false as const, message: "สินค้าหมดหรือปิดขายแล้ว" };
-    return { ok: true as const, product: mapProduct(rows[0]) };
   });
 
 export const archiveProduct = createServerFn({ method: "POST" })
@@ -303,7 +319,11 @@ export const archiveProduct = createServerFn({ method: "POST" })
       returning id, name, subtitle, category_id, price, compare_at, stock, image, delivery, featured, flash, active
     `;
     if (!rows[0]) return { ok: false as const, message: "ไม่พบสินค้า" };
-    return { ok: true as const, product: mapProduct(rows[0]), message: "ซ่อนสินค้าแล้ว (soft-delete)" };
+    return {
+      ok: true as const,
+      product: mapProduct(rows[0]),
+      message: "ซ่อนสินค้าแล้ว (soft-delete)",
+    };
   });
 
 export const getShopSettings = createServerFn({ method: "GET" }).handler(async () => {
@@ -312,7 +332,7 @@ export const getShopSettings = createServerFn({ method: "GET" }).handler(async (
 
 export const saveShopSettings = createServerFn({ method: "POST" })
   .validator((d: Partial<ShopSettings>) => d)
-  
+
   .middleware([authMiddleware])
   .handler(async ({ data, context }) => {
     await requireAdmin(bearerOf(context));
@@ -341,34 +361,39 @@ export const saveShopSettings = createServerFn({ method: "POST" })
   });
 
 export const processPayment = createServerFn({ method: "POST" })
-  .validator((d: {
-    method: "promptpay" | "truewallet" | "slip";
-    amount: number;
-    slipHash?: string;
-    fileName?: string;
-    ocrText?: string;
-    orderId?: string;
-    /** Required for method=slip if not using topupWithSlip: slip image data-URL or base64. */
-    slipImage?: string;
-    slipMime?: string;
-  }) => d)
+  .validator(
+    (d: {
+      method: "promptpay" | "truewallet" | "slip";
+      amount: number;
+      slipHash?: string;
+      fileName?: string;
+      ocrText?: string;
+      orderId?: string;
+      /** Required for method=slip if not using topupWithSlip: slip image data-URL or base64. */
+      slipImage?: string;
+      slipMime?: string;
+    }) => d,
+  )
   .middleware([authMiddleware])
   .handler(async ({ data, context }) => {
-    const amount = Math.round(Number(data.amount) || 0);
+    const amount = Number(data.amount);
+    if (!Number.isSafeInteger(amount) || amount > 100000000)
+      return { ok: false as const, message: "ยอดเงินไม่ถูกต้อง" };
     if (amount < 20) return { ok: false as const, message: "ยอดขั้นต่ำ ฿20" };
 
     const settings = await readSettings();
     const sql = await getSql();
     const id = uid("pay");
     const userId = String(context.userId || "");
-    const fee = data.method === "truewallet" ? Math.ceil(amount * (Number(settings.wallet_fee) / 100)) : 0;
+    const fee =
+      data.method === "truewallet" ? Math.ceil(amount * (Number(settings.wallet_fee) / 100)) : 0;
 
     // PromptPay / TrueWallet: destination only — never auto-credit.
     if (data.method === "promptpay" || data.method === "truewallet") {
       await sql`
         insert into payments (id, method, amount, fee, credit, status, provider, reject_reason, user_id)
         values (
-          ${id}, ${data.method}, ${amount}, ${fee}, 0, 'pending', 'slip-api-8787',
+          ${id}, ${data.method}, ${amount}, ${fee}, 0, 'pending', 'slip2go',
           ${"รออัปโหลดสลิป"}, ${userId || null}
         )
       `;
@@ -400,23 +425,27 @@ export const processPayment = createServerFn({ method: "POST" })
 
 /**
  * Preferred top-up path: upload slip → server verifies on :8787 → credit only if ok.
- * Client slipVerified / verifiedAmount are not accepted.
+ * Client verification claims are not accepted.
  */
 export const topupWithSlip = createServerFn({ method: "POST" })
-  .validator((d: {
-    amount: number;
-    method?: "promptpay" | "truewallet";
-    /** data:image/...;base64,... preferred */
-    slipDataUrl?: string;
-    /** raw base64 if slipDataUrl omitted */
-    slipBase64?: string;
-    fileName?: string;
-    slipMime?: string;
-    orderId?: string;
-  }) => d)
+  .validator(
+    (d: {
+      amount: number;
+      method?: "promptpay" | "truewallet";
+      /** data:image/...;base64,... preferred */
+      slipDataUrl?: string;
+      /** raw base64 if slipDataUrl omitted */
+      slipBase64?: string;
+      fileName?: string;
+      slipMime?: string;
+      orderId?: string;
+    }) => d,
+  )
   .middleware([authMiddleware])
   .handler(async ({ data, context }) => {
-    const amount = Math.round(Number(data.amount) || 0);
+    const amount = Number(data.amount);
+    if (!Number.isSafeInteger(amount) || amount > 100000000)
+      return { ok: false as const, message: "ยอดเงินไม่ถูกต้อง" };
     if (amount < 20) return { ok: false as const, message: "ยอดขั้นต่ำ ฿20" };
     const slipImage = (data.slipDataUrl || data.slipBase64 || "").trim();
     if (!slipImage) {
@@ -500,7 +529,7 @@ async function creditSlipAfterUpstreamVerify(input: {
     try {
       await sql`
         insert into payments (id, method, amount, fee, credit, status, provider, slip_hash, reject_reason, user_id)
-        values (${id}, 'slip', ${amount}, 0, 0, 'rejected', 'slip-api-8787', ${hash}, 'สลิปซ้ำ', ${userId || null})
+        values (${id}, 'slip', ${amount}, 0, 0, 'rejected', 'slip2go', ${hash}, 'สลิปซ้ำ', ${userId || null})
       `;
     } catch {
       /* ignore older unique index races */
@@ -510,43 +539,54 @@ async function creditSlipAfterUpstreamVerify(input: {
 
   let verify;
   try {
-    verify = await verifySlipWithSharedApi({
-      file: new Blob([new Uint8Array(bytes)], { type: parsed.blob.type || "image/png" }),
-      fileName: input.fileName || parsed.fileName,
+    const settings = await readSettings();
+    const official = await verifySlip2Go(
+      new Blob([new Uint8Array(bytes)], { type: parsed.blob.type || "image/png" }),
+      parsed.fileName,
       amount,
-      orderId: input.orderId,
-    });
-  } catch (err) {
+      settings.receive_account,
+    );
+    verify = {
+      ok: official.ok,
+      amountFound: official.amount,
+      promptpayMatched: official.ok,
+      reason: official.reason,
+      orderId: null,
+      reference: official.reference,
+    };
+  } catch {
     await sql`
-      insert into payments (id, method, amount, fee, credit, status, provider, slip_hash, reject_reason, user_id)
+      insert into payments (id, method, amount, fee, credit, status, provider, slip_hash, reject_reason, user_id, slip_evidence)
       values (
-        ${id}, 'slip', ${amount}, 0, 0, 'pending', 'slip-api-8787', ${hash},
-        ${`ตรวจสลิปไม่สำเร็จ: ${err instanceof Error ? err.message : "upstream error"}`},
-        ${userId || null}
+        ${id}, 'slip', ${amount}, 0, 0, 'pending', 'slip2go', ${hash},
+        ${"ตรวจสลิปไม่สำเร็จ กรุณาติดต่อทีมงาน"},
+        ${userId || null}, ${input.slipImage || null}
       )
     `;
     return {
       ok: false as const,
       pending: true as const,
-      message: "ยังไม่เติมเครดิต — เรียกบริการกลางไม่สำเร็จ",
+      message: "ยังไม่เติมเครดิต — บริการตรวจสลิปไม่พร้อมใช้งาน",
       note: `ปลายทาง ${VERIFIER_PROMPTPAY}`,
       paymentId: id,
     };
   }
 
-  const amountMatched = verify.amountFound != null && Math.round(verify.amountFound) === amount;
+  const amountMatched = verify.amountFound != null && verify.amountFound === amount;
   if (!verify.ok || !verify.promptpayMatched || !amountMatched) {
-    const reason = !verify.promptpayMatched
-      ? "บัญชีปลายทางในสลิปไม่ตรงกับ PromptPay ที่กำหนด"
-      : !amountMatched
-        ? "ยอดเงินในสลิปไม่ตรงกับยอดที่เลือก"
-        : verify.reason || "ตรวจสลิปไม่ผ่าน";
+    const reason = !verify.ok
+      ? verify.reason
+      : !verify.promptpayMatched
+        ? "บัญชีปลายทางในสลิปไม่ตรงกับ PromptPay ที่กำหนด"
+        : !amountMatched
+          ? "ยอดเงินในสลิปไม่ตรงกับยอดที่เลือก"
+          : verify.reason || "ตรวจสลิปไม่ผ่าน";
     await sql`
-      insert into payments (id, method, amount, fee, credit, status, provider, slip_hash, reject_reason, user_id)
+      insert into payments (id, method, amount, fee, credit, status, provider, slip_hash, reject_reason, user_id, slip_evidence)
       values (
-        ${id}, 'slip', ${amount}, 0, 0, 'pending', 'slip-api-8787', ${hash},
+        ${id}, 'slip', ${amount}, 0, 0, 'pending', 'slip2go', ${hash},
         ${reason},
-        ${userId || null}
+        ${userId || null}, ${input.slipImage || null}
       )
     `;
     return {
@@ -562,22 +602,31 @@ async function creditSlipAfterUpstreamVerify(input: {
   const credit = Math.round(verify.amountFound || 0);
   if (credit < 20) return { ok: false as const, message: "ยอดจากสลิปไม่ถูกต้อง" };
 
+  let balance: number;
   try {
-    await sql`
-      insert into payments (id, method, amount, fee, credit, status, provider, slip_hash, user_id)
-      values (${id}, 'slip', ${amount}, ${fee}, ${credit}, 'success', 'slip-api-8787', ${hash}, ${userId || null})
-    `;
-  } catch {
-    return { ok: false as const, message: "สลิปนี้เคยใช้แล้ว · กันซ้ำชั้นที่ 1" };
+    balance = await creditVerifiedSlip(sql, {
+      id,
+      userId,
+      amount,
+      fee,
+      credit,
+      hash,
+      provider: "slip2go",
+      reference: verify.reference!,
+    });
+  } catch (error) {
+    if (error instanceof CommerceError) return { ok: false as const, message: error.message };
+    throw error;
   }
 
   return {
     ok: true as const,
     credit,
+    balance,
     fee,
     paymentId: id,
-    message: `เติม ฿${credit} สำเร็จ (ตรวจสลิปผ่านบริการกลาง)`,
-    note: `slip-api-8787 · พร้อมเพย์ ${VERIFIER_PROMPTPAY}`,
+    message: `เติม ฿${credit} สำเร็จ (ตรวจสลิปผ่าน Slip2Go)`,
+    note: `Slip2Go · พร้อมเพย์ ${VERIFIER_PROMPTPAY}`,
     orderId: verify.orderId,
   };
 }
@@ -647,10 +696,14 @@ export const uploadProductImage = createServerFn({ method: "POST" })
     if (buf.byteLength > 2.5 * 1024 * 1024) {
       return { ok: false as const, message: "ไฟล์ใหญ่เกิน 2.5MB" };
     }
-    const isPng = ext === "png" && buf.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    const isPng =
+      ext === "png" && buf.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
     const isJpeg = ext === "jpg" && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
     const isGif = ext === "gif" && ["GIF87a", "GIF89a"].includes(buf.toString("ascii", 0, 6));
-    const isWebp = ext === "webp" && buf.toString("ascii", 0, 4) === "RIFF" && buf.toString("ascii", 8, 12) === "WEBP";
+    const isWebp =
+      ext === "webp" &&
+      buf.toString("ascii", 0, 4) === "RIFF" &&
+      buf.toString("ascii", 8, 12) === "WEBP";
     if (!isPng && !isJpeg && !isGif && !isWebp) {
       return { ok: false as const, message: "ชนิดไฟล์ไม่ตรงกับข้อมูลรูปภาพ" };
     }
@@ -663,4 +716,3 @@ export const uploadProductImage = createServerFn({ method: "POST" })
     });
     return { ok: true as const, ...result };
   });
-

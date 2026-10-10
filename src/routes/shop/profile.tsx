@@ -45,14 +45,14 @@ function ProfileBody() {
         onSubmit={(e) => {
           e.preventDefault();
           const res = redeem(code);
-          res.ok ? toast.success(res.message) : toast.error(res.message);
+          if (res.ok) toast.success(res.message); else toast.error(res.message);
           if (res.ok) setCode("");
         }}
       >
         <Input
           value={code}
           onChange={(e) => setCode(e.target.value)}
-          placeholder="โค้ดของขวัญ เช่น WELCOME"
+          placeholder="โค้ดของขวัญ (ยังไม่เปิดใช้งาน)"
         />
         <Button type="submit">ใช้โค้ด</Button>
       </form>

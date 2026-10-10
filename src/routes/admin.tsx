@@ -345,7 +345,6 @@ function Members() {
   const name = useShop((s) => s.displayName || "ยังไม่เข้าสู่ระบบ");
   const balance = useShop((s) => s.balance);
   const loggedIn = useShop((s) => s.loggedIn);
-  const adjust = useShop((s) => s.adjustBalance);
   const [delta, setDelta] = useState(50);
   const [reason, setReason] = useState("ชดเชยเคสเคลม");
 
@@ -456,12 +455,7 @@ function Members() {
           className="mt-5 grid gap-3 sm:grid-cols-[1fr_1.5fr_auto]"
           onSubmit={(e) => {
             e.preventDefault();
-            adjust(delta, reason);
-            toast.success(
-              delta >= 0
-                ? `เพิ่มเครดิต ฿${delta} เรียบร้อยแล้ว`
-                : `หักเครดิต ฿${Math.abs(delta)} เรียบร้อยแล้ว`,
-            );
+            toast.error("การปรับเครดิตยังไม่เปิดใช้งาน กรุณารอระบบจัดการเครดิตบนเซิร์ฟเวอร์");
           }}
         >
           <div>
@@ -502,7 +496,7 @@ function Members() {
         </form>
         <p className="mt-3 text-xs text-subtle flex items-center gap-1">
           <span className="size-1.5 rounded-full bg-muted/40" />
-          ใส่เลขติดลบเพื่อหักเครดิต · ทุกครั้งจะถูกบันทึกในล็อกแอดมินโดยอัตโนมัติ
+          การปรับเครดิตยังไม่เปิดใช้งาน · ระบบจะไม่เปลี่ยนยอดจากเบราว์เซอร์
         </p>
       </div>
 

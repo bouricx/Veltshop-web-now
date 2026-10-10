@@ -20,7 +20,8 @@ function TopupPage() {
       <p className="text-xs font-medium tracking-[0.16em] text-muted uppercase">กระเป๋าเงิน</p>
       <h1 className="mt-1 text-3xl font-semibold tracking-tight">เติมเงินอัตโนมัติ</h1>
       <p className="mt-2 text-sm text-muted">
-        สแกน QR พร้อมเพย์หรือโอนแล้วอัปโหลดสลิป — ระบบตรวจที่บริการกลางก่อนเติมเครดิต (ไม่ผ่าน = ไม่เติม)
+        สแกน QR พร้อมเพย์หรือโอนแล้วอัปโหลดสลิป — ระบบตรวจที่บริการกลางก่อนเติมเครดิต (ไม่ผ่าน =
+        ไม่เติม)
       </p>
       <div className="mt-8">
         <EmptyGate>
@@ -31,9 +32,7 @@ function TopupPage() {
   );
 }
 
-
 function TopupForm() {
-  const topup = useShop((s) => s.topup);
   const balance = useShop((s) => s.balance);
   const [settings, setSettings] = useState<ShopSettings | null>(null);
   const [amount, setAmount] = useState(100);
@@ -78,7 +77,6 @@ function TopupForm() {
     };
   }, [promptpay, amount]);
 
-
   async function onSlip(file: File) {
     setFileName(file.name);
     setChecking(true);
@@ -107,7 +105,8 @@ function TopupForm() {
         }
         return;
       }
-      const local = topup(pay.credit, "slip", pay.note, pay.paymentId);
+      const local = { ok: true, message: pay.message };
+      useShop.setState({ balance: pay.balance });
       if (local.ok) {
         toast.success(pay.message);
         setReceipt({
@@ -163,7 +162,9 @@ function TopupForm() {
           <p className="text-sm font-medium text-warning">รับสลิปแล้ว · รอตรวจสอบ</p>
           <p className="mt-1 text-sm text-muted">{reviewReceipt.message}</p>
           <p className="mt-2 font-mono text-xs text-subtle">รหัส {reviewReceipt.paymentId}</p>
-          <p className="mt-2 text-xs text-muted">ยอดจะไม่เข้ากระเป๋าจนกว่าระบบหรือแอดมินจะตรวจสอบเสร็จ</p>
+          <p className="mt-2 text-xs text-muted">
+            ยอดจะไม่เข้ากระเป๋าจนกว่าระบบหรือแอดมินจะตรวจสอบเสร็จ
+          </p>
         </div>
       ) : null}
 
@@ -225,10 +226,16 @@ function TopupForm() {
             <p className="font-medium">โอนพร้อมเพย์</p>
             <p className="text-sm text-muted">
               สแกน QR หรือโอนไป {promptpay} ({settings?.receive_name ?? "VELTSHOP"}) ยอด{" "}
-              {formatBaht(amount)} แล้วไปแท็บ 「อัปโหลดสลิป」 — ระบบจะเติมเครดิตเมื่อสลิปผ่านเท่านั้น
+              {formatBaht(amount)} แล้วไปแท็บ 「อัปโหลดสลิป」 —
+              ระบบจะเติมเครดิตเมื่อสลิปผ่านเท่านั้น
             </p>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="secondary" className="rounded-full" onClick={() => void copyAccount()}>
+              <Button
+                type="button"
+                variant="secondary"
+                className="rounded-full"
+                onClick={() => void copyAccount()}
+              >
                 คัดลอกเลขพร้อมเพย์
               </Button>
               <Button
@@ -248,7 +255,11 @@ function TopupForm() {
             <p className="text-sm text-muted">สแกน QR พร้อมเพย์ (ยอด {formatBaht(amount)})</p>
             <div className="mx-auto mt-4 grid h-56 w-56 place-items-center overflow-hidden rounded-2xl bg-white p-3 shadow-border">
               {qrUrl ? (
-                <img src={qrUrl} alt={`PromptPay QR ${promptpay}`} className="h-full w-full object-contain" />
+                <img
+                  src={qrUrl}
+                  alt={`PromptPay QR ${promptpay}`}
+                  className="h-full w-full object-contain"
+                />
               ) : (
                 <p className="px-3 text-center text-xs text-muted">{qrError || "กำลังสร้าง QR…"}</p>
               )}
@@ -267,7 +278,8 @@ function TopupForm() {
             <Badge>ค่าธรรมเนียม {fee}%</Badge>
           </div>
           <p className="text-sm text-muted">
-            โอนเข้าเบอร์ {settings?.wallet_phone || "ยังไม่ได้ตั้งค่าเบอร์รับเงิน"} · ค่าธรรมเนียม {fee}% · อัปโหลดสลิปเพื่อให้แอดมินตรวจมือ (ยังไม่มีตัวตรวจ True Wallet อัตโนมัติ)
+            โอนเข้าเบอร์ {settings?.wallet_phone || "ยังไม่ได้ตั้งค่าเบอร์รับเงิน"} · ค่าธรรมเนียม{" "}
+            {fee}% · อัปโหลดสลิปเพื่อให้แอดมินตรวจมือ (ยังไม่มีตัวตรวจ True Wallet อัตโนมัติ)
           </p>
           <Button
             className="w-full rounded-full"
@@ -285,11 +297,20 @@ function TopupForm() {
       {tab === "slip" ? (
         <div className="space-y-4 rounded-3xl bg-surface p-5 shadow-border">
           <div className="flex items-center justify-between">
-            <p className="font-medium">อัปโหลดสลิป {paymentMethod === "promptpay" ? "PromptPay" : "True Wallet"}</p>
-            {paymentMethod === "promptpay" ? <Badge tone="ok">บริการกลาง</Badge> : <Badge>รอตรวจมือ</Badge>}
+            <p className="font-medium">
+              อัปโหลดสลิป {paymentMethod === "promptpay" ? "PromptPay" : "True Wallet"}
+            </p>
+            {paymentMethod === "promptpay" ? (
+              <Badge tone="ok">บริการกลาง</Badge>
+            ) : (
+              <Badge>รอตรวจมือ</Badge>
+            )}
           </div>
           <p className="text-sm text-muted">
-            ยอดที่แจ้ง {formatBaht(amount)} · {paymentMethod === "promptpay" ? `ปลายทาง ${promptpay} · เติมเมื่อ verifier ยืนยันยอดและบัญชีตรงกันเท่านั้น` : `ปลายทาง ${settings?.wallet_phone || "ยังไม่ได้ตั้งค่าเบอร์รับเงิน"} · ไม่เติมอัตโนมัติจนกว่าแอดมินตรวจ`}
+            ยอดที่แจ้ง {formatBaht(amount)} ·{" "}
+            {paymentMethod === "promptpay"
+              ? `ปลายทาง ${promptpay} · เติมเมื่อ verifier ยืนยันยอดและบัญชีตรงกันเท่านั้น`
+              : `ปลายทาง ${settings?.wallet_phone || "ยังไม่ได้ตั้งค่าเบอร์รับเงิน"} · ไม่เติมอัตโนมัติจนกว่าแอดมินตรวจ`}
           </p>
           <label className="flex min-h-28 cursor-pointer items-center justify-center rounded-2xl border border-dashed border-border bg-bg text-sm text-muted">
             <input
