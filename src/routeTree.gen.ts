@@ -13,19 +13,28 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as RentRouteImport } from './routes/rent'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as ShopRouteImport } from './routes/shop'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as AdminTopupsRouteImport } from './routes/admin/topups'
 import { Route as ShopIndexRouteImport } from './routes/shop/index'
 import { Route as ShopAlertsRouteImport } from './routes/shop/alerts'
 import { Route as ShopBoxRouteImport } from './routes/shop/box'
 import { Route as ShopCatalogRouteImport } from './routes/shop/catalog'
 import { Route as ShopClaimsRouteImport } from './routes/shop/claims'
 import { Route as ShopHistoryRouteImport } from './routes/shop/history'
+import { Route as ShopPrivacyRouteImport } from './routes/shop/privacy'
 import { Route as ShopProfileRouteImport } from './routes/shop/profile'
 import { Route as ShopSettingsRouteImport } from './routes/shop/settings'
 import { Route as ShopTopupRouteImport } from './routes/shop/topup'
 import { Route as ShopWheelRouteImport } from './routes/shop/wheel'
+import { Route as AdminPaymentsReconciliationRouteImport } from './routes/admin/payments/reconciliation'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiJobsRunRouteImport } from './routes/api/jobs/run'
+import { Route as ApiMediaIdRouteImport } from './routes/api/media/$id'
 import { Route as ApiSlipVerifyRouteImport } from './routes/api/slip/verify'
+import { Route as ShopProductIdRouteImport } from './routes/shop/product/$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -47,10 +56,30 @@ const RentRoute = RentRouteImport.update({
   path: '/rent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ShopRoute = ShopRouteImport.update({
   id: '/shop',
   path: '/shop',
   getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminTopupsRoute = AdminTopupsRouteImport.update({
+  id: '/topups',
+  path: '/topups',
+  getParentRoute: () => AdminRoute,
 } as any)
 const ShopIndexRoute = ShopIndexRouteImport.update({
   id: '/',
@@ -82,6 +111,11 @@ const ShopHistoryRoute = ShopHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => ShopRoute,
 } as any)
+const ShopPrivacyRoute = ShopPrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => ShopRoute,
+} as any)
 const ShopProfileRoute = ShopProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -102,9 +136,25 @@ const ShopWheelRoute = ShopWheelRouteImport.update({
   path: '/wheel',
   getParentRoute: () => ShopRoute,
 } as any)
+const AdminPaymentsReconciliationRoute =
+  AdminPaymentsReconciliationRouteImport.update({
+    id: '/payments/reconciliation',
+    path: '/payments/reconciliation',
+    getParentRoute: () => AdminRoute,
+  } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiJobsRunRoute = ApiJobsRunRouteImport.update({
+  id: '/api/jobs/run',
+  path: '/api/jobs/run',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMediaIdRoute = ApiMediaIdRouteImport.update({
+  id: '/api/media/$id',
+  path: '/api/media/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSlipVerifyRoute = ApiSlipVerifyRouteImport.update({
@@ -112,63 +162,95 @@ const ApiSlipVerifyRoute = ApiSlipVerifyRouteImport.update({
   path: '/api/slip/verify',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShopProductIdRoute = ShopProductIdRouteImport.update({
+  id: '/product/$id',
+  path: '/product/$id',
+  getParentRoute: () => ShopRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
   '/rent': typeof RentRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/robots.txt': typeof RobotsDottxtRoute
   '/shop': typeof ShopRouteWithChildren
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/admin/topups': typeof AdminTopupsRoute
   '/shop/alerts': typeof ShopAlertsRoute
   '/shop/box': typeof ShopBoxRoute
   '/shop/catalog': typeof ShopCatalogRoute
   '/shop/claims': typeof ShopClaimsRoute
   '/shop/history': typeof ShopHistoryRoute
+  '/shop/privacy': typeof ShopPrivacyRoute
   '/shop/profile': typeof ShopProfileRoute
   '/shop/settings': typeof ShopSettingsRoute
   '/shop/topup': typeof ShopTopupRoute
   '/shop/wheel': typeof ShopWheelRoute
   '/shop/': typeof ShopIndexRoute
+  '/admin/payments/reconciliation': typeof AdminPaymentsReconciliationRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/jobs/run': typeof ApiJobsRunRoute
+  '/api/media/$id': typeof ApiMediaIdRoute
   '/api/slip/verify': typeof ApiSlipVerifyRoute
+  '/shop/product/$id': typeof ShopProductIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
   '/rent': typeof RentRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/admin/topups': typeof AdminTopupsRoute
   '/shop/alerts': typeof ShopAlertsRoute
   '/shop/box': typeof ShopBoxRoute
   '/shop/catalog': typeof ShopCatalogRoute
   '/shop/claims': typeof ShopClaimsRoute
   '/shop/history': typeof ShopHistoryRoute
+  '/shop/privacy': typeof ShopPrivacyRoute
   '/shop/profile': typeof ShopProfileRoute
   '/shop/settings': typeof ShopSettingsRoute
   '/shop/topup': typeof ShopTopupRoute
   '/shop/wheel': typeof ShopWheelRoute
   '/shop': typeof ShopIndexRoute
+  '/admin/payments/reconciliation': typeof AdminPaymentsReconciliationRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/jobs/run': typeof ApiJobsRunRoute
+  '/api/media/$id': typeof ApiMediaIdRoute
   '/api/slip/verify': typeof ApiSlipVerifyRoute
+  '/shop/product/$id': typeof ShopProductIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
   '/rent': typeof RentRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/robots.txt': typeof RobotsDottxtRoute
   '/shop': typeof ShopRouteWithChildren
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/admin/topups': typeof AdminTopupsRoute
   '/shop/alerts': typeof ShopAlertsRoute
   '/shop/box': typeof ShopBoxRoute
   '/shop/catalog': typeof ShopCatalogRoute
   '/shop/claims': typeof ShopClaimsRoute
   '/shop/history': typeof ShopHistoryRoute
+  '/shop/privacy': typeof ShopPrivacyRoute
   '/shop/profile': typeof ShopProfileRoute
   '/shop/settings': typeof ShopSettingsRoute
   '/shop/topup': typeof ShopTopupRoute
   '/shop/wheel': typeof ShopWheelRoute
   '/shop/': typeof ShopIndexRoute
+  '/admin/payments/reconciliation': typeof AdminPaymentsReconciliationRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/jobs/run': typeof ApiJobsRunRoute
+  '/api/media/$id': typeof ApiMediaIdRoute
   '/api/slip/verify': typeof ApiSlipVerifyRoute
+  '/shop/product/$id': typeof ShopProductIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -177,65 +259,97 @@ export interface FileRouteTypes {
     | '/admin'
     | '/login'
     | '/rent'
+    | '/reset-password'
+    | '/robots.txt'
     | '/shop'
+    | '/sitemap.xml'
+    | '/admin/topups'
     | '/shop/alerts'
     | '/shop/box'
     | '/shop/catalog'
     | '/shop/claims'
     | '/shop/history'
+    | '/shop/privacy'
     | '/shop/profile'
     | '/shop/settings'
     | '/shop/topup'
     | '/shop/wheel'
     | '/shop/'
+    | '/admin/payments/reconciliation'
     | '/api/auth/$'
+    | '/api/jobs/run'
+    | '/api/media/$id'
     | '/api/slip/verify'
+    | '/shop/product/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin'
     | '/login'
     | '/rent'
+    | '/reset-password'
+    | '/robots.txt'
+    | '/sitemap.xml'
+    | '/admin/topups'
     | '/shop/alerts'
     | '/shop/box'
     | '/shop/catalog'
     | '/shop/claims'
     | '/shop/history'
+    | '/shop/privacy'
     | '/shop/profile'
     | '/shop/settings'
     | '/shop/topup'
     | '/shop/wheel'
     | '/shop'
+    | '/admin/payments/reconciliation'
     | '/api/auth/$'
+    | '/api/jobs/run'
+    | '/api/media/$id'
     | '/api/slip/verify'
+    | '/shop/product/$id'
   id:
     | '__root__'
     | '/'
     | '/admin'
     | '/login'
     | '/rent'
+    | '/reset-password'
+    | '/robots.txt'
     | '/shop'
+    | '/sitemap.xml'
+    | '/admin/topups'
     | '/shop/alerts'
     | '/shop/box'
     | '/shop/catalog'
     | '/shop/claims'
     | '/shop/history'
+    | '/shop/privacy'
     | '/shop/profile'
     | '/shop/settings'
     | '/shop/topup'
     | '/shop/wheel'
     | '/shop/'
+    | '/admin/payments/reconciliation'
     | '/api/auth/$'
+    | '/api/jobs/run'
+    | '/api/media/$id'
     | '/api/slip/verify'
+    | '/shop/product/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRoute
+  AdminRoute: typeof AdminRouteWithChildren
   LoginRoute: typeof LoginRoute
   RentRoute: typeof RentRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
+  RobotsDottxtRoute: typeof RobotsDottxtRoute
   ShopRoute: typeof ShopRouteWithChildren
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiJobsRunRoute: typeof ApiJobsRunRoute
+  ApiMediaIdRoute: typeof ApiMediaIdRoute
   ApiSlipVerifyRoute: typeof ApiSlipVerifyRoute
 }
 
@@ -269,12 +383,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/shop': {
       id: '/shop'
       path: '/shop'
       fullPath: '/shop'
       preLoaderRoute: typeof ShopRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/topups': {
+      id: '/admin/topups'
+      path: '/topups'
+      fullPath: '/admin/topups'
+      preLoaderRoute: typeof AdminTopupsRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/shop/': {
       id: '/shop/'
@@ -318,6 +460,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShopHistoryRouteImport
       parentRoute: typeof ShopRoute
     }
+    '/shop/privacy': {
+      id: '/shop/privacy'
+      path: '/privacy'
+      fullPath: '/shop/privacy'
+      preLoaderRoute: typeof ShopPrivacyRouteImport
+      parentRoute: typeof ShopRoute
+    }
     '/shop/profile': {
       id: '/shop/profile'
       path: '/profile'
@@ -346,11 +495,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShopWheelRouteImport
       parentRoute: typeof ShopRoute
     }
+    '/admin/payments/reconciliation': {
+      id: '/admin/payments/reconciliation'
+      path: '/payments/reconciliation'
+      fullPath: '/admin/payments/reconciliation'
+      preLoaderRoute: typeof AdminPaymentsReconciliationRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
       fullPath: '/api/auth/$'
       preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/jobs/run': {
+      id: '/api/jobs/run'
+      path: '/api/jobs/run'
+      fullPath: '/api/jobs/run'
+      preLoaderRoute: typeof ApiJobsRunRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/media/$id': {
+      id: '/api/media/$id'
+      path: '/api/media/$id'
+      fullPath: '/api/media/$id'
+      preLoaderRoute: typeof ApiMediaIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/slip/verify': {
@@ -360,8 +530,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSlipVerifyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/shop/product/$id': {
+      id: '/shop/product/$id'
+      path: '/product/$id'
+      fullPath: '/shop/product/$id'
+      preLoaderRoute: typeof ShopProductIdRouteImport
+      parentRoute: typeof ShopRoute
+    }
   }
 }
+
+interface AdminRouteChildren {
+  AdminTopupsRoute: typeof AdminTopupsRoute
+  AdminPaymentsReconciliationRoute: typeof AdminPaymentsReconciliationRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminTopupsRoute: AdminTopupsRoute,
+  AdminPaymentsReconciliationRoute: AdminPaymentsReconciliationRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface ShopRouteChildren {
   ShopAlertsRoute: typeof ShopAlertsRoute
@@ -369,11 +558,13 @@ interface ShopRouteChildren {
   ShopCatalogRoute: typeof ShopCatalogRoute
   ShopClaimsRoute: typeof ShopClaimsRoute
   ShopHistoryRoute: typeof ShopHistoryRoute
+  ShopPrivacyRoute: typeof ShopPrivacyRoute
   ShopProfileRoute: typeof ShopProfileRoute
   ShopSettingsRoute: typeof ShopSettingsRoute
   ShopTopupRoute: typeof ShopTopupRoute
   ShopWheelRoute: typeof ShopWheelRoute
   ShopIndexRoute: typeof ShopIndexRoute
+  ShopProductIdRoute: typeof ShopProductIdRoute
 }
 
 const ShopRouteChildren: ShopRouteChildren = {
@@ -382,22 +573,29 @@ const ShopRouteChildren: ShopRouteChildren = {
   ShopCatalogRoute: ShopCatalogRoute,
   ShopClaimsRoute: ShopClaimsRoute,
   ShopHistoryRoute: ShopHistoryRoute,
+  ShopPrivacyRoute: ShopPrivacyRoute,
   ShopProfileRoute: ShopProfileRoute,
   ShopSettingsRoute: ShopSettingsRoute,
   ShopTopupRoute: ShopTopupRoute,
   ShopWheelRoute: ShopWheelRoute,
   ShopIndexRoute: ShopIndexRoute,
+  ShopProductIdRoute: ShopProductIdRoute,
 }
 
 const ShopRouteWithChildren = ShopRoute._addFileChildren(ShopRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRoute,
+  AdminRoute: AdminRouteWithChildren,
   LoginRoute: LoginRoute,
   RentRoute: RentRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
+  RobotsDottxtRoute: RobotsDottxtRoute,
   ShopRoute: ShopRouteWithChildren,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiJobsRunRoute: ApiJobsRunRoute,
+  ApiMediaIdRoute: ApiMediaIdRoute,
   ApiSlipVerifyRoute: ApiSlipVerifyRoute,
 }
 export const routeTree = rootRouteImport

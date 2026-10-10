@@ -1,5 +1,6 @@
 import { getRequest } from "@tanstack/react-start/server";
 import { gateIdentityEnabled } from "./gate-identity.server";
+import { getSql } from "../db";
 import { auth, authConfigured } from "./server";
 
 /**
@@ -42,7 +43,7 @@ export class UnauthorizedError extends Error {
   }
 }
 
-export type VerifiedUser = { id: string; email: string | null };
+export type VerifiedUser = { id: string; email: string | null; emailVerified: boolean };
 
 /**
  * Resolve the signed-in user from the current request, or `null` when auth isn't
@@ -54,9 +55,7 @@ export type VerifiedUser = { id: string; email: string | null };
  * as a bearer token, which we present as `Authorization: Bearer …` (the `bearer`
  * plugin resolves it). When deployed no token is passed and the cookie is used.
  */
-export async function getSessionUser(
-  bearerToken?: string,
-): Promise<VerifiedUser | null> {
+export async function getSessionUser(bearerToken?: string): Promise<VerifiedUser | null> {
   if (!authConfigured && !gateIdentityEnabled()) return null;
   const request = getRequest();
   if (!request) return null;
@@ -67,7 +66,17 @@ export async function getSessionUser(
   }
   const session = await auth.api.getSession({ headers });
   if (!session?.user) return null;
-  return { id: session.user.id, email: session.user.email ?? null };
+  const sql = await getSql();
+  const [member] = await sql.query<{ disabled: boolean }>(
+    "SELECT disabled FROM member_profiles WHERE user_id=$1",
+    [session.user.id],
+  );
+  if (member?.disabled) return null;
+  return {
+    id: session.user.id,
+    email: session.user.email ?? null,
+    emailVerified: session.user.emailVerified,
+  };
 }
 
 /**

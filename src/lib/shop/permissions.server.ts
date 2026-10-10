@@ -33,7 +33,7 @@ export async function requirePermission(
 ) {
   const user = await getSessionUser(bearerToken);
   if (!user || user.id !== userId) throw new Error("Unauthorized");
-  if (isAdminEmail(user.email)) return user;
+  if (user.emailVerified && isAdminEmail(user.email)) return user;
   if (!(await hasPermission(userId, permission))) throw new Error("Forbidden");
   return user;
 }
@@ -66,17 +66,23 @@ export const assignRole = createServerFn({ method: "POST" })
   .validator((value: unknown) => roleAssignmentSchema.parse(value))
   .middleware([authMiddleware])
   .handler(async ({ data, context }) => {
-    const actor = await requirePermission(String(context.userId), "roles.manage", context.bearerToken);
+    const actor = await requirePermission(
+      String(context.userId),
+      "roles.manage",
+      context.bearerToken,
+    );
     const sql = await getSql();
-    await sql`
-      insert into user_roles (user_id, role_id)
-      values (${data.userId}, ${data.roleId})
-      on conflict (user_id, role_id) do nothing
-    `;
-    await sql`
-      insert into audit_logs (id, actor_id, action, entity_type, entity_id, metadata)
-      values (${uid("audit")}, ${actor.id}, 'role.assigned', 'user', ${data.userId},
-        ${auditMetadata({ roleId: data.roleId })})
-    `;
+    await sql.transaction(async (tx) => {
+      const [target] = await tx.query('SELECT id FROM "user" WHERE id=$1', [data.userId]);
+      if (!target) throw new Error("User not found");
+      await tx.query(
+        "INSERT INTO user_roles(user_id,role_id) VALUES($1,$2) ON CONFLICT DO NOTHING",
+        [data.userId, data.roleId],
+      );
+      await tx.query(
+        "INSERT INTO audit_logs(id,actor_id,action,entity_type,entity_id,metadata) VALUES($1,$2,'role.assigned','user',$3,$4)",
+        [uid("audit"), actor.id, data.userId, auditMetadata({ roleId: data.roleId })],
+      );
+    });
     return { ok: true as const };
   });

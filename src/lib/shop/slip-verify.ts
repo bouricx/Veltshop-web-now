@@ -142,7 +142,9 @@ export function matchSlipText(input: {
 }
 
 /** Run tesseract.js OCR on an image buffer/blob. */
-export async function ocrSlipImage(image: Buffer | Uint8Array | ArrayBuffer | Blob): Promise<string> {
+export async function ocrSlipImage(
+  image: Buffer | Uint8Array | ArrayBuffer | Blob,
+): Promise<string> {
   const { createWorker } = await import("tesseract.js");
   const worker = await createWorker("eng+tha", 1, {
     // Keep logs quiet in server

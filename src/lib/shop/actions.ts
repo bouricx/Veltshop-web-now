@@ -1,4 +1,5 @@
-import { verifySlip2Go } from "./slip2go.server";
+import { configuration, limit, audit } from "./operations-service.server";
+import { paymentProviders } from "./payment-providers.server";
 import { z } from "zod";
 import { CommerceError, purchase, creditVerifiedSlip } from "./commerce.server";
 import { createServerFn } from "@tanstack/react-start";
@@ -6,8 +7,8 @@ import { authMiddleware } from "@/lib/auth/middleware";
 import { requireAdmin } from "@/lib/shop/require-admin.server";
 import { getSql } from "@/lib/db";
 import { categories as seedCats, type Product } from "@/lib/shop/catalog";
+import { randomUUID } from "node:crypto";
 import { uid } from "@/lib/utils";
-import { productImageStorage } from "./storage";
 import { categoryInputSchema, productInputSchema } from "./validation";
 import { slipImageToBlob, VERIFIER_PROMPTPAY } from "@/lib/shop/slip-verify-upstream.server";
 
@@ -21,6 +22,9 @@ export type CategoryRow = {
   hint: string;
   sort_order: number;
   visible: boolean;
+  image?: string;
+  icon?: string;
+  color?: string;
 };
 
 export type ProductInput = {
@@ -33,6 +37,10 @@ export type ProductInput = {
   stock: number;
   image: string;
   delivery: Product["delivery"];
+  warrantyDays?: number;
+  cardColor?: string;
+  badge?: string;
+  sortOrder?: number;
   featured?: boolean;
   flash?: boolean;
   active?: boolean;
@@ -57,9 +65,7 @@ export type ShopSettings = {
   slip_provider: "thunder" | "slip2go";
   wallet_fee: number;
   /**
-   * Display / QR destination. Must stay aligned with hardcoded verifier
-   * PromptPay 0928160016 (veltshop-discord-topup). Do NOT reintroduce
-   * Slip2Go/Thunder as live credit providers.
+   * Display / QR destination. Server settings must match PROMPTPAY_RECEIVER.
    */
   receive_account: string;
   receive_name: string;
@@ -77,6 +83,10 @@ type ProductRow = {
   stock_mode: "quantity" | "individual";
   image: string;
   delivery: string;
+  warranty_days: number;
+  card_color: string;
+  badge: string;
+  sort_order: number;
   featured: boolean;
   flash: boolean;
   active: boolean;
@@ -94,6 +104,10 @@ function mapProduct(row: ProductRow): Product & { active: boolean } {
     stockMode: row.stock_mode,
     image: row.image,
     delivery: row.delivery as Product["delivery"],
+    warrantyDays: row.warranty_days,
+    cardColor: row.card_color,
+    badge: row.badge,
+    sortOrder: row.sort_order,
     featured: Boolean(row.featured),
     flash: Boolean(row.flash),
     active: Boolean(row.active),
@@ -124,7 +138,7 @@ async function readSettings(): Promise<ShopSettings> {
     rows[0] ?? {
       slip_provider: "thunder",
       wallet_fee: 3,
-      receive_account: "0928160016",
+      receive_account: VERIFIER_PROMPTPAY,
       receive_name: "VELTSHOP",
       wallet_phone: "0928160016",
     }
@@ -135,7 +149,7 @@ export const listCategories = createServerFn({ method: "GET" }).handler(async ()
   await ensureSeed();
   const sql = await getSql();
   return sql<CategoryRow>`
-    select id, label, hint, sort_order, visible
+    select id, label, hint, sort_order, visible, image, icon, color
     from categories
     where visible = true
     order by sort_order, label
@@ -146,11 +160,11 @@ export const listCategories = createServerFn({ method: "GET" }).handler(async ()
 export const listAllCategories = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
-    await requireAdmin(bearerOf(context));
+    await requireAdmin(bearerOf(context), "catalog.manage");
     await ensureSeed();
     const sql = await getSql();
     return sql<CategoryRow>`
-      select id, label, hint, sort_order, visible
+      select id, label, hint, sort_order, visible, image, icon, color
       from categories
       order by sort_order, label
     `;
@@ -162,6 +176,9 @@ export type CategoryInput = {
   hint: string;
   sort_order: number;
   visible: boolean;
+  image?: string;
+  icon?: string;
+  color?: string;
 };
 
 /** Admin: rename / reorder / show-hide a category chip. Id is fixed (used by products). */
@@ -169,43 +186,59 @@ export const saveCategory = createServerFn({ method: "POST" })
   .validator((d: CategoryInput) => categoryInputSchema.parse(d))
   .middleware([authMiddleware])
   .handler(async ({ data, context }) => {
-    await requireAdmin(bearerOf(context));
+    await requireAdmin(bearerOf(context), "catalog.manage");
     const id = String(data.id || "").trim();
     const label = String(data.label || "").trim();
     const hint = String(data.hint || "").trim();
     if (!id) return { ok: false as const, message: "ไม่พบหมวด" };
     if (!label) return { ok: false as const, message: "ใส่ชื่อหมวดก่อน" };
-    const sql = await getSql();
-    const exists = await sql<{ id: string }>`select id from categories where id = ${id}`;
-    if (!exists[0]) {
-      await sql`
-        insert into categories (id, label, hint, sort_order, visible)
-        values (${id}, ${label}, ${hint || label}, ${Math.max(0, Math.round(Number(data.sort_order) || 0))}, ${Boolean(data.visible)})
+    const connection = await getSql();
+    return connection.transaction(async (sql) => {
+      const exists = await sql<{ id: string }>`select id from categories where id = ${id}`;
+      if (!exists[0]) {
+        await sql`
+        insert into categories (id, label, hint, sort_order, visible, image, icon, color)
+        values (${id}, ${label}, ${hint || label}, ${Math.max(0, Math.round(Number(data.sort_order) || 0))}, ${Boolean(data.visible)}, ${data.image ?? ""}, ${data.icon ?? ""}, ${data.color ?? "#18181b"})
       `;
-      return { ok: true as const, message: "สร้างหมวดสินค้าแล้ว" };
-    }
-    await sql`
+        await audit(sql, String(context.userId), "category.created", "category", id, { label });
+        return { ok: true as const, message: "สร้างหมวดสินค้าแล้ว" };
+      }
+      await sql`
       update categories
       set label = ${label},
           hint = ${hint || label},
           sort_order = ${Math.max(0, Math.round(Number(data.sort_order) || 0))},
-          visible = ${Boolean(data.visible)}
+          visible = ${Boolean(data.visible)}, image = ${data.image ?? ""}, icon = ${data.icon ?? ""}, color = ${data.color ?? "#18181b"}
       where id = ${id}
     `;
-    return { ok: true as const, message: "บันทึกหมวดแล้ว" };
+      await audit(sql, String(context.userId), "category.saved", "category", id, {
+        label,
+        visible: data.visible,
+      });
+      return { ok: true as const, message: "บันทึกหมวดแล้ว" };
+    });
   });
 
 export const listProducts = createServerFn({ method: "GET" }).handler(async () => {
   await ensureSeed();
   const sql = await getSql();
   const rows = await sql<ProductRow>`
-    select id, name, subtitle, category_id, price, compare_at, stock, stock_mode, image, delivery, featured, flash, active
+    select id, name, subtitle, category_id, price, compare_at, stock, stock_mode, image, delivery, warranty_days, card_color, badge, sort_order, featured, flash, active
     from products
     where active = true
-    order by featured desc, name
+    order by sort_order, featured desc, name
   `;
   return rows.map(mapProduct);
 });
+
+export const getPublicProduct = createServerFn({ method: "GET" })
+  .validator((v: unknown) => z.object({ id: z.string().min(1).max(160) }).parse(v))
+  .handler(async ({ data }) => {
+    const sql = await getSql();
+    const rows =
+      await sql<ProductRow>`SELECT id,name,subtitle,category_id,price,compare_at,stock,stock_mode,image,delivery,warranty_days,card_color,badge,sort_order,featured,flash,active FROM products WHERE id=${data.id} AND active=true`;
+    return rows[0] ? mapProduct(rows[0]) : null;
+  });
 
 export const listAllProducts = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -214,7 +247,7 @@ export const listAllProducts = createServerFn({ method: "GET" })
     await ensureSeed();
     const sql = await getSql();
     const rows = await sql<ProductRow>`
-      select id, name, subtitle, category_id, price, compare_at, stock, stock_mode, image, delivery, featured, flash, active
+      select id, name, subtitle, category_id, price, compare_at, stock, stock_mode, image, delivery, warranty_days, card_color, badge, sort_order, featured, flash, active
       from products
       order by updated_at desc
     `;
@@ -231,17 +264,18 @@ export const saveProduct = createServerFn({ method: "POST" })
     if (!name) return { ok: false as const, message: "ใส่ชื่อสินค้าก่อน" };
     const price = Math.max(0, Math.round(Number(data.price) || 0));
     const stock = Math.max(0, Math.round(Number(data.stock) || 0));
-    const id = data.id?.trim() || `p_${Date.now().toString(36)}`;
-    const sql = await getSql();
-    const cats = await sql<{ id: string }>`select id from categories where id = ${data.category}`;
-    if (!cats[0]) return { ok: false as const, message: "หมวดสินค้าไม่ถูกต้อง" };
-    await sql`
+    const id = data.id?.trim() || `p_${randomUUID()}`;
+    const connection = await getSql();
+    return connection.transaction(async (sql) => {
+      const cats = await sql<{ id: string }>`select id from categories where id = ${data.category}`;
+      if (!cats[0]) return { ok: false as const, message: "หมวดสินค้าไม่ถูกต้อง" };
+      await sql`
       insert into products (
-        id, name, subtitle, category_id, price, compare_at, stock, image, delivery, featured, flash, active, updated_at
+        id, name, subtitle, category_id, price, compare_at, stock, image, delivery, warranty_days, card_color, badge, sort_order, featured, flash, active, updated_at
       ) values (
         ${id}, ${name}, ${data.subtitle.trim()}, ${data.category}, ${price},
         ${data.compareAt ? Math.round(Number(data.compareAt)) : null},
-        ${stock}, ${data.image || "/images/cat-stream.jpg"}, ${data.delivery},
+        ${stock}, ${data.image || "/images/cat-stream.jpg"}, ${data.delivery}, ${data.warrantyDays ?? 0}, ${data.cardColor ?? "#18181b"}, ${data.badge ?? ""}, ${data.sortOrder ?? 0},
         ${Boolean(data.featured)}, ${Boolean(data.flash)}, ${data.active !== false}, now()
       )
       on conflict (id) do update set
@@ -253,32 +287,45 @@ export const saveProduct = createServerFn({ method: "POST" })
         stock = CASE WHEN products.stock_mode = 'individual' THEN products.stock ELSE excluded.stock END,
         image = excluded.image,
         delivery = excluded.delivery,
+        warranty_days=excluded.warranty_days,card_color=excluded.card_color,badge=excluded.badge,sort_order=excluded.sort_order,
         featured = excluded.featured,
         flash = excluded.flash,
         active = excluded.active,
         updated_at = now()
     `;
-    const rows = await sql<ProductRow>`
-      select id, name, subtitle, category_id, price, compare_at, stock, stock_mode, image, delivery, featured, flash, active
+      const rows = await sql<ProductRow>`
+      select id, name, subtitle, category_id, price, compare_at, stock, stock_mode, image, delivery, warranty_days, card_color, badge, sort_order, featured, flash, active
       from products where id = ${id}
     `;
-    return { ok: true as const, product: mapProduct(rows[0]), message: "บันทึกสินค้าแล้ว" };
+      await audit(sql, String(context.userId), "product.saved", "product", id, {
+        price,
+        active: data.active !== false,
+      });
+      return { ok: true as const, product: mapProduct(rows[0]), message: "บันทึกสินค้าแล้ว" };
+    });
   });
 
 export const checkoutProduct = createServerFn({ method: "POST" })
   .validator((value: unknown) =>
     z
-      .object({ id: z.string().trim().min(1).max(160), idempotencyKey: z.string().uuid() })
+      .object({
+        id: z.string().trim().min(1).max(160),
+        idempotencyKey: z.string().uuid(),
+        coupon: z.string().max(40).optional(),
+        customerInput: z.string().max(2000).optional(),
+      })
       .parse(value),
   )
   .middleware([authMiddleware])
   .handler(async ({ data, context }) => {
     try {
+      await limit(await getSql(), `checkout:${context.userId}`, 20);
       const result = await purchase(
         await getSql(),
         String(context.userId),
         data.id,
         data.idempotencyKey,
+        { coupon: data.coupon, customerInput: data.customerInput },
       );
       return {
         ok: true as const,
@@ -290,7 +337,7 @@ export const checkoutProduct = createServerFn({ method: "POST" })
       };
     } catch (error) {
       if (error instanceof CommerceError) return { ok: false as const, message: error.message };
-      throw error;
+      return { ok: false as const, message: "ทำรายการไม่สำเร็จ โปรดตรวจประวัติการซื้อก่อนลองใหม่" };
     }
   });
 
@@ -316,23 +363,26 @@ export const listMyOrders = createServerFn({ method: "GET" })
   });
 
 export const archiveProduct = createServerFn({ method: "POST" })
-  .validator((d: { id: string }) => d)
+  .validator((v: unknown) => z.object({ id: z.string().trim().min(1).max(160) }).parse(v))
   .middleware([authMiddleware])
   .handler(async ({ data, context }) => {
     await requireAdmin(bearerOf(context));
-    const sql = await getSql();
-    const rows = await sql<ProductRow>`
+    const connection = await getSql();
+    return connection.transaction(async (sql) => {
+      const rows = await sql<ProductRow>`
       update products
       set active = false, updated_at = now()
       where id = ${data.id}
-      returning id, name, subtitle, category_id, price, compare_at, stock, stock_mode, image, delivery, featured, flash, active
+      returning id, name, subtitle, category_id, price, compare_at, stock, stock_mode, image, delivery, warranty_days, card_color, badge, sort_order, featured, flash, active
     `;
-    if (!rows[0]) return { ok: false as const, message: "ไม่พบสินค้า" };
-    return {
-      ok: true as const,
-      product: mapProduct(rows[0]),
-      message: "ซ่อนสินค้าแล้ว (soft-delete)",
-    };
+      if (!rows[0]) return { ok: false as const, message: "ไม่พบสินค้า" };
+      await audit(sql, String(context.userId), "product.archived", "product", data.id);
+      return {
+        ok: true as const,
+        product: mapProduct(rows[0]),
+        message: "ซ่อนสินค้าแล้ว (soft-delete)",
+      };
+    });
   });
 
 export const getShopSettings = createServerFn({ method: "GET" }).handler(async () => {
@@ -340,11 +390,27 @@ export const getShopSettings = createServerFn({ method: "GET" }).handler(async (
 });
 
 export const saveShopSettings = createServerFn({ method: "POST" })
-  .validator((d: Partial<ShopSettings>) => d)
+  .validator((v: unknown) =>
+    z
+      .object({
+        slip_provider: z.string().max(30).optional(),
+        wallet_fee: z.number().int().min(0).max(100).optional(),
+        receive_account: z
+          .string()
+          .regex(/^[0-9-]{10,17}$/)
+          .optional(),
+        receive_name: z.string().trim().min(1).max(200).optional(),
+        wallet_phone: z
+          .string()
+          .regex(/^0[0-9]{9}$/)
+          .optional(),
+      })
+      .parse(v),
+  )
 
   .middleware([authMiddleware])
   .handler(async ({ data, context }) => {
-    await requireAdmin(bearerOf(context));
+    await requireAdmin(bearerOf(context), "system.manage");
     const sql = await getSql();
     const current = await readSettings();
     const next = { ...current, ...data };
@@ -355,7 +421,8 @@ export const saveShopSettings = createServerFn({ method: "POST" })
       };
     }
     const provider = next.slip_provider === "slip2go" ? "slip2go" : "thunder";
-    await sql`
+    await sql.transaction(async (sql) => {
+      await sql`
       insert into shop_settings (id, slip_provider, wallet_fee, receive_account, receive_name, wallet_phone)
       values (1, ${provider}, ${Math.max(0, Math.round(Number(next.wallet_fee) || 0))},
         ${next.receive_account.trim()}, ${next.receive_name.trim()}, ${next.wallet_phone.trim()})
@@ -366,29 +433,44 @@ export const saveShopSettings = createServerFn({ method: "POST" })
         receive_name = excluded.receive_name,
         wallet_phone = excluded.wallet_phone
     `;
+      await audit(sql, String(context.userId), "payment-settings.saved", "settings", "1", {
+        receiver: next.receive_account,
+        fee: next.wallet_fee,
+      });
+    });
     return { ok: true as const, settings: await readSettings() };
   });
 
 export const processPayment = createServerFn({ method: "POST" })
-  .validator(
-    (d: {
-      method: "promptpay" | "truewallet" | "slip";
-      amount: number;
-      slipHash?: string;
-      fileName?: string;
-      ocrText?: string;
-      orderId?: string;
-      /** Required for method=slip if not using topupWithSlip: slip image data-URL or base64. */
-      slipImage?: string;
-      slipMime?: string;
-    }) => d,
+  .validator((value: unknown) =>
+    z
+      .object({
+        method: z.enum(["promptpay", "truewallet", "slip"]),
+        amount: z.number().int().min(1).max(100000000),
+        slipHash: z.string().max(128).optional(),
+        fileName: z.string().max(240).optional(),
+        ocrText: z.string().max(50000).optional(),
+        orderId: z.string().max(200).optional(),
+        slipImage: z.string().max(8000000).optional(),
+        slipMime: z.enum(["image/png", "image/jpeg", "image/webp"]).optional(),
+      })
+      .parse(value),
   )
   .middleware([authMiddleware])
   .handler(async ({ data, context }) => {
+    const config = await configuration(await getSql());
+    if (data.method === "truewallet" ? !config.trueMoney : !config.slip2go)
+      return { ok: false as const, message: "ช่องทางนี้ปิดชั่วคราว" };
+    if (config.maintenance) return { ok: false as const, message: "ร้านกำลังปรับปรุง" };
+    await limit(await getSql(), `topup:${context.userId}`, 5);
     const amount = Number(data.amount);
+    if (amount < config.minimumTopup || amount > config.maximumTopup)
+      return {
+        ok: false as const,
+        message: `ยอดเติมเงินต้องอยู่ระหว่าง ${config.minimumTopup}–${config.maximumTopup} บาท`,
+      };
     if (!Number.isSafeInteger(amount) || amount > 100000000)
       return { ok: false as const, message: "ยอดเงินไม่ถูกต้อง" };
-    if (amount < 20) return { ok: false as const, message: "ยอดขั้นต่ำ ฿20" };
 
     const settings = await readSettings();
     const sql = await getSql();
@@ -437,25 +519,34 @@ export const processPayment = createServerFn({ method: "POST" })
  * Client verification claims are not accepted.
  */
 export const topupWithSlip = createServerFn({ method: "POST" })
-  .validator(
-    (d: {
-      amount: number;
-      method?: "promptpay" | "truewallet";
-      /** data:image/...;base64,... preferred */
-      slipDataUrl?: string;
-      /** raw base64 if slipDataUrl omitted */
-      slipBase64?: string;
-      fileName?: string;
-      slipMime?: string;
-      orderId?: string;
-    }) => d,
+  .validator((value: unknown) =>
+    z
+      .object({
+        amount: z.number().int().min(1).max(100000000),
+        method: z.enum(["promptpay", "truewallet"]).optional(),
+        slipDataUrl: z.string().max(8000000).optional(),
+        slipBase64: z.string().max(8000000).optional(),
+        fileName: z.string().max(240).optional(),
+        slipMime: z.enum(["image/png", "image/jpeg", "image/webp"]).optional(),
+        orderId: z.string().max(200).optional(),
+      })
+      .parse(value),
   )
   .middleware([authMiddleware])
   .handler(async ({ data, context }) => {
+    const config = await configuration(await getSql());
+    if (data.method === "truewallet" ? !config.trueMoney : !config.slip2go)
+      return { ok: false as const, message: "ช่องทางนี้ปิดชั่วคราว" };
+    if (config.maintenance) return { ok: false as const, message: "ร้านกำลังปรับปรุง" };
+    await limit(await getSql(), `topup:${context.userId}`, 5);
     const amount = Number(data.amount);
+    if (amount < config.minimumTopup || amount > config.maximumTopup)
+      return {
+        ok: false as const,
+        message: `ยอดเติมเงินต้องอยู่ระหว่าง ${config.minimumTopup}–${config.maximumTopup} บาท`,
+      };
     if (!Number.isSafeInteger(amount) || amount > 100000000)
       return { ok: false as const, message: "ยอดเงินไม่ถูกต้อง" };
-    if (amount < 20) return { ok: false as const, message: "ยอดขั้นต่ำ ฿20" };
     const slipImage = (data.slipDataUrl || data.slipBase64 || "").trim();
     if (!slipImage) {
       return { ok: false as const, message: "ต้องอัปโหลดไฟล์สลิป" };
@@ -515,7 +606,10 @@ async function creditSlipAfterUpstreamVerify(input: {
   clientSlipHash?: string;
 }) {
   const sql = await getSql();
-  const { amount, fee, paymentId: id, userId } = input;
+  const { amount, userId } = input;
+  const paymentConfiguration = await configuration(sql);
+  const fee = Math.ceil((amount * paymentConfiguration.slipFeeBps) / 10000);
+  let id = input.paymentId;
 
   const parsed = slipImageToBlob(input.slipImage || "", input.slipMime);
   if (!parsed) {
@@ -531,30 +625,35 @@ async function creditSlipAfterUpstreamVerify(input: {
   // Ignore client slipHash for credit decisions (kept only for logging if needed).
   void input.clientSlipHash;
 
-  const dup = await sql<{ id: string }>`
-    select id from payments where slip_hash = ${hash} and status = 'success'
-  `;
-  if (dup[0]) {
-    try {
-      await sql`
-        insert into payments (id, method, amount, fee, credit, status, provider, slip_hash, reject_reason, user_id)
-        values (${id}, 'slip', ${amount}, 0, 0, 'rejected', 'slip2go', ${hash}, 'สลิปซ้ำ', ${userId || null})
-      `;
-    } catch {
-      /* ignore older unique index races */
-    }
-    return { ok: false as const, message: "สลิปนี้เคยใช้แล้ว · กันซ้ำชั้นที่ 1" };
+  const [existing] = await sql.query<{
+    id: string;
+    status: string;
+    user_id: string;
+    amount: number;
+  }>("SELECT id,status,user_id,amount FROM payments WHERE slip_hash=$1", [hash]);
+  if (existing) {
+    if (existing.status === "success" || existing.user_id !== userId || existing.amount !== amount)
+      return { ok: false as const, message: "สลิปนี้เคยใช้แล้วหรือไม่ตรงกับรายการเดิม" };
+    if (existing.status === "reconciliation_required")
+      return {
+        ok: false as const,
+        pending: true as const,
+        paymentId: existing.id,
+        message: "ระบบกำลังเติมเครดิตตามผลตรวจเดิม",
+      };
+    if (existing.status !== "pending") return { ok: false as const, message: "สลิปนี้ตรวจสอบแล้ว" };
+    id = existing.id;
   }
 
   let verify;
   try {
     const settings = await readSettings();
-    const official = await verifySlip2Go(
-      new Blob([new Uint8Array(bytes)], { type: parsed.blob.type || "image/png" }),
-      parsed.fileName,
+    const official = await paymentProviders.promptpay.verify({
+      file: new Blob([new Uint8Array(bytes)], { type: parsed.blob.type || "image/png" }),
+      fileName: parsed.fileName,
       amount,
-      settings.receive_account,
-    );
+      receiver: settings.receive_account,
+    });
     verify = {
       ok: official.ok,
       amountFound: official.amount,
@@ -567,10 +666,10 @@ async function creditSlipAfterUpstreamVerify(input: {
     await sql`
       insert into payments (id, method, amount, fee, credit, status, provider, slip_hash, reject_reason, user_id, slip_evidence)
       values (
-        ${id}, 'slip', ${amount}, 0, 0, 'pending', 'slip2go', ${hash},
+        ${id}, 'slip', ${amount}, ${fee}, 0, 'pending', 'slip2go', ${hash},
         ${"ตรวจสลิปไม่สำเร็จ กรุณาติดต่อทีมงาน"},
         ${userId || null}, ${input.slipImage || null}
-      )
+      ) on conflict(id) do update set reject_reason=excluded.reject_reason where payments.status='pending'
     `;
     return {
       ok: false as const,
@@ -593,10 +692,10 @@ async function creditSlipAfterUpstreamVerify(input: {
     await sql`
       insert into payments (id, method, amount, fee, credit, status, provider, slip_hash, reject_reason, user_id, slip_evidence)
       values (
-        ${id}, 'slip', ${amount}, 0, 0, 'pending', 'slip2go', ${hash},
+        ${id}, 'slip', ${amount}, ${fee}, 0, 'pending', 'slip2go', ${hash},
         ${reason},
         ${userId || null}, ${input.slipImage || null}
-      )
+      ) on conflict(id) do update set reject_reason=excluded.reject_reason where payments.status='pending'
     `;
     return {
       ok: false as const,
@@ -608,16 +707,30 @@ async function creditSlipAfterUpstreamVerify(input: {
   }
 
   // Credit from upstream match only — never from client verifiedAmount.
-  const credit = Math.round(verify.amountFound || 0);
-  if (credit < 20) return { ok: false as const, message: "ยอดจากสลิปไม่ถูกต้อง" };
+  const netFee = fee;
+  const credit = Math.round(verify.amountFound || 0) - netFee;
+  if (credit <= 0) return { ok: false as const, message: "ยอดจากสลิปไม่ถูกต้อง" };
 
+  // Save the official verified result before credit so transient DB failures can reconcile safely.
+  await sql.transaction(async (tx) => {
+    await tx.query(
+      "INSERT INTO payments(id,method,amount,fee,credit,status,provider,slip_hash,user_id,slip_evidence) VALUES($1,'slip',$2,$3,0,'reconciliation_required','slip2go',$4,$5,$6) ON CONFLICT(id) DO UPDATE SET status='reconciliation_required',fee=excluded.fee WHERE payments.status='pending'",
+      [id, amount, netFee, hash, userId, input.slipImage ?? null],
+    );
+    await tx.query(
+      "INSERT INTO payment_verifications(payment_id,user_id,amount,fee,credit,hash,reference) VALUES($1,$2,$3,$4,$5,$6,$7)",
+      [id, userId, amount, netFee, credit, hash, verify.reference],
+    );
+    const { enqueue } = await import("./jobs-service.server");
+    await enqueue(tx, "payment_reconcile", { paymentId: id });
+  });
   let balance: number;
   try {
     balance = await creditVerifiedSlip(sql, {
       id,
       userId,
       amount,
-      fee,
+      fee: netFee,
       credit,
       hash,
       provider: "slip2go",
@@ -625,14 +738,19 @@ async function creditSlipAfterUpstreamVerify(input: {
     });
   } catch (error) {
     if (error instanceof CommerceError) return { ok: false as const, message: error.message };
-    throw error;
+    return {
+      ok: false as const,
+      pending: true as const,
+      paymentId: id,
+      message: "รับผลตรวจแล้ว ระบบจะดำเนินการเติมเครดิตซ้ำอย่างปลอดภัย",
+    };
   }
 
   return {
     ok: true as const,
     credit,
     balance,
-    fee,
+    fee: netFee,
     paymentId: id,
     message: `เติม ฿${credit} สำเร็จ (ตรวจสลิปผ่าน Slip2Go)`,
     note: `Slip2Go · พร้อมเพย์ ${VERIFIER_PROMPTPAY}`,
@@ -643,7 +761,7 @@ async function creditSlipAfterUpstreamVerify(input: {
 export const listPayments = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
-    await requireAdmin(bearerOf(context));
+    await requireAdmin(bearerOf(context), "topups.manage");
     const sql = await getSql();
     return sql<PaymentRow>`
       select id, method, amount, fee, credit, status, provider, slip_hash, reject_reason,
@@ -655,15 +773,16 @@ export const listPayments = createServerFn({ method: "GET" })
   });
 
 export const getPaymentSlipEvidence = createServerFn({ method: "GET" })
-  .validator((d: { id: string }) => d)
+  .validator((v: unknown) => z.object({ id: z.string().trim().min(1).max(160) }).parse(v))
   .middleware([authMiddleware])
   .handler(async ({ data, context }) => {
-    await requireAdmin(bearerOf(context));
+    await requireAdmin(bearerOf(context), "topups.manage");
     const sql = await getSql();
     const rows = await sql<{ slip_evidence: string | null }>`
-      select slip_evidence from payments where id = ${data.id} and status = 'pending'
+      select slip_evidence from payments where id = ${data.id} and status IN ('pending','reconciliation_required')
     `;
     if (!rows[0]?.slip_evidence) return { ok: false as const, message: "ไม่พบสลิปที่รอตรวจ" };
+    await audit(sql, String(context.userId), "payment.evidence-viewed", "payment", data.id);
     return { ok: true as const, dataUrl: rows[0].slip_evidence };
   });
 
@@ -683,45 +802,24 @@ export const listMyPayments = createServerFn({ method: "GET" })
   });
 
 /**
- * Admin-only: accept a product image and return a URL the catalog can store.
- * On Vercel/serverless the filesystem under /var/task is read-only, so we keep
- * the validated data URL (persisted on the product row) instead of writing
- * public/uploads — that path caused ENOENT mkdir '/var/task/public'.
- * Locally we still try a public/ file for nicer static URLs, then fall back.
+ * Admin-only image upload through the shared validation and durable media service.
  */
 export const uploadProductImage = createServerFn({ method: "POST" })
-  .validator((d: { dataUrl: string; fileName?: string }) => d)
+  .validator((v: unknown) =>
+    z
+      .object({ dataUrl: z.string().max(7500000), fileName: z.string().max(240).optional() })
+      .parse(v),
+  )
   .middleware([authMiddleware])
   .handler(async ({ data, context }) => {
-    await requireAdmin(bearerOf(context));
-    const raw = (data.dataUrl || "").trim();
-    const m = /^data:(image\/(png|jpeg|jpg|webp|gif));base64,([A-Za-z0-9+/=]+)$/i.exec(raw);
-    if (!m) return { ok: false as const, message: "รองรับเฉพาะรูป PNG / JPEG / WebP / GIF" };
-    const ext = m[2].toLowerCase() === "jpeg" ? "jpg" : m[2].toLowerCase();
-    if (m[3].length > Math.ceil((2.5 * 1024 * 1024) / 3) * 4) {
-      return { ok: false as const, message: "ไฟล์ใหญ่เกิน 2.5MB" };
-    }
-    const buf = Buffer.from(m[3], "base64");
-    if (buf.byteLength > 2.5 * 1024 * 1024) {
-      return { ok: false as const, message: "ไฟล์ใหญ่เกิน 2.5MB" };
-    }
-    const isPng =
-      ext === "png" && buf.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
-    const isJpeg = ext === "jpg" && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
-    const isGif = ext === "gif" && ["GIF87a", "GIF89a"].includes(buf.toString("ascii", 0, 6));
-    const isWebp =
-      ext === "webp" &&
-      buf.toString("ascii", 0, 4) === "RIFF" &&
-      buf.toString("ascii", 8, 12) === "WEBP";
-    if (!isPng && !isJpeg && !isGif && !isWebp) {
-      return { ok: false as const, message: "ชนิดไฟล์ไม่ตรงกับข้อมูลรูปภาพ" };
-    }
-
-    const result = await productImageStorage.putProductImage({
-      bytes: buf,
-      extension: ext,
-      fileName: data.fileName,
-      dataUrl: raw,
-    });
-    return { ok: true as const, ...result };
+    await requireAdmin(bearerOf(context), "media.manage");
+    const { storeMedia } = await import("./media-service.server");
+    const result = await storeMedia(
+      await getSql(),
+      String(context.userId),
+      "product",
+      data.dataUrl,
+      data.fileName ?? "",
+    );
+    return { ok: true as const, ...result, message: "อัปโหลดรูปแล้ว" };
   });

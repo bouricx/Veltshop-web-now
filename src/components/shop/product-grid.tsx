@@ -21,7 +21,13 @@ import type { Product } from "@/lib/shop/catalog";
 import { useShop } from "@/lib/shop/store";
 import { cn, formatBaht } from "@/lib/utils";
 
-export function ProductGrid({ initialCat = "all" }: { initialCat?: string }) {
+export function ProductGrid({
+  initialCat = "all",
+  onlyProductId,
+}: {
+  initialCat?: string;
+  onlyProductId?: string;
+}) {
   const flags = useShop((s) => s.navFlags);
   const [cat, setCat] = useState<string>(initialCat);
   const [items, setItems] = useState<Product[]>([]);
@@ -50,7 +56,6 @@ export function ProductGrid({ initialCat = "all" }: { initialCat?: string }) {
   }, [user, isPending]);
 
   async function reload() {
-    setLoading(true);
     const [p, c] = await Promise.all([listProducts(), listCategories()]);
     setItems(p);
     setCats(c);
@@ -59,6 +64,15 @@ export function ProductGrid({ initialCat = "all" }: { initialCat?: string }) {
 
   useEffect(() => {
     void reload();
+    const timer = setInterval(
+      () =>
+        void Promise.all([listProducts(), listCategories()]).then(([p, c]) => {
+          setItems(p);
+          setCats(c);
+        }),
+      15000,
+    );
+    return () => clearInterval(timer);
   }, []);
 
   const list = useMemo(() => {
@@ -72,6 +86,7 @@ export function ProductGrid({ initialCat = "all" }: { initialCat?: string }) {
     return {
       visible,
       items: items.filter((p) => {
+        if (onlyProductId && p.id !== onlyProductId) return false;
         const categoryIsVisible = visible.some((c) => c.id === p.category);
         const inCategory = categoryIsVisible && (cat === "all" || p.category === cat);
         if (!inCategory) return false;
@@ -80,7 +95,7 @@ export function ProductGrid({ initialCat = "all" }: { initialCat?: string }) {
         return haystack.includes(q);
       }),
     };
-  }, [cat, flags, items, cats, search]);
+  }, [cat, flags, items, cats, search, onlyProductId]);
 
   return (
     <div className="min-w-0">
@@ -108,7 +123,14 @@ export function ProductGrid({ initialCat = "all" }: { initialCat?: string }) {
             </CatChip>
             {list.visible.map((c) => (
               <CatChip key={c.id} active={cat === c.id} onClick={() => setCat(c.id)}>
-                {c.label}
+                <span style={{ color: c.color }}>
+                  {c.image ? (
+                    <img src={c.image} alt="" className="inline size-5 rounded object-cover mr-1" />
+                  ) : c.icon ? (
+                    <span className="mr-1">{c.icon}</span>
+                  ) : null}
+                  {c.label}
+                </span>
               </CatChip>
             ))}
           </div>
@@ -223,7 +245,10 @@ function ProductCard({
 
   return (
     <>
-      <article className="relative flex flex-col overflow-hidden rounded-3xl bg-surface shadow-border">
+      <article
+        style={{ borderColor: product.cardColor }}
+        className="relative flex flex-col overflow-hidden rounded-3xl border bg-surface shadow-border"
+      >
         {canEdit ? (
           <button
             type="button"
@@ -233,6 +258,11 @@ function ProductCard({
           >
             <Pencil className="size-4" />
           </button>
+        ) : null}
+        {product.badge ? (
+          <span className="absolute top-3 left-3 z-10 rounded-full bg-surface px-3 py-1 text-xs">
+            {product.badge}
+          </span>
         ) : null}
         <div className="relative overflow-hidden">
           <img
@@ -323,6 +353,7 @@ function BuyDialog({
   const balance = useShop((s) => s.balance);
   const [requestKey, setRequestKey] = useState<string | null>(null);
   const [uid, setUid] = useState("");
+  const [coupon, setCoupon] = useState("");
   const [delivered, setDelivered] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -337,7 +368,7 @@ function BuyDialog({
   }, [open, product.id]);
 
   async function purchase() {
-    if (balance < product.price) {
+    if (!coupon.trim() && balance < product.price) {
       toast.error("ยอดเงินไม่พอ เติมเงินก่อนได้ที่เมนูเติมเงิน");
       return;
     }
@@ -345,10 +376,16 @@ function BuyDialog({
     const key = requestKey ?? crypto.randomUUID();
     setRequestKey(key);
     try {
-      const res = await checkoutProduct({ data: { id: product.id, idempotencyKey: key } });
+      const res = await checkoutProduct({
+        data: {
+          id: product.id,
+          idempotencyKey: key,
+          coupon: coupon || undefined,
+          customerInput: uid,
+        },
+      });
       if (!res.ok) {
         toast.error(res.message);
-        setRequestKey(null);
         return;
       }
       useShop.setState({ balance: res.balance });
@@ -373,7 +410,7 @@ function BuyDialog({
   }
 
   const remaining = balance - product.price;
-  const canAfford = remaining >= 0;
+  const canAfford = remaining >= 0 || Boolean(coupon.trim());
 
   return (
     <Dialog
@@ -396,7 +433,7 @@ function BuyDialog({
             </div>
             <div>
               <Label className="text-xs text-subtle mb-1 block">รายละเอียดคำสั่งซื้อ:</Label>
-              <div className="rounded-xl border border-border/60 bg-surface-2 p-3 font-mono text-xs select-all break-all flex items-start justify-between gap-2">
+              <div className="rounded-xl border border-border/60 bg-surface-2 p-3 text-xs select-all break-all flex items-start justify-between gap-2">
                 <span className="whitespace-pre-wrap">{result}</span>
                 <Button
                   size="sm"
@@ -437,6 +474,19 @@ function BuyDialog({
                 ? "เมื่อชำระสำเร็จ ระบบจะส่งสินค้าจากสต็อกให้ทันที และเปิดดูซ้ำได้ในประวัติการซื้อ"
                 : "สินค้านี้รอแอดมินจัดส่งหลังชำระเงิน ตรวจสอบสถานะได้ในประวัติการซื้อ"}
             </p>
+
+            <div className="space-y-1">
+              <Label htmlFor="coupon">โค้ดส่วนลด (ถ้ามี)</Label>
+              <Input
+                id="coupon"
+                value={coupon}
+                onChange={(e) => setCoupon(e.target.value)}
+                maxLength={40}
+              />
+              <p className="text-xs text-muted">
+                ส่วนลดจะตรวจและคำนวณจากเซิร์ฟเวอร์เมื่อยืนยันซื้อ
+              </p>
+            </div>
 
             {/* Financial summary breakdown */}
             {loggedIn ? (

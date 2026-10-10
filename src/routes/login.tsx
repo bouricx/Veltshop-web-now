@@ -1,3 +1,4 @@
+import { authCapabilities } from "@/lib/shop/access";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -18,6 +19,14 @@ function LoginPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [resetEnabled, setResetEnabled] = useState(false);
+  const [google, setGoogle] = useState(false);
+  useEffect(() => {
+    void authCapabilities().then((r) => {
+      setGoogle(r.google);
+      setResetEnabled(r.emailReset);
+    });
+  }, []);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -73,7 +82,7 @@ function LoginPage() {
             {mode === "signin" ? "เข้าสู่ระบบ" : "สมัครสมาชิก"}
           </h1>
           <p className="mt-1 text-sm text-muted">
-            บัญชีลูกค้าแยกจากแอดมิน · รหัสผ่านเก็บแบบ hash ไม่เก็บข้อความดิบ
+            เข้าสู่ระบบเพื่อซื้อสินค้า รับสินค้า และติดตามคำสั่งซื้อ
           </p>
         </div>
 
@@ -81,6 +90,32 @@ function LoginPage() {
           <p className="text-sm text-muted">ระบบสมาชิกปิดอยู่</p>
         ) : (
           <>
+            {resetEnabled ? (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  if (!email.trim()) {
+                    toast.error("ใส่อีเมลก่อน");
+                    return;
+                  }
+                  void authClient
+                    .requestPasswordReset({ email: email.trim(), redirectTo: "/reset-password" })
+                    .then(() => toast.success("หากพบบัญชี ระบบจะส่งลิงก์ไปยังอีเมล"));
+                }}
+              >
+                ลืมรหัสผ่าน
+              </Button>
+            ) : null}
+            {google ? (
+              <Button
+                className="w-full"
+                onClick={() =>
+                  void authClient.signIn.social({ provider: "google", callbackURL: "/shop" })
+                }
+              >
+                เข้าสู่ระบบด้วย Google
+              </Button>
+            ) : null}
             {import.meta.env.VITE_GROK_OAUTH === "true" ? (
               <>
                 <div className="flex gap-2">
@@ -106,7 +141,12 @@ function LoginPage() {
               {mode === "signup" ? (
                 <div className="space-y-1.5">
                   <Label htmlFor="name">ชื่อที่แสดง</Label>
-                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="ชื่อในร้าน" />
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="ชื่อในร้าน"
+                  />
                 </div>
               ) : null}
               <div className="space-y-1.5">
@@ -127,19 +167,20 @@ function LoginPage() {
                   id="password"
                   type="password"
                   required
-                  minLength={8}
+                  minLength={10}
                   autoComplete={mode === "signup" ? "new-password" : "current-password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="อย่างน้อย 8 ตัวอักษร"
+                  placeholder="อย่างน้อย 10 ตัวอักษร"
                 />
               </div>
-              <Button type="submit" disabled={busy} className="w-full rounded-full">
+              <Button type="submit" disabled={busy || isPending} className="w-full rounded-full">
                 {busy ? "กำลังดำเนินการ…" : mode === "signin" ? "เข้าสู่ระบบ" : "สมัครสมาชิก"}
               </Button>
             </form>
             <button
               type="button"
+              disabled={isPending || busy}
               className="w-full text-center text-sm text-muted hover:text-fg"
               onClick={() => setMode((m) => (m === "signin" ? "signup" : "signin"))}
             >

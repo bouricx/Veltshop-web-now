@@ -1,3 +1,5 @@
+import { submitTrueMoneyGift } from "@/lib/shop/operations";
+import { useSiteConfiguration } from "@/lib/shop/site-state";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -33,8 +35,10 @@ function TopupPage() {
 }
 
 function TopupForm() {
+  const { value: site } = useSiteConfiguration();
   const balance = useShop((s) => s.balance);
   const [settings, setSettings] = useState<ShopSettings | null>(null);
+  const [giftUrl, setGiftUrl] = useState("");
   const [amount, setAmount] = useState(100);
   const [tab, setTab] = useState<"qr" | "wallet" | "slip">("qr");
   const [paymentMethod, setPaymentMethod] = useState<"promptpay" | "truewallet">("promptpay");
@@ -58,13 +62,14 @@ function TopupForm() {
     void getShopSettings().then(setSettings);
   }, []);
 
-  const promptpay = settings?.receive_account || "0928160016";
+  const promptpay = settings?.receive_account || "";
   const fee = settings?.wallet_fee ?? 3;
 
   useEffect(() => {
     let cancelled = false;
     setQrUrl(null);
     setQrError(null);
+    if (!promptpay) return;
     void promptPayQrDataUrl(promptpay, amount)
       .then((url) => {
         if (!cancelled) setQrUrl(url);
@@ -196,7 +201,8 @@ function TopupForm() {
           id="amt"
           className="mt-2 tabular"
           type="number"
-          min={20}
+          min={site.minimumTopup}
+          max={site.maximumTopup}
           value={amount}
           onChange={(e) => setAmount(Math.max(0, Number(e.target.value) || 0))}
         />
@@ -215,11 +221,19 @@ function TopupForm() {
             </button>
           ))}
         </div>
-        {amount > 0 && amount < 20 ? (
-          <p className="mt-2 text-xs text-danger">ยอดขั้นต่ำ ฿20</p>
+        {amount > 0 && amount < site.minimumTopup ? (
+          <p className="mt-2 text-xs text-danger">ยอดขั้นต่ำ ฿{site.minimumTopup}</p>
         ) : null}
       </div>
 
+      <div className="rounded-xl border border-border p-4 text-sm">
+        <p>
+          ค่าธรรมเนียมสลิป {site.slipFeeBps / 100}% · เครดิตสุทธิ{" "}
+          {formatBaht(Math.max(0, amount - Math.ceil((amount * site.slipFeeBps) / 10000)))}
+        </p>
+        <p className="mt-2">{site.terms}</p>
+        <p className="mt-2 text-muted">{site.refundText}</p>
+      </div>
       {tab === "qr" ? (
         <div className="space-y-6">
           <div className="space-y-3 rounded-3xl bg-surface p-5 shadow-border">
@@ -241,7 +255,7 @@ function TopupForm() {
               <Button
                 type="button"
                 className="rounded-full"
-                disabled={amount < 20}
+                disabled={amount < site.minimumTopup}
                 onClick={() => {
                   setPaymentMethod("promptpay");
                   setTab("slip");
@@ -283,7 +297,7 @@ function TopupForm() {
           </p>
           <Button
             className="w-full rounded-full"
-            disabled={amount < 20}
+            disabled={amount < site.minimumTopup}
             onClick={() => {
               setPaymentMethod("truewallet");
               setTab("slip");
@@ -294,6 +308,40 @@ function TopupForm() {
         </div>
       ) : null}
 
+      {tab === "wallet" && site.trueMoney ? (
+        <form
+          className="rounded-xl border border-border p-5 space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setChecking(true);
+            void submitTrueMoneyGift({ data: { url: giftUrl, amount } })
+              .then((r) => {
+                if (r.ok) {
+                  toast.success("รับลิงก์แล้ว รอทีมงานตรวจสอบ ไม่มีการเติมอัตโนมัติ");
+                  setGiftUrl("");
+                } else toast.error(r.message);
+              })
+              .catch(() => toast.error("ส่งลิงก์ไม่สำเร็จ"))
+              .finally(() => setChecking(false));
+          }}
+        >
+          <Label htmlFor="gift-link">ลิงก์ TrueMoney Gift</Label>
+          <Input
+            id="gift-link"
+            type="url"
+            value={giftUrl}
+            onChange={(e) => setGiftUrl(e.target.value)}
+            placeholder="https://gift.truemoney.com/campaign/?v=…"
+            required
+          />
+          <p className="text-xs text-muted">
+            ส่งเพื่อให้ทีมงานตรวจผ่านช่องทางที่ได้รับอนุญาต ไม่เติมเครดิตอัตโนมัติ
+          </p>
+          <Button type="submit" disabled={checking}>
+            ยืนยันส่งลิงก์
+          </Button>
+        </form>
+      ) : null}
       {tab === "slip" ? (
         <div className="space-y-4 rounded-3xl bg-surface p-5 shadow-border">
           <div className="flex items-center justify-between">
@@ -317,7 +365,7 @@ function TopupForm() {
               type="file"
               accept="image/*"
               className="hidden"
-              disabled={checking || amount < 20}
+              disabled={checking || amount < site.minimumTopup}
               onChange={(e) => {
                 const f = e.target.files?.[0];
                 if (f) void onSlip(f);

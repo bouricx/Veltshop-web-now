@@ -30,6 +30,11 @@ export async function addInventoryItem(
   });
 }
 export async function readOwnedDelivery(sql: Sql, userId: string, orderId: string) {
+  const [override] = await sql.query<{ product_id: string; payload_ciphertext: string }>(
+    "SELECT d.product_id,d.payload_ciphertext FROM order_deliveries d JOIN orders o ON o.id=d.order_id WHERE o.id=$1 AND o.user_id=$2 AND o.status='completed' ORDER BY d.created_at DESC,d.id DESC LIMIT 1",
+    [orderId, userId],
+  );
+  if (override) return decryptInventory(override.product_id, override.payload_ciphertext);
   const [item] = await sql.query<{ product_id: string; payload_ciphertext: string }>(
     "SELECT i.product_id,i.payload_ciphertext FROM inventory_items i JOIN orders o ON o.id=i.order_id WHERE o.id=$1 AND o.user_id=$2 AND o.status='completed' AND i.status='sold'",
     [orderId, userId],

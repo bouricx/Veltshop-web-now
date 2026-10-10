@@ -3,7 +3,11 @@ import { toast } from "sonner";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label, Textarea } from "@/components/ui/input";
-import { addDigitalInventory, listDigitalInventory } from "@/lib/shop/inventory";
+import {
+  addDigitalInventory,
+  listDigitalInventory,
+  importDigitalInventory,
+} from "@/lib/shop/inventory";
 import type { Product } from "@/lib/shop/catalog";
 
 export function DigitalInventoryEditor({
@@ -16,6 +20,7 @@ export function DigitalInventoryEditor({
   onSaved: () => void;
 }) {
   const [payload, setPayload] = useState("");
+  const [bulk, setBulk] = useState(false);
   const [busy, setBusy] = useState(false);
   const [items, setItems] = useState<
     { id: string; status: string; order_id: string | null; created_at: string }[]
@@ -42,7 +47,17 @@ export function DigitalInventoryEditor({
     if (!product || !payload.trim() || busy) return;
     setBusy(true);
     try {
-      const result = await addDigitalInventory({ data: { productId: product.id, payload } });
+      const result = bulk
+        ? await importDigitalInventory({
+            data: {
+              productId: product.id,
+              payloads: payload
+                .split("\n")
+                .map((v) => v.trim())
+                .filter(Boolean),
+            },
+          })
+        : await addDigitalInventory({ data: { productId: product.id, payload } });
       if (!result.ok) {
         toast.error(result.message);
         return;
@@ -72,6 +87,10 @@ export function DigitalInventoryEditor({
           เพิ่มข้อมูลสำหรับส่งให้ลูกค้า 1 ชิ้นต่อครั้ง ระบบจะนับสต็อกจากชิ้นที่พร้อมขายแทนจำนวนเดิม
           เมื่อซื้อสำเร็จลูกค้าจะได้รับข้อมูลนี้
         </p>
+        <label className="block text-sm">
+          <input type="checkbox" checked={bulk} onChange={(e) => setBulk(e.target.checked)} />{" "}
+          นำเข้าหลายชิ้น (1 บรรทัดต่อชิ้น สูงสุด 200 ชิ้น)
+        </label>
         <Label htmlFor="digital-payload">บัญชี / รหัส / ข้อความส่งสินค้า</Label>
         <Textarea
           id="digital-payload"

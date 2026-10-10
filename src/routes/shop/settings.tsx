@@ -33,7 +33,9 @@ function SettingsPage() {
     return (
       <div className="mx-auto max-w-lg rounded-3xl bg-surface p-8 text-center shadow-border">
         <p className="font-medium">เฉพาะแอดมิน</p>
-        <p className="mt-2 text-sm text-muted">ตั้งค่าร้าน (พร้อมเพย์ / True Wallet) แก้ไขได้เฉพาะอีเมลใน ADMIN_EMAILS</p>
+        <p className="mt-2 text-sm text-muted">
+          ตั้งค่าร้าน (พร้อมเพย์ / True Wallet) แก้ไขได้เฉพาะอีเมลใน ADMIN_EMAILS
+        </p>
         <Button asChild className="mt-5 rounded-full">
           <Link to="/shop">กลับหน้าร้าน</Link>
         </Button>
@@ -45,7 +47,9 @@ function SettingsPage() {
     <div className="mx-auto max-w-2xl">
       <p className="text-xs font-medium tracking-[0.16em] text-muted uppercase">ร้าน</p>
       <h1 className="mt-1 text-3xl font-semibold tracking-tight">ตั้งค่าร้าน</h1>
-      <p className="mt-2 text-sm text-muted">บัญชีรับเงินพร้อมเพย์และ True Wallet · ลูกค้าทั่วไปแก้ไม่ได้</p>
+      <p className="mt-2 text-sm text-muted">
+        บัญชีรับเงินพร้อมเพย์และ True Wallet · ลูกค้าทั่วไปแก้ไม่ได้
+      </p>
       <div className="mt-8">
         <SettingsForm />
       </div>
@@ -91,17 +95,16 @@ function SettingsForm() {
   }
 
   return (
-    <form onSubmit={(e) => void onSave(e)} className="space-y-4 rounded-3xl bg-surface p-5 shadow-border">
+    <form
+      onSubmit={(e) => void onSave(e)}
+      className="space-y-4 rounded-3xl bg-surface p-5 shadow-border"
+    >
       <div className="space-y-1.5">
         <Label htmlFor="pp">เลขพร้อมเพย์ / บัญชีรับเงิน</Label>
-        <Input
-          id="pp"
-          value={form.receive_account}
-          inputMode="numeric"
-          required
-          readOnly
-        />
-        <p className="text-xs text-muted">ล็อกให้ตรงกับบริการตรวจสลิปปัจจุบัน หากเปลี่ยนต้องตั้ง verifier ให้รับบัญชีใหม่ก่อน</p>
+        <Input id="pp" value={form.receive_account} inputMode="numeric" required readOnly />
+        <p className="text-xs text-muted">
+          ล็อกให้ตรงกับบริการตรวจสลิปปัจจุบัน หากเปลี่ยนต้องตั้ง verifier ให้รับบัญชีใหม่ก่อน
+        </p>
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="name">ชื่อบัญชีที่แสดง</Label>
@@ -140,7 +143,10 @@ function SettingsForm() {
           className="flex h-11 w-full rounded-xl border border-border bg-bg px-3 text-sm"
           value={form.slip_provider}
           onChange={(e) =>
-            setForm({ ...form, slip_provider: e.target.value === "slip2go" ? "slip2go" : "thunder" })
+            setForm({
+              ...form,
+              slip_provider: e.target.value === "slip2go" ? "slip2go" : "thunder",
+            })
           }
         >
           <option value="thunder">thunder</option>

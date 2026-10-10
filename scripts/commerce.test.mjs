@@ -7,6 +7,7 @@ async function setup(stock = 1, balance = 100) {
   const db = new PGlite();
   for (const file of [
     "0002_shop.sql",
+    "0001_auth.sql",
     "0003_payments_hash.sql",
     "0004_promptpay.sql",
     "0005_payments_user.sql",
@@ -15,6 +16,7 @@ async function setup(stock = 1, balance = 100) {
     "0008_phase2_auth_roles.sql",
     "0009_checkout_idempotency.sql",
     "0010_digital_inventory.sql",
+    "0011_shop_operations.sql",
   ])
     await db.exec(await readFile(new URL("../migrations/" + file, import.meta.url), "utf8"));
   const wrap = (client) => ({

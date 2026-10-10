@@ -1,3 +1,6 @@
+import { randomUUID } from "node:crypto";
+import { isAdminEmail } from "../shop/admin";
+import { sendAuthEmail } from "./email.server";
 /**
  * Self-hosted Better Auth for THIS app (server-only).
  *
@@ -35,7 +38,7 @@ import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { getCookie } from "@tanstack/react-start/server";
 import { randomBytes } from "node:crypto";
 import { Pool } from "pg";
-import { ensureDbReady, getPglite } from "../db";
+import { ensureDbReady, getPglite, getSql } from "../db";
 import { emailAndPasswordEnabled } from "./email-password";
 import { GATE_PROVIDER_ID, gateIdentitySessions } from "./gate-session.server";
 import { GROK_PROVIDERS } from "./providers";
@@ -90,14 +93,16 @@ const grokIssuer = env("GROK_AUTH_ISSUER") ?? GROK_ISSUER_DEFAULT;
 const deployedGrokId = env("GROK_AUTH_CLIENT_ID");
 const deployedGrokSecret = env("GROK_AUTH_CLIENT_SECRET");
 const usePreviewGrokClient = !explicitBaseURL;
-const grokClientId =
-  deployedGrokId ?? (usePreviewGrokClient ? PREVIEW_CLIENT_ID : undefined);
+const grokClientId = deployedGrokId ?? (usePreviewGrokClient ? PREVIEW_CLIENT_ID : undefined);
 const grokClientSecret =
   deployedGrokSecret ?? (usePreviewGrokClient ? PREVIEW_CLIENT_SECRET : undefined);
 
 /** True when federated social sign-in is active (broker OAuth). Email/password is separate. */
+const brokerConfigured = !authDisabled && Boolean(grokClientId && grokClientSecret);
+const googleConfigured =
+  !authDisabled && Boolean(env("GOOGLE_CLIENT_ID") && env("GOOGLE_CLIENT_SECRET"));
 export const authConfigured =
-  !authDisabled && Boolean(grokClientId && grokClientSecret);
+  !authDisabled && (brokerConfigured || googleConfigured || emailAndPasswordEnabled);
 // Explicit `string[]` (not a readonly tuple) — Better Auth's DynamicBaseURLConfig
 // requires a mutable `allowedHosts: string[]`.
 const previewAllowedHosts: string[] = [...PREVIEW_ALLOWED_HOSTS];
@@ -134,7 +139,7 @@ const baseURL = explicitBaseURL ?? {
 // Origins Better Auth accepts on credentialed POSTs (sign-up/sign-in, etc.).
 // Missing entries here surface as FORBIDDEN "Invalid origin".
 const trustedOrigins: string[] = explicitBaseURL
-  ? [explicitBaseURL, ...LOCAL_DEV_ORIGINS]
+  ? [explicitBaseURL, ...(process.env.NODE_ENV === "production" ? [] : LOCAL_DEV_ORIGINS)]
   : [
       // Host wildcards (matched against Origin's host)
       ...previewAllowedHosts,
@@ -168,7 +173,7 @@ export const SESSION_TOKEN_COOKIE = "__Host-grok-auth.session_token";
 
 // Built separately so the `betterAuth({...})` call stays easy to edit without
 // breaking brackets (models often trip on the conditional plugin spread).
-const grokOAuthPlugin = authConfigured
+const grokOAuthPlugin = brokerConfigured
   ? genericOAuth({
       config: GROK_PROVIDERS.map(({ providerId, idp }) => ({
         providerId,
@@ -190,8 +195,68 @@ const grokOAuthPlugin = authConfigured
     })
   : null;
 
+export async function recordSessionEvent(
+  session: { userId: string; ipAddress?: string | null; userAgent?: string | null },
+  action: string,
+) {
+  const sql = await getSql();
+  await sql.transaction(async (tx) => {
+    await tx.query(
+      "INSERT INTO login_history(id,user_id,event,ip_address,user_agent) VALUES($1,$2,$3,$4,$5)",
+      [
+        randomUUID(),
+        session.userId,
+        action,
+        session.ipAddress ?? null,
+        session.userAgent?.slice(0, 1000) ?? null,
+      ],
+    );
+    const [user] = await tx.query<{ email: string; emailVerified: boolean; privileged: boolean }>(
+      "SELECT u.email,u.\"emailVerified\",EXISTS(SELECT 1 FROM user_roles r WHERE r.user_id=u.id AND r.role_id IN ('admin','super_admin','staff')) AS privileged FROM \"user\" u WHERE u.id=$1",
+      [session.userId],
+    );
+    if (user && (user.privileged || (user.emailVerified && isAdminEmail(user.email))))
+      await tx.query(
+        "INSERT INTO audit_logs(id,actor_id,action,entity_type,entity_id,metadata) VALUES($1,$2,$3,'user',$2,'{}')",
+        [randomUUID(), session.userId, action],
+      );
+  });
+}
 export const auth = betterAuth({
   baseURL,
+  ...(googleConfigured
+    ? {
+        socialProviders: {
+          google: {
+            clientId: env("GOOGLE_CLIENT_ID")!,
+            clientSecret: env("GOOGLE_CLIENT_SECRET")!,
+            redirectURI: env("GOOGLE_CALLBACK_URL"),
+            prompt: "select_account" as const,
+            disableIdTokenSignIn: true,
+          },
+        },
+      }
+    : {}),
+  ...(env("RESEND_API_KEY") && env("EMAIL_FROM")
+    ? {
+        emailVerification: {
+          sendVerificationEmail: async ({ user, url }: { user: { email: string }; url: string }) =>
+            sendAuthEmail(user.email, "ยืนยันอีเมล Veltshop", url),
+          sendOnSignUp: true,
+        },
+      }
+    : {}),
+  rateLimit: {
+    enabled: true,
+    storage: "database",
+    window: 60,
+    max: 60,
+    customRules: {
+      "/sign-in/email": { window: 60, max: 5 },
+      "/sign-up/email": { window: 60, max: 3 },
+      "/request-password-reset": { window: 60, max: 3 },
+    },
+  },
   // Deployed apps inject BETTER_AUTH_SECRET. Preview: process-stable secret on
   // globalThis so HMR doesn't invalidate PGLite-backed sessions (see above).
   secret: env("BETTER_AUTH_SECRET") ?? previewAuthSecret(),
@@ -212,13 +277,10 @@ export const auth = betterAuth({
     encryptOAuthTokens: true,
     accountLinking: {
       enabled: true,
-      trustedProviders: [
-        ...GROK_PROVIDERS.map((p) => p.providerId),
-        GATE_PROVIDER_ID,
-      ],
+      trustedProviders: [...GROK_PROVIDERS.map((p) => p.providerId), GATE_PROVIDER_ID],
       // X's synthetic email is never "verified", so don't gate linking on the
       // local user's email-verified state.
-      requireLocalEmailVerified: false,
+      requireLocalEmailVerified: true,
     },
   },
 
@@ -226,10 +288,33 @@ export const auth = betterAuth({
   // (incl. the client's `/get-session`) skip the DB — this shrinks the "loading"
   // window and reduces auth flicker. See the `auth` skill for the full
   // flicker-prevention guidance (gate on `isPending`; SSR the session).
-  session: { cookieCache: { enabled: true, maxAge: 300 } },
+  session: {
+    expiresIn: 60 * 60 * 24 * 7,
+    updateAge: 60 * 60 * 24,
+    cookieCache: { enabled: false },
+  },
 
   // Local email/password — toggled only via `./email-password` (not a plugin).
-  ...(emailAndPasswordEnabled ? { emailAndPassword: { enabled: true } } : {}),
+  ...(emailAndPasswordEnabled
+    ? {
+        emailAndPassword: {
+          enabled: true,
+          minPasswordLength: 10,
+          revokeSessionsOnPasswordReset: true,
+          ...(env("RESEND_API_KEY") && env("EMAIL_FROM")
+            ? {
+                sendResetPassword: async ({
+                  user,
+                  url,
+                }: {
+                  user: { email: string };
+                  url: string;
+                }) => sendAuthEmail(user.email, "ตั้งรหัสผ่าน Veltshop ใหม่", url),
+              }
+            : {}),
+        },
+      }
+    : {}),
 
   // `__Host-` prefixed cookies: the browser REFUSES any same-named cookie that
   // carries a `Domain` attribute, so a sibling `*.grok.me` app cannot "toss" a

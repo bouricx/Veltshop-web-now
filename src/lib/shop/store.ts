@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { products as catalog, type Product } from "@/lib/shop/catalog";
+import { type Product } from "@/lib/shop/catalog";
 import { uid } from "@/lib/utils";
 
 export type SlipProvider = "thunder" | "slip2go";
@@ -85,12 +85,6 @@ function log(actor: LogEntry["actor"], action: string, detail: string): LogEntry
   return { id: uid("log"), at: Date.now(), actor, action, detail };
 }
 
-function initialStock() {
-  const stock: Record<string, number> = {};
-  for (const p of catalog) stock[p.id] = p.stock;
-  return stock;
-}
-
 export const useShop = create<ShopState>()(
   persist(
     (set, get) => ({
@@ -100,9 +94,9 @@ export const useShop = create<ShopState>()(
       balance: 0,
       boxes: 0,
       spinsLeft: 2,
-      stock: initialStock(),
+      stock: {},
       flashEndsAt: Date.now() + 1000 * 60 * 60 * 6,
-      flashStock: 12,
+      flashStock: 0,
       orders: [],
       claims: [],
       logs: [log("system", "boot", "ร้านพร้อมให้ตรวจสอบการตั้งค่า")],
@@ -110,7 +104,7 @@ export const useShop = create<ShopState>()(
       slipHashes: [],
       walletFee: 2.5,
       slipProvider: "thunder",
-      banner: "เดือนแรก V1 ลด 50% · ทดลองร้านด้านบนได้ทันที ไม่คิดเงินจริง",
+      banner: "",
       navFlags: { streaming: true, otp: true, smm: true },
 
       login: (name) => {

@@ -1,98 +1,143 @@
-# Veltshop — implementation checkpoint
+# Veltshop 0.3.0 implementation status
 
-This is an implementation checkpoint, not completion of the 75-section brief.
-Source inspected: repository HEAD b25a4a4. The latest attached brief matches the first byte-for-byte.
+This release extends the original repository and the supplied Thai brief. It is a reviewable implementation, not an assertion that every production requirement in the 75-section brief is deployed or independently verified. Source baseline: b25a4a4. The PR remains on a development branch.
 
-## Existing architecture
+## Implemented behavior
 
-React 19, TanStack Start server functions/file routes, Vite 8, Nitro Vercel output, Tailwind 4, Zustand.
-Database: PostgreSQL through pg; Neon configured by DATABASE_URL. Development falls back to an in-memory PGLite instance.
-Authentication: Better Auth email/password plus the existing Grok OAuth broker; direct Google credentials are not wired yet.
-Authorization: email admin allowlist plus partially implemented roles/permissions.
-Catalog/categories and payments use SQL, but wallet/order/delivery history was largely browser-local.
-The old live-credit integration depended on a separate localhost slip verifier not included in this repository.
+- Authoritative PostgreSQL wallet, order, ledger, checkout and payment records. Connection-bound transactions, locks, uniqueness fences and request keys prevent repeated debits/credits and double-selling. Browser state cannot grant credit or invent delivery.
+- AES-256-GCM inventory and delivery overrides with product-bound authenticated data, random IVs and keyed duplicate detection. Actual pieces are assigned atomically; wrong keys or missing stock roll back purchases. Only the buyer of a completed order can retrieve delivery.
+- Official Slip2Go REST verification through a provider interface, server-held credentials, HTTPS allowlist, receiver/exact amount/reference/date checks and timeout. Missing credentials fail closed. Durable proof supports reconciliation; global bank-reference uniqueness spans manual and automatic approvals. TrueMoney gift URLs are validated/encrypted for manual review only.
+- Protected administration for catalog/categories, actual stock, members/roles, wallet adjustments, orders/refunds/replacements, claims, gifts, coupons, content schedules/audiences, media, transactions/audit, sessions/login history, jobs, backups, settings and payment settings. Search, filters, pagination and exports use SQL. Sensitive actions require permissions and reasons and append audit records; financial/audit history is immutable.
+- Claims enforce ownership and warranty policy. Refunds append credit once and revoke delivery without automatically relisting sold inventory. Manual payment approval requires actual evidence amount and a unique reference.
+- Gift redemptions and coupons enforce database usage limits. Paid wheel/box campaigns use server cryptographic randomness, wallet transactions, daily limits and idempotency; campaigns are initially inactive. No browser-generated prizes or fake payment approvals.
+- Validated JSON batch imports with all-or-nothing transactions and retry keys; blank templates and CSV product exports; secret inventory metadata excluded from exports.
+- Native email/password and optional direct Google OAuth, optional Resend reset/verification messages, account-linking verification, database rate limits, durable login history, revoked sessions and disabled-account checks. Existing broker/PWA/platform auth wiring is retained. Verified root allowlist and an operator-only existing-account bootstrap CLI are available.
+- Real storefront statistics and purchase feed, owned history, notifications, profile controls, maintenance flags, terms/privacy/refund settings, SEO product pages, sitemap/robots, and bundled Thai fonts. Wallet user identity is stable; refresh no longer unmounts the purchased delivery dialog.
+- Sharp decodes valid image formats, bounds dimensions/size, strips metadata, crops/resizes and creates thumbnails. PostgreSQL persists processed public media; sensitive delivery is separate.
+- Durable database jobs with leases/retry/dead-letter handling; encrypted snapshot creation/download, isolated restore verification, separate empty-recovery restore CLI and transactional inventory-key rotation CLI. Runtime packaging includes PGLite WASM/data assets for embedded production previews.
 
-## Implemented
+## Database and configuration
 
-- Connection-bound transactions for pg and PGLite. PostgreSQL transactions use one checked-out pool client.
-- Checkout locks the user's wallet then product; checks server price, funds and stock; atomically records debit, stock movement, processing order, line item, ledger and transaction.
-- Per-user checkout idempotency. Reusing a key for another product is rejected.
-- Successful slip payment, balance increment, ledger and financial transaction commit together.
-- Official Slip2Go REST image adapter: server secret, HTTPS endpoint allowlist, no redirects, timeout, duplicate/receiver/amount/date checks, exact response validation. No configured credentials means no credit.
-- Unique successful provider transaction references protect against image variations of the same transfer.
-- Pending/unavailable slip verification preserves image evidence for investigation.
-- Store wallet and purchase history read server data, not persisted browser values.
-- Removed automatic signup demo credit and browser-generated delivery credentials from the purchase flow.
-- Disabled legacy browser-only gift, wheel, box and financial adjustments until server implementations exist.
-- Encrypted individual inventory with AES-256-GCM, randomized IVs, product-bound authenticated data and keyed duplicate fingerprints. Admin can add actual digital pieces; the first import explicitly switches that product from legacy quantity to individual stock.
-- Atomic checkout assigns one real available piece to one completed order, or rolls back all wallet/stock/order changes. A missing/wrong encryption key fails before debit. Legacy quantity purchases remain processing.
-- Buyer-only delivery retrieval, immediate delivery display and on-demand retrieval in history. Admin metadata endpoints never return plaintext/ciphertext/fingerprints.
-- Product editor preserves individual counts; new products default to zero stock. A new dialog opening starts a fresh checkout key; retries in that dialog keep the key. Buyer delivery state resets when the authenticated user changes.
-- Admin inventory import adds an audit entry without secret payloads.
-- Updated Discord/Facebook and 24-hour service wording; removed extra contact channels from touched UI.
-- Existing lint errors fixed without changing their application behavior.
+Additive migrations 0009–0011 retain existing shop data. 0011 adds operational tables, permissions, reference fences, immutable history triggers, category/product metadata and encrypted gift evidence. No production migration was run. Production must use durable PostgreSQL; the embedded preview database is ephemeral.
 
-## Inventory checkpoint files
-
-- migrations/0010_digital_inventory.sql — additive inventory schema, unique piece assignment and stock mode
-- src/lib/shop/inventory-crypto.server.ts — encryption and fingerprints
-- src/lib/shop/inventory-service.server.ts — atomic import and owned delivery services
-- src/lib/shop/inventory.ts — authenticated server-function bridges
-- src/components/shop/digital-inventory-editor.tsx — admin import and stock metadata UI
-- src/components/shop/product-editor.tsx / src/lib/shop/catalog.ts — authoritative individual stock mode
-- Existing checkout, history, admin, tests and configuration updated for real item delivery.
-
-## Exact files
-
-Modified:
-- src/lib/db.ts — transaction boundary
-- src/lib/shop/actions.ts — authoritative checkout, wallet/order reads, atomic credit and official verification
-- src/lib/shop/store.ts — remove fake balances, delivery and client financial mutations
-- src/lib/shop/meta.ts — supplied contacts and service text
-- src/lib/shop/topup-security.test.ts — assertions follow official verification
-- src/components/shop/product-grid.tsx — server checkout, retry key, processing state
-- src/components/shop/shop-shell.tsx — server wallet refresh and logout isolation
-- src/routes/shop/topup.tsx — server wallet result
-- src/routes/shop/history.tsx — server order history
-- src/routes/shop/profile.tsx — lint fix, gift availability wording
-- src/routes/admin.tsx — stop pretending local credit adjustments succeeded
-- src/components/site-footer.tsx / src/routes/shop/alerts.tsx — remove extra channel
-- src/lib/app-data/client.server.ts — document intentional catch to resolve lint error
-- .env.example — retain prior names; document database/auth/Slip2Go configuration without secrets
-
-Created:
-- src/lib/shop/commerce.server.ts — reusable transactional financial services
-- src/lib/shop/slip2go.server.ts — official provider adapter
-- migrations/0009_checkout_idempotency.sql — additive keys and uniqueness constraints
-- scripts/commerce.test.mjs — database integration and concurrency/rollback tests
-- scripts/slip2go.test.mjs — provider contract tests with controlled test responses, never production mocks
-- IMPLEMENTATION_STATUS.md — this checkpoint
-
-## Database and deployment
-
-Migrations 0009 and 0010 add individual stock mode, encrypted inventory records and available-item index, plus orders.idempotency_key and payments.provider_reference, plus unique indexes on user/key, ledger payment and successful provider/reference.
-No production migration has been run. Existing rows are not deleted, rewritten or assigned browser balances.
-Rollback: revert application before removing new columns/indexes; preserve ledger/payment data. Test a production backup restore before rollout.
-No packages added. Migration/build scripts are inherited; npm run build runs db:migrate if DATABASE_URL is present.
-New env: SLIP2GO_VERIFY_URL, SLIP2GO_API_SECRET, INVENTORY_ENCRYPTION_KEY. The inventory key must be 32 random bytes encoded as 64 hexadecimal characters, generated and stored in hosting secrets. Back it up securely: replacing or losing it prevents retrieval of existing pieces. Key rotation/re-encryption is not yet implemented. Existing DATABASE_URL/BETTER_AUTH_URL/BETTER_AUTH_SECRET/ADMIN_EMAILS and broker settings remain required as appropriate.
-Official references: https://slip2go.com/guide/rest-api/image , https://slip2go.com/guide/authentication , https://slip2go.com/guide/response .
+New dependencies: sharp and bundled Noto Sans Thai. Package version: 0.3.0. Secrets are documented in `.env.example`; none are included in source. See RELEASE_RUNBOOK.md for exact setup, first administrator, jobs, recovery, rotation, staging tests and rollback procedures.
 
 ## Validation
 
-24 focused tests pass: checkout concurrency, retries, insufficient balance, atomic rollback, duplicate slips, actual-piece purchase races, buyer isolation, key failure and authenticated encryption, provider conditions/configuration, existing slip/QR security tests.
-Typecheck passes. Production build passes; migration skipped because no DATABASE_URL is configured.
-Lint: zero errors, 11 existing warnings.
-Full npm test is not green: template tests require missing .grok/skills/og files and assume an auth-disabled template, inconsistent with this app's existing auth-on configuration.
-Browser QA incomplete: no installed Chromium, browser download failed; local Vite also hit uv_interface_addresses restrictions. Do not treat compile success as E2E/UI verification.
-PGLite integration tests verify transaction semantics locally; actual PostgreSQL concurrency must still be tested in staging.
-No live Slip2Go request, payment, production database write or deployment was performed.
+- Full npm test: 268 pass, 0 fail, 4 skip. The four skipped checks require absent original platform skill manuals; runtime/financial tests still execute.
+- Additional slip/QR security tests: 12 pass, 0 fail. Combined: 280 passing tests.
+- Typecheck passes. Lint: 0 errors, 2 React refresh warnings. Production build succeeds; external PostgreSQL migration is skipped because DATABASE_URL is absent. Diff whitespace check passes.
+- Database integration exercises stock races, request retries, insufficient funds, crypto failure, buyer isolation, coupon/gift limits, immutable records, manual payment reference reuse, claims/replacement/refund revocation, job leasing/retry, actual image decoding, backup authentication/restore rejection and import rollback.
+- Browser QA uses the compiled production application and native cookie auth in an isolated embedded database. Desktop and 390px mobile rendering inspected; no mobile horizontal overflow. Signup → administrator credit adjustment → product and actual stock creation → purchase → owned delivery display → claim creation → refund and refunded status all pass. The administrator fixture exists only in the external QA harness, not production source.
 
-## Remaining engineering work
+## External and deferred requirements
 
-The brief is still incomplete. In particular: inventory bulk import/disable workflows and encryption key rotation; asynchronous delivery jobs/retries and expiring reservations; complete server RBAC/admin features/audit coverage; direct Google OAuth and session controls; gift codes/promotions; claims/refunds; real dashboard/users/customer exports; centralized image decode/crop/resize/storage/dimension settings; rate limits; durable reconciliation/webhooks/queue; backups/restore verification; site settings and maintenance; privacy/retention; full staging E2E/security/production readiness checks.
-Amounts still use the existing whole-baht integer schema. Satang support and percentage-fee rounding require a separate carefully reviewed migration.
-Older HANDOFF.md and DEPLOY_STATUS.md describe the legacy slip verifier. This checkpoint supersedes those instructions for wallet credit, but does not attest to the current deployed site's state.
+No deployment, live bank/provider transaction, production database write, real Google callback or real email send was performed. Actual multi-connection PostgreSQL concurrency, live provider failure/reconciliation and real PostgreSQL disaster recovery require staging credentials and hosting setup.
 
-## Owner configuration needed
+There is no signed provider webhook contract/receiver, automatic TrueMoney redemption, satang-precision migration, retention purge or protected binary file-hosting subsystem in this release. Public image storage must not hold paid private files. Encrypted delivery can contain owner-supplied file links; the external host's access controls remain its responsibility. Database backup/media storage needs monitoring and off-site copies configured by the operator. Polling updates run every 15 seconds rather than claiming push delivery. Older HANDOFF.md/DEPLOY_STATUS.md describe a legacy localhost slip verifier; this status and the release runbook supersede those payment instructions.
 
-Staging/production database access, actual Slip2Go endpoint/secret and approved receiver configuration, OAuth credentials, hosting access and hosting secrets. GitHub write access is verified; draft PR #1 contains this checkpoint. Supply secrets through the service's secret settings, not chat or source files.
+These limits are explicit release boundaries, not claims of finished production readiness.
+
+## Exact release files
+
+The following files change in this release relative to the preceding inventory checkpoint.
+
+| File | Area |
+|---|---|
+| `.env.example` | Configuration/runtime |
+| `CHANGELOG.md` | Operations documentation |
+| `IMPLEMENTATION_STATUS.md` | Operations documentation |
+| `RELEASE_RUNBOOK.md` | Operations documentation |
+| `migrations/0011_shop_operations.sql` | Database migration |
+| `package-lock.json` | Configuration/runtime |
+| `package.json` | Configuration/runtime |
+| `scripts/brand-check.test.mjs` | Verification/operator tooling |
+| `scripts/check-auth-invariant.test.mjs` | Verification/operator tooling |
+| `scripts/commerce.test.mjs` | Verification/operator tooling |
+| `scripts/grant-admin.mjs` | Verification/operator tooling |
+| `scripts/operations.test.mjs` | Verification/operator tooling |
+| `scripts/package-runtime-assets.mjs` | Verification/operator tooling |
+| `scripts/restore-backup.mjs` | Verification/operator tooling |
+| `scripts/rotate-inventory-key.mjs` | Verification/operator tooling |
+| `scripts/with-app-env.test.mjs` | Verification/operator tooling |
+| `scripts/write-atomic.test.mjs` | Verification/operator tooling |
+| `src/components/brand-mark.tsx` | UI/routes |
+| `src/components/shop/admin-console.tsx` | UI/routes |
+| `src/components/shop/category-editor.tsx` | UI/routes |
+| `src/components/shop/data-import.tsx` | UI/routes |
+| `src/components/shop/digital-inventory-editor.tsx` | UI/routes |
+| `src/components/shop/flash-sale.tsx` | UI/routes |
+| `src/components/shop/image-editor.tsx` | UI/routes |
+| `src/components/shop/live-feed.tsx` | UI/routes |
+| `src/components/shop/product-editor.tsx` | UI/routes |
+| `src/components/shop/product-grid.tsx` | UI/routes |
+| `src/components/shop/reward-panel.tsx` | UI/routes |
+| `src/components/shop/shop-shell.tsx` | UI/routes |
+| `src/components/shop/store-content.tsx` | UI/routes |
+| `src/components/site-footer.tsx` | UI/routes |
+| `src/lib/auth/email.server.ts` | Server/client services |
+| `src/lib/auth/middleware.ts` | Server/client services |
+| `src/lib/auth/server.ts` | Server/client services |
+| `src/lib/auth/use-current-user.ts` | Server/client services |
+| `src/lib/auth/verify.server.ts` | Server/client services |
+| `src/lib/error-component.tsx` | Server/client services |
+| `src/lib/shop/access.ts` | Server/client services |
+| `src/lib/shop/actions.ts` | Server/client services |
+| `src/lib/shop/admin-data.ts` | Server/client services |
+| `src/lib/shop/admin-gate.ts` | Server/client services |
+| `src/lib/shop/backup-service.server.ts` | Server/client services |
+| `src/lib/shop/backup-verification.server.ts` | Server/client services |
+| `src/lib/shop/backups.ts` | Server/client services |
+| `src/lib/shop/catalog.ts` | Server/client services |
+| `src/lib/shop/commerce.server.ts` | Server/client services |
+| `src/lib/shop/import-service.server.ts` | Server/client services |
+| `src/lib/shop/imports.ts` | Server/client services |
+| `src/lib/shop/inventory-service.server.ts` | Server/client services |
+| `src/lib/shop/inventory.ts` | Server/client services |
+| `src/lib/shop/jobs-service.server.ts` | Server/client services |
+| `src/lib/shop/jobs.ts` | Server/client services |
+| `src/lib/shop/media-service.server.ts` | Server/client services |
+| `src/lib/shop/media.ts` | Server/client services |
+| `src/lib/shop/operations-service.server.ts` | Server/client services |
+| `src/lib/shop/operations.ts` | Server/client services |
+| `src/lib/shop/payment-providers.server.ts` | Server/client services |
+| `src/lib/shop/permissions.server.ts` | Server/client services |
+| `src/lib/shop/promptpay-qr.ts` | Server/client services |
+| `src/lib/shop/require-admin.server.ts` | Server/client services |
+| `src/lib/shop/rewards-service.server.ts` | Server/client services |
+| `src/lib/shop/rewards.ts` | Server/client services |
+| `src/lib/shop/role-actions.server.ts` | Server/client services |
+| `src/lib/shop/settings-schema.ts` | Server/client services |
+| `src/lib/shop/site-state.tsx` | Server/client services |
+| `src/lib/shop/slip-verify-upstream.server.ts` | Server/client services |
+| `src/lib/shop/slip-verify.ts` | Server/client services |
+| `src/lib/shop/store.ts` | Server/client services |
+| `src/lib/shop/storefront.ts` | Server/client services |
+| `src/lib/shop/topup-security.test.ts` | Server/client services |
+| `src/lib/shop/validation.ts` | Server/client services |
+| `src/routeTree.gen.ts` | Configuration/runtime |
+| `src/routes/__root.tsx` | UI/routes |
+| `src/routes/admin.tsx` | UI/routes |
+| `src/routes/admin/payments/reconciliation.tsx` | UI/routes |
+| `src/routes/admin/topups.tsx` | UI/routes |
+| `src/routes/api/auth/$.ts` | UI/routes |
+| `src/routes/api/jobs/run.ts` | UI/routes |
+| `src/routes/api/media/$id.ts` | UI/routes |
+| `src/routes/api/slip/verify.ts` | UI/routes |
+| `src/routes/login.tsx` | UI/routes |
+| `src/routes/reset-password.tsx` | UI/routes |
+| `src/routes/robots[.]txt.ts` | UI/routes |
+| `src/routes/shop/alerts.tsx` | UI/routes |
+| `src/routes/shop/box.tsx` | UI/routes |
+| `src/routes/shop/catalog.tsx` | UI/routes |
+| `src/routes/shop/claims.tsx` | UI/routes |
+| `src/routes/shop/index.tsx` | UI/routes |
+| `src/routes/shop/privacy.tsx` | UI/routes |
+| `src/routes/shop/product/$id.tsx` | UI/routes |
+| `src/routes/shop/profile.tsx` | UI/routes |
+| `src/routes/shop/settings.tsx` | UI/routes |
+| `src/routes/shop/topup.tsx` | UI/routes |
+| `src/routes/shop/wheel.tsx` | UI/routes |
+| `src/routes/sitemap[.]xml.ts` | UI/routes |
+| `src/styles.css` | Configuration/runtime |
+| `startup.sh` | Configuration/runtime |

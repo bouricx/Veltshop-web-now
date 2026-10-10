@@ -1,3 +1,5 @@
+import { useSiteConfiguration } from "@/lib/shop/site-state";
+import { StoreContent } from "./store-content";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import {
   Bell,
@@ -38,6 +40,7 @@ const catIcon: Record<CategoryId, typeof MonitorPlay> = {
 };
 
 export function ShopShell() {
+  const { value: site } = useSiteConfiguration();
   const loggedIn = useShop((s) => s.loggedIn);
   const name = useShop((s) => s.displayName);
   const balance = useShop((s) => s.balance);
@@ -94,7 +97,17 @@ export function ShopShell() {
         onLogout={() => void handleLogout()}
       />
       <main className="mx-auto w-full min-w-0 max-w-6xl px-4 pt-5 pb-36 sm:px-6">
-        <Outlet />
+        {site.maintenance ? (
+          <section className="rounded-xl bg-surface p-8 text-center">
+            <h1 className="text-xl font-semibold">กำลังปรับปรุงร้าน</h1>
+            <p className="mt-2">กรุณาลองใหม่ภายหลัง ทีมงานยังดูแลผ่าน Discord และ Facebook</p>
+          </section>
+        ) : (
+          <>
+            <StoreContent />
+            <Outlet />
+          </>
+        )}
       </main>
       <ShopFooter />
       <BottomDock />
@@ -395,6 +408,7 @@ function LiveClock() {
 }
 
 function ShopFooter() {
+  const { value: site } = useSiteConfiguration();
   return (
     <footer className="mx-auto w-full max-w-6xl px-4 pb-36 sm:px-6">
       <div className="grid gap-4 lg:grid-cols-3">
@@ -404,7 +418,7 @@ function ShopFooter() {
             เกี่ยวกับเรา
           </p>
           <h2 className="mt-3 text-base font-semibold">
-            {shopMeta.name} — {shopMeta.tagline}
+            {site.name} — {site.description}
           </h2>
           <div className="mt-4 flex flex-wrap gap-2">
             <span className="rounded-full bg-soft px-3 py-1 text-xs text-accent">ระบบปลอดภัย</span>
@@ -422,7 +436,7 @@ function ShopFooter() {
             <li>
               Discord:{" "}
               <a
-                href={shopMeta.discordInvite}
+                href={site.discord}
                 target="_blank"
                 rel="noreferrer"
                 className="text-fg underline-offset-2 hover:underline"
@@ -433,7 +447,7 @@ function ShopFooter() {
             <li>
               Facebook:{" "}
               <a
-                href={shopMeta.facebookUrl}
+                href={site.facebook}
                 target="_blank"
                 rel="noreferrer"
                 className="text-fg underline-offset-2 hover:underline"
@@ -456,7 +470,7 @@ function ShopFooter() {
         </article>
       </div>
       <p className="mt-6 text-center text-xs text-subtle">
-        © {new Date().getFullYear()} {shopMeta.name}. สงวนลิขสิทธิ์.
+        © {new Date().getFullYear()} {site.name}. สงวนลิขสิทธิ์.
       </p>
     </footer>
   );
