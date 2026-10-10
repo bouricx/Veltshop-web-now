@@ -717,6 +717,17 @@ function contentAction(row?: Row): Action {
       ),
   };
 }
+function actionErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  try {
+    const issues: unknown = JSON.parse(message);
+    if (Array.isArray(issues)) {
+      if (issues.some((issue) => issue?.path?.includes("reason"))) return "กรุณาระบุเหตุผล 3–2,000 ตัวอักษร";
+      return "ข้อมูลไม่ครบหรือรูปแบบไม่ถูกต้อง กรุณาตรวจสอบช่องกรอก";
+    }
+  } catch { /* A normal application error does not contain a JSON issue list. */ }
+  return message && !/too_small|expected|ZodError|\[\s*\{/i.test(message) ? message : "ทำรายการไม่สำเร็จ กรุณาตรวจสอบข้อมูล";
+}
 function ActionDialog({
   action,
   close,
@@ -731,7 +742,8 @@ function ActionDialog({
     ),
     [busy, setBusy] = useState(false),
     [output, setOutput] = useState<string | null>(null),
-    [slipImage, setSlipImage] = useState("");
+    [slipImage, setSlipImage] = useState(""),
+    [reasonError, setReasonError] = useState("");
   return (
     <Dialog
       open={Boolean(action)}
@@ -745,9 +757,21 @@ function ActionDialog({
           onSubmit={(e) => {
             e.preventDefault();
             if (!action || busy) return;
+            const submittedValues = { ...values };
+            if (action.title !== "รายละเอียด" && action.fields.some((field) => field.name === "reason")) {
+              const reason = String(values.reason ?? "").trim();
+              if (reason.length < 3 || reason.length > 2000) {
+                setReasonError("กรุณาระบุเหตุผล 3–2,000 ตัวอักษร");
+                const input = e.currentTarget.elements.namedItem("reason");
+                if (input instanceof HTMLElement) input.focus();
+                return;
+              }
+              submittedValues.reason = reason;
+            }
+            setReasonError("");
             setBusy(true);
             void action
-              .run(values)
+              .run(submittedValues)
               .then((r) => {
                 if (
                   r &&
@@ -761,7 +785,7 @@ function ActionDialog({
                 toast.success("บันทึกแล้ว");
                 onSaved();
               })
-              .catch((err) => toast.error(err instanceof Error ? err.message : "ทำรายการไม่สำเร็จ"))
+              .catch((err) => toast.error(actionErrorMessage(err)))
               .finally(() => setBusy(false));
           }}
         >
@@ -790,8 +814,11 @@ function ActionDialog({
               ) : f.type === "textarea" ? (
                 <Textarea
                   id={`action-${f.name}`}
+                  name={f.name}
+                  aria-invalid={f.name === "reason" && Boolean(reasonError)}
+                  aria-describedby={f.name === "reason" ? "action-reason-hint" : undefined}
                   value={String(values[f.name] ?? "")}
-                  onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))}
+                  onChange={(e) => { setValues((v) => ({ ...v, [f.name]: e.target.value })); if (f.name === "reason") setReasonError(""); }}
                 />
               ) : (
                 <Input
@@ -812,6 +839,11 @@ function ActionDialog({
                   }
                 />
               )}
+              {f.name === "reason" && action?.title !== "รายละเอียด" ? (
+                <p id="action-reason-hint" role={reasonError ? "alert" : undefined} className={`text-xs ${reasonError ? "text-danger" : "text-muted"}`}>
+                  {reasonError || "ระบุเหตุผล 3–2,000 ตัวอักษร เพื่อบันทึกประวัติการดำเนินการ"}
+                </p>
+              ) : null}
               {f.name === "image" ? (
                 <ImageEditor
                   kind={values.kind === "banner" ? "banner" : "announcement"}

@@ -11,7 +11,7 @@ export const updateAccess = createServerFn({ method: "POST" })
       .object({
         userId: z.string().min(1).max(200),
         role: z.enum(["super_admin", "admin", "staff", "customer"]),
-        reason: z.string().min(3).max(2000),
+        reason: z.string().trim().min(3, "กรุณาระบุเหตุผลอย่างน้อย 3 ตัวอักษร").max(2000, "เหตุผลต้องไม่เกิน 2,000 ตัวอักษร"),
       })
       .parse(v),
   )

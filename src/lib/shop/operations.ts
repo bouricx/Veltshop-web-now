@@ -21,7 +21,7 @@ import { isAdminEmail } from "./admin";
 import { randomUUID } from "node:crypto";
 import { CommerceError } from "./commerce.server";
 const id = z.string().trim().min(1).max(200);
-const reason = z.string().trim().min(3).max(2000);
+const reason = z.string().trim().min(3, "กรุณาระบุเหตุผลอย่างน้อย 3 ตัวอักษร").max(2000, "เหตุผลต้องไม่เกิน 2,000 ตัวอักษร");
 async function safe<T>(work: () => Promise<T>) {
   try {
     return { ok: true as const, result: await work() };

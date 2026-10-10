@@ -14,7 +14,7 @@ export const exportMyData = createServerFn({ method: "POST" })
   });
 export const requestMyDeletion = createServerFn({ method: "POST" })
   .validator((v: unknown) =>
-    z.object({ reason: z.string().trim().min(3).max(2000), confirmed: z.literal(true) }).parse(v),
+    z.object({ reason: z.string().trim().min(3, "กรุณาระบุเหตุผลอย่างน้อย 3 ตัวอักษร").max(2000, "เหตุผลต้องไม่เกิน 2,000 ตัวอักษร"), confirmed: z.literal(true) }).parse(v),
   )
   .middleware([authMiddleware])
   .handler(async ({ context, data }) => {
@@ -46,7 +46,7 @@ export const reviewPrivacyRequest = createServerFn({ method: "POST" })
       .object({
         id: z.string().uuid(),
         approve: z.boolean(),
-        reply: z.string().trim().min(3).max(2000),
+        reply: z.string().trim().min(3, "กรุณาระบุเหตุผลอย่างน้อย 3 ตัวอักษร").max(2000, "เหตุผลต้องไม่เกิน 2,000 ตัวอักษร"),
       })
       .parse(v),
   )
