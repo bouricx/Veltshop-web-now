@@ -7,6 +7,7 @@ import { Flame, Pencil, Search, ShoppingBag, Check, RefreshCw } from "lucide-rea
 import { toast } from "sonner";
 import { CategoryEditor } from "@/components/shop/category-editor";
 import { ProductEditor } from "@/components/shop/product-editor";
+import { ProductMark } from "@/components/shop/product-mark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Label, NativeSelect } from "@/components/ui/input";
@@ -400,10 +401,14 @@ function ProductCard({
           </div>
         </div>
         <div className="flex flex-1 flex-col p-5 pt-2">
-          <h3 className="font-semibold tracking-tight">
-            {product.icon ? <span className="mr-2">{product.icon}</span> : null}
-            {product.name}
-          </h3>
+          <div className="flex min-w-0 items-center gap-2.5">
+            <ProductMark
+              name={product.name}
+              color={product.cardColor ?? accent}
+              className="size-9 rounded-lg text-sm"
+            />
+            <h3 className="min-w-0 font-semibold tracking-tight">{product.name}</h3>
+          </div>
           <p className="mt-1 text-sm text-muted line-clamp-1">{product.subtitle}</p>
           {product.description ? (
             <p className="mt-2 text-xs leading-relaxed text-muted line-clamp-2">

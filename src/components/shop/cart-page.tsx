@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ShoppingCart, Trash2, CheckCircle2, Package, ReceiptText, Info } from "lucide-react";
+import { ShoppingCart, Trash2, CheckCircle2, ReceiptText, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -8,6 +8,7 @@ import { useCart } from "@/lib/shop/cart-store";
 import { listMyCartRequests, submitCartRequest, type CartRequest } from "@/lib/shop/cart-requests";
 import { formatBaht } from "@/lib/utils";
 import { RequestSummary } from "./request-summary";
+import { ProductMark } from "./product-mark";
 
 export function CartPage() {
   const { user, isPending } = useCurrentUserState();
@@ -154,9 +155,11 @@ export function CartPage() {
                 className="rounded-2xl border border-border bg-surface p-4 shadow-border sm:p-5"
               >
                 <div className="flex min-w-0 items-start gap-3">
-                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-2 text-fg">
-                    <Package className="size-5" aria-hidden="true" />
-                  </span>
+                  <ProductMark
+                    name={i.name}
+                    color={i.markColor}
+                    className="size-10 rounded-xl text-base"
+                  />
                   <div className="min-w-0 flex-1">
                     <h2 className="break-words font-semibold">{i.name}</h2>
                     <p className="mt-1 text-sm text-muted">
