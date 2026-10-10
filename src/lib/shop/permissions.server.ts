@@ -5,6 +5,7 @@ import { getSessionUser } from "@/lib/auth/verify.server";
 import { getSql, type Sql } from "@/lib/db";
 import { uid } from "@/lib/utils";
 import { isAdminEmail } from "./admin";
+import { ForbiddenError } from "./require-admin.server";
 
 export const ROLE_IDS = ["super_admin", "admin", "staff", "customer"] as const;
 export type RoleId = (typeof ROLE_IDS)[number];
@@ -21,7 +22,7 @@ export async function assertCanAssignRole(sql: Sql, actorId: string, roleId: Rol
     "SELECT user_id FROM user_roles WHERE user_id=$1 AND role_id='super_admin' FOR UPDATE",
     [actorId],
   );
-  if (!rows[0]) throw new Error("Forbidden: only a super admin can assign admin or super_admin roles");
+  if (!rows[0]) throw new ForbiddenError();
 }
 
 export async function hasPermission(userId: string, permission: PermissionId): Promise<boolean> {
