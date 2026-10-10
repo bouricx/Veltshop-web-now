@@ -1,3 +1,4 @@
+import { onShopChange } from "@/lib/shop/realtime-client";
 import { getPaymentSlipEvidence } from "@/lib/shop/actions";
 import { addDigitalInventory } from "@/lib/shop/inventory";
 import { DataImport } from "./data-import";
@@ -188,10 +189,12 @@ export function AdminRecords({
           if (active) setError("โหลดข้อมูลไม่สำเร็จหรือไม่มีสิทธิ์");
         });
     load();
+    const unsubscribe = onShopChange(load);
     const timer = setInterval(load, 15000);
     return () => {
       active = false;
       clearInterval(timer);
+      unsubscribe();
     };
   }, [kind, search, page, status, from, to, descending, refresh]);
   async function exportAll() {
@@ -851,10 +854,12 @@ export function RealDashboard() {
           if (active) setError("โหลดภาพรวมไม่สำเร็จ");
         });
     load();
+    const unsubscribe = onShopChange(load);
     const timer = setInterval(load, 15000);
     return () => {
       active = false;
       clearInterval(timer);
+      unsubscribe();
     };
   }, [days]);
   const names: Record<string, string> = {
@@ -954,6 +959,9 @@ export function RealSettings() {
     google: "เปิด Google",
     trueMoney: "เปิด TrueMoney แบบตรวจด้วยมือ",
     slip2go: "เปิด Slip2Go",
+    notificationRetentionDays: "เก็บการแจ้งเตือนที่อ่านแล้ว (วัน, 0 = ไม่ลบ)",
+    loginRetentionDays: "เก็บประวัติเข้าสู่ระบบ (วัน, 0 = ไม่ลบ)",
+    jobRetentionDays: "เก็บงานที่สำเร็จ (วัน, 0 = ไม่ลบ)",
     imageMaxMb: "ไฟล์รูปสูงสุด MB",
     imageQuality: "คุณภาพรูป 40–95",
     imageSquare: "ขนาดรูปสี่เหลี่ยม px",

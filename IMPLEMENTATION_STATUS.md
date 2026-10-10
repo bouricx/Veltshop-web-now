@@ -1,3 +1,5 @@
+> Current operational additions: see SYSTEM_COMPLETION_STATUS.md for release 0.4.0. The historical 0.3.0 boundaries below are superseded where explicitly described there.
+
 # Veltshop 0.3.0 implementation status
 
 This release extends the original repository and the supplied Thai brief. It is a reviewable implementation, not an assertion that every production requirement in the 75-section brief is deployed or independently verified. Source baseline: b25a4a4. The PR remains on a development branch.
@@ -42,102 +44,102 @@ These limits are explicit release boundaries, not claims of finished production 
 
 The following files change in this release relative to the preceding inventory checkpoint.
 
-| File | Area |
-|---|---|
-| `.env.example` | Configuration/runtime |
-| `CHANGELOG.md` | Operations documentation |
-| `IMPLEMENTATION_STATUS.md` | Operations documentation |
-| `RELEASE_RUNBOOK.md` | Operations documentation |
-| `migrations/0011_shop_operations.sql` | Database migration |
-| `package-lock.json` | Configuration/runtime |
-| `package.json` | Configuration/runtime |
-| `scripts/brand-check.test.mjs` | Verification/operator tooling |
-| `scripts/check-auth-invariant.test.mjs` | Verification/operator tooling |
-| `scripts/commerce.test.mjs` | Verification/operator tooling |
-| `scripts/grant-admin.mjs` | Verification/operator tooling |
-| `scripts/operations.test.mjs` | Verification/operator tooling |
-| `scripts/package-runtime-assets.mjs` | Verification/operator tooling |
-| `scripts/restore-backup.mjs` | Verification/operator tooling |
-| `scripts/rotate-inventory-key.mjs` | Verification/operator tooling |
-| `scripts/with-app-env.test.mjs` | Verification/operator tooling |
-| `scripts/write-atomic.test.mjs` | Verification/operator tooling |
-| `src/components/brand-mark.tsx` | UI/routes |
-| `src/components/shop/admin-console.tsx` | UI/routes |
-| `src/components/shop/category-editor.tsx` | UI/routes |
-| `src/components/shop/data-import.tsx` | UI/routes |
-| `src/components/shop/digital-inventory-editor.tsx` | UI/routes |
-| `src/components/shop/flash-sale.tsx` | UI/routes |
-| `src/components/shop/image-editor.tsx` | UI/routes |
-| `src/components/shop/live-feed.tsx` | UI/routes |
-| `src/components/shop/product-editor.tsx` | UI/routes |
-| `src/components/shop/product-grid.tsx` | UI/routes |
-| `src/components/shop/reward-panel.tsx` | UI/routes |
-| `src/components/shop/shop-shell.tsx` | UI/routes |
-| `src/components/shop/store-content.tsx` | UI/routes |
-| `src/components/site-footer.tsx` | UI/routes |
-| `src/lib/auth/email.server.ts` | Server/client services |
-| `src/lib/auth/middleware.ts` | Server/client services |
-| `src/lib/auth/server.ts` | Server/client services |
-| `src/lib/auth/use-current-user.ts` | Server/client services |
-| `src/lib/auth/verify.server.ts` | Server/client services |
-| `src/lib/error-component.tsx` | Server/client services |
-| `src/lib/shop/access.ts` | Server/client services |
-| `src/lib/shop/actions.ts` | Server/client services |
-| `src/lib/shop/admin-data.ts` | Server/client services |
-| `src/lib/shop/admin-gate.ts` | Server/client services |
-| `src/lib/shop/backup-service.server.ts` | Server/client services |
-| `src/lib/shop/backup-verification.server.ts` | Server/client services |
-| `src/lib/shop/backups.ts` | Server/client services |
-| `src/lib/shop/catalog.ts` | Server/client services |
-| `src/lib/shop/commerce.server.ts` | Server/client services |
-| `src/lib/shop/import-service.server.ts` | Server/client services |
-| `src/lib/shop/imports.ts` | Server/client services |
-| `src/lib/shop/inventory-service.server.ts` | Server/client services |
-| `src/lib/shop/inventory.ts` | Server/client services |
-| `src/lib/shop/jobs-service.server.ts` | Server/client services |
-| `src/lib/shop/jobs.ts` | Server/client services |
-| `src/lib/shop/media-service.server.ts` | Server/client services |
-| `src/lib/shop/media.ts` | Server/client services |
-| `src/lib/shop/operations-service.server.ts` | Server/client services |
-| `src/lib/shop/operations.ts` | Server/client services |
-| `src/lib/shop/payment-providers.server.ts` | Server/client services |
-| `src/lib/shop/permissions.server.ts` | Server/client services |
-| `src/lib/shop/promptpay-qr.ts` | Server/client services |
-| `src/lib/shop/require-admin.server.ts` | Server/client services |
-| `src/lib/shop/rewards-service.server.ts` | Server/client services |
-| `src/lib/shop/rewards.ts` | Server/client services |
-| `src/lib/shop/role-actions.server.ts` | Server/client services |
-| `src/lib/shop/settings-schema.ts` | Server/client services |
-| `src/lib/shop/site-state.tsx` | Server/client services |
-| `src/lib/shop/slip-verify-upstream.server.ts` | Server/client services |
-| `src/lib/shop/slip-verify.ts` | Server/client services |
-| `src/lib/shop/store.ts` | Server/client services |
-| `src/lib/shop/storefront.ts` | Server/client services |
-| `src/lib/shop/topup-security.test.ts` | Server/client services |
-| `src/lib/shop/validation.ts` | Server/client services |
-| `src/routeTree.gen.ts` | Configuration/runtime |
-| `src/routes/__root.tsx` | UI/routes |
-| `src/routes/admin.tsx` | UI/routes |
-| `src/routes/admin/payments/reconciliation.tsx` | UI/routes |
-| `src/routes/admin/topups.tsx` | UI/routes |
-| `src/routes/api/auth/$.ts` | UI/routes |
-| `src/routes/api/jobs/run.ts` | UI/routes |
-| `src/routes/api/media/$id.ts` | UI/routes |
-| `src/routes/api/slip/verify.ts` | UI/routes |
-| `src/routes/login.tsx` | UI/routes |
-| `src/routes/reset-password.tsx` | UI/routes |
-| `src/routes/robots[.]txt.ts` | UI/routes |
-| `src/routes/shop/alerts.tsx` | UI/routes |
-| `src/routes/shop/box.tsx` | UI/routes |
-| `src/routes/shop/catalog.tsx` | UI/routes |
-| `src/routes/shop/claims.tsx` | UI/routes |
-| `src/routes/shop/index.tsx` | UI/routes |
-| `src/routes/shop/privacy.tsx` | UI/routes |
-| `src/routes/shop/product/$id.tsx` | UI/routes |
-| `src/routes/shop/profile.tsx` | UI/routes |
-| `src/routes/shop/settings.tsx` | UI/routes |
-| `src/routes/shop/topup.tsx` | UI/routes |
-| `src/routes/shop/wheel.tsx` | UI/routes |
-| `src/routes/sitemap[.]xml.ts` | UI/routes |
-| `src/styles.css` | Configuration/runtime |
-| `startup.sh` | Configuration/runtime |
+| File                                               | Area                          |
+| -------------------------------------------------- | ----------------------------- |
+| `.env.example`                                     | Configuration/runtime         |
+| `CHANGELOG.md`                                     | Operations documentation      |
+| `IMPLEMENTATION_STATUS.md`                         | Operations documentation      |
+| `RELEASE_RUNBOOK.md`                               | Operations documentation      |
+| `migrations/0011_shop_operations.sql`              | Database migration            |
+| `package-lock.json`                                | Configuration/runtime         |
+| `package.json`                                     | Configuration/runtime         |
+| `scripts/brand-check.test.mjs`                     | Verification/operator tooling |
+| `scripts/check-auth-invariant.test.mjs`            | Verification/operator tooling |
+| `scripts/commerce.test.mjs`                        | Verification/operator tooling |
+| `scripts/grant-admin.mjs`                          | Verification/operator tooling |
+| `scripts/operations.test.mjs`                      | Verification/operator tooling |
+| `scripts/package-runtime-assets.mjs`               | Verification/operator tooling |
+| `scripts/restore-backup.mjs`                       | Verification/operator tooling |
+| `scripts/rotate-inventory-key.mjs`                 | Verification/operator tooling |
+| `scripts/with-app-env.test.mjs`                    | Verification/operator tooling |
+| `scripts/write-atomic.test.mjs`                    | Verification/operator tooling |
+| `src/components/brand-mark.tsx`                    | UI/routes                     |
+| `src/components/shop/admin-console.tsx`            | UI/routes                     |
+| `src/components/shop/category-editor.tsx`          | UI/routes                     |
+| `src/components/shop/data-import.tsx`              | UI/routes                     |
+| `src/components/shop/digital-inventory-editor.tsx` | UI/routes                     |
+| `src/components/shop/flash-sale.tsx`               | UI/routes                     |
+| `src/components/shop/image-editor.tsx`             | UI/routes                     |
+| `src/components/shop/live-feed.tsx`                | UI/routes                     |
+| `src/components/shop/product-editor.tsx`           | UI/routes                     |
+| `src/components/shop/product-grid.tsx`             | UI/routes                     |
+| `src/components/shop/reward-panel.tsx`             | UI/routes                     |
+| `src/components/shop/shop-shell.tsx`               | UI/routes                     |
+| `src/components/shop/store-content.tsx`            | UI/routes                     |
+| `src/components/site-footer.tsx`                   | UI/routes                     |
+| `src/lib/auth/email.server.ts`                     | Server/client services        |
+| `src/lib/auth/middleware.ts`                       | Server/client services        |
+| `src/lib/auth/server.ts`                           | Server/client services        |
+| `src/lib/auth/use-current-user.ts`                 | Server/client services        |
+| `src/lib/auth/verify.server.ts`                    | Server/client services        |
+| `src/lib/error-component.tsx`                      | Server/client services        |
+| `src/lib/shop/access.ts`                           | Server/client services        |
+| `src/lib/shop/actions.ts`                          | Server/client services        |
+| `src/lib/shop/admin-data.ts`                       | Server/client services        |
+| `src/lib/shop/admin-gate.ts`                       | Server/client services        |
+| `src/lib/shop/backup-service.server.ts`            | Server/client services        |
+| `src/lib/shop/backup-verification.server.ts`       | Server/client services        |
+| `src/lib/shop/backups.ts`                          | Server/client services        |
+| `src/lib/shop/catalog.ts`                          | Server/client services        |
+| `src/lib/shop/commerce.server.ts`                  | Server/client services        |
+| `src/lib/shop/import-service.server.ts`            | Server/client services        |
+| `src/lib/shop/imports.ts`                          | Server/client services        |
+| `src/lib/shop/inventory-service.server.ts`         | Server/client services        |
+| `src/lib/shop/inventory.ts`                        | Server/client services        |
+| `src/lib/shop/jobs-service.server.ts`              | Server/client services        |
+| `src/lib/shop/jobs.ts`                             | Server/client services        |
+| `src/lib/shop/media-service.server.ts`             | Server/client services        |
+| `src/lib/shop/media.ts`                            | Server/client services        |
+| `src/lib/shop/operations-service.server.ts`        | Server/client services        |
+| `src/lib/shop/operations.ts`                       | Server/client services        |
+| `src/lib/shop/payment-providers.server.ts`         | Server/client services        |
+| `src/lib/shop/permissions.server.ts`               | Server/client services        |
+| `src/lib/shop/promptpay-qr.ts`                     | Server/client services        |
+| `src/lib/shop/require-admin.server.ts`             | Server/client services        |
+| `src/lib/shop/rewards-service.server.ts`           | Server/client services        |
+| `src/lib/shop/rewards.ts`                          | Server/client services        |
+| `src/lib/shop/role-actions.server.ts`              | Server/client services        |
+| `src/lib/shop/settings-schema.ts`                  | Server/client services        |
+| `src/lib/shop/site-state.tsx`                      | Server/client services        |
+| `src/lib/shop/slip-verify-upstream.server.ts`      | Server/client services        |
+| `src/lib/shop/slip-verify.ts`                      | Server/client services        |
+| `src/lib/shop/store.ts`                            | Server/client services        |
+| `src/lib/shop/storefront.ts`                       | Server/client services        |
+| `src/lib/shop/topup-security.test.ts`              | Server/client services        |
+| `src/lib/shop/validation.ts`                       | Server/client services        |
+| `src/routeTree.gen.ts`                             | Configuration/runtime         |
+| `src/routes/__root.tsx`                            | UI/routes                     |
+| `src/routes/admin.tsx`                             | UI/routes                     |
+| `src/routes/admin/payments/reconciliation.tsx`     | UI/routes                     |
+| `src/routes/admin/topups.tsx`                      | UI/routes                     |
+| `src/routes/api/auth/$.ts`                         | UI/routes                     |
+| `src/routes/api/jobs/run.ts`                       | UI/routes                     |
+| `src/routes/api/media/$id.ts`                      | UI/routes                     |
+| `src/routes/api/slip/verify.ts`                    | UI/routes                     |
+| `src/routes/login.tsx`                             | UI/routes                     |
+| `src/routes/reset-password.tsx`                    | UI/routes                     |
+| `src/routes/robots[.]txt.ts`                       | UI/routes                     |
+| `src/routes/shop/alerts.tsx`                       | UI/routes                     |
+| `src/routes/shop/box.tsx`                          | UI/routes                     |
+| `src/routes/shop/catalog.tsx`                      | UI/routes                     |
+| `src/routes/shop/claims.tsx`                       | UI/routes                     |
+| `src/routes/shop/index.tsx`                        | UI/routes                     |
+| `src/routes/shop/privacy.tsx`                      | UI/routes                     |
+| `src/routes/shop/product/$id.tsx`                  | UI/routes                     |
+| `src/routes/shop/profile.tsx`                      | UI/routes                     |
+| `src/routes/shop/settings.tsx`                     | UI/routes                     |
+| `src/routes/shop/topup.tsx`                        | UI/routes                     |
+| `src/routes/shop/wheel.tsx`                        | UI/routes                     |
+| `src/routes/sitemap[.]xml.ts`                      | UI/routes                     |
+| `src/styles.css`                                   | Configuration/runtime         |
+| `startup.sh`                                       | Configuration/runtime         |

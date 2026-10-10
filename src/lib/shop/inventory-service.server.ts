@@ -26,7 +26,7 @@ export async function addInventoryItem(
       "INSERT INTO audit_logs(id,actor_id,action,entity_type,entity_id,metadata) VALUES($1,$2,'inventory.added','inventory_item',$3,$4)",
       [randomUUID(), actorId, id, JSON.stringify({ productId })],
     );
-    return { ok: true as const, message: "เพิ่มสต็อกจริงแล้ว" };
+    return { ok: true as const, inventoryId: id, message: "เพิ่มสต็อกจริงแล้ว" };
   });
 }
 export async function readOwnedDelivery(sql: Sql, userId: string, orderId: string) {

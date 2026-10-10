@@ -4,12 +4,12 @@ import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql } from "@/lib/db";
 import { requirePermission } from "./permissions.server";
 import { audit } from "./operations-service.server";
-import { processJobs } from "./jobs-service.server";
+import { runSystemMaintenance } from "./system-runner.server";
 export const runJobs = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     await requirePermission(String(context.userId), "system.manage", context.bearerToken);
-    return processJobs(await getSql());
+    return runSystemMaintenance(await getSql());
   });
 export const retryJob = createServerFn({ method: "POST" })
   .validator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))

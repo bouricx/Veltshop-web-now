@@ -212,6 +212,11 @@ function HistoryBody() {
                       {deliveries[o.id]}
                     </pre>
                   ) : null}
+                  {/^\/api\/files\/[a-f\d-]{36}$/i.test(deliveries[o.id] ?? "") ? (
+                    <Button asChild className="mt-2">
+                      <a href={deliveries[o.id]}>ดาวน์โหลดไฟล์สินค้า</a>
+                    </Button>
+                  ) : null}
                   {o.payload ? (
                     <pre className="mt-3 whitespace-pre-wrap rounded-md bg-bg p-3 font-mono text-xs">
                       {o.payload}

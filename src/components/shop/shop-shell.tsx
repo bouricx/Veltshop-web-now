@@ -1,3 +1,4 @@
+import { onShopChange } from "@/lib/shop/realtime-client";
 import { useSiteConfiguration } from "@/lib/shop/site-state";
 import { StoreContent } from "./store-content";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
@@ -68,10 +69,12 @@ export function ShopShell() {
             if (active) useShop.setState({ balance: 0 });
           });
       refresh();
+      const unsubscribe = onShopChange(refresh);
       const timer = setInterval(refresh, 15000);
       return () => {
         active = false;
         clearInterval(timer);
+        unsubscribe();
       };
     } else if (!user || user.isDevFallback) {
       logout();

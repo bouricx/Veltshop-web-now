@@ -1,3 +1,4 @@
+import { onShopChange } from "@/lib/shop/realtime-client";
 import { useEffect, useState } from "react";
 import { storefrontSummary } from "@/lib/shop/storefront";
 import { relativeTime } from "@/lib/utils";
@@ -12,10 +13,12 @@ export function LiveFeed() {
         })
         .catch(() => {});
     load();
+    const unsubscribe = onShopChange(load);
     const timer = setInterval(load, 15000);
     return () => {
       active = false;
       clearInterval(timer);
+      unsubscribe();
     };
   }, []);
   return (

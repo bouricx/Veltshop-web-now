@@ -266,8 +266,31 @@ export const systemHealth = createServerFn({ method: "GET" })
       },
       storage: { status: "database" },
       queue,
-      version: "0.3.0",
-      migration: "0011",
-      realtime: "polling 15 seconds",
+      scheduler: {
+        configured: Boolean(process.env.CRON_SECRET),
+        schedule: "ทุกวันช่วง 09:00 น. ประเทศไทย",
+        recent: await sql.query<{
+          kind: string;
+          status: string;
+          started_at: string;
+          finished_at: string | null;
+          result: { processed?: number };
+        }>(
+          "SELECT kind,status,started_at::text,finished_at::text,result FROM system_runs ORDER BY started_at DESC LIMIT 5",
+        ),
+      },
+      backup: {
+        configured: /^[a-f\d]{64}$/i.test(process.env.BACKUP_ENCRYPTION_KEY ?? ""),
+        everyHours: Number(process.env.BACKUP_EVERY_HOURS) || null,
+      },
+      email: {
+        status:
+          process.env.RESEND_API_KEY && process.env.EMAIL_FROM
+            ? "configured-unverified"
+            : "requires-credentials",
+      },
+      version: "0.4.0",
+      migration: "0012",
+      realtime: "SSE ตรวจการเปลี่ยนแปลงทุก 5 วินาที / polling สำรอง 15 วินาที",
     };
   });

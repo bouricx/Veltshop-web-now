@@ -41,6 +41,9 @@ export const backupTables = [
   "reward_campaigns",
   "reward_plays",
   "login_history",
+  "private_files",
+  "privacy_requests",
+  "system_runs",
 ] as const;
 export type Snapshot = {
   version: 1;
@@ -100,7 +103,7 @@ export async function snapshot(sql: Sql): Promise<Snapshot> {
       );
       tables[table] = rows.map((r) => r.data);
     }
-    return { version: 1, migration: "0011", createdAt: new Date().toISOString(), tables };
+    return { version: 1, migration: "0012", createdAt: new Date().toISOString(), tables };
   });
 }
 export async function restoreIntoEmpty(sql: Sql, value: Snapshot) {
@@ -145,7 +148,7 @@ export async function restoreIntoEmpty(sql: Sql, value: Snapshot) {
     };
   });
 }
-export async function createBackup(sql: Sql, actor: string) {
+export async function createBackup(sql: Sql, actor: string, lease?: { id: string; token: string }) {
   const value = await snapshot(sql);
   const encoded = sealBackup(value);
   if (encoded.length > 25 * 1024 * 1024)
@@ -153,11 +156,23 @@ export async function createBackup(sql: Sql, actor: string) {
   const checksum = createHash("sha256").update(encoded).digest("hex");
   const id = randomUUID();
   await sql.transaction(async (tx) => {
+    if (lease) {
+      const [job] = await tx.query(
+        "SELECT id FROM jobs WHERE id=$1 AND lease_token=$2 AND status='processing' FOR UPDATE",
+        [lease.id, lease.token],
+      );
+      if (!job) throw new CommerceError("งานสำรองถูกส่งให้ตัวรันอื่นแล้ว");
+    }
     await tx.query(
       "INSERT INTO backup_records(id,status,checksum,bytes) VALUES($1,'created',$2,$3)",
       [id, checksum, encoded],
     );
     await audit(tx, actor, "backup.created", "backup", id, { checksum, size: encoded.length });
+    if (lease)
+      await tx.query(
+        "UPDATE jobs SET status='success',lease_until=NULL,lease_token=NULL,last_error=NULL,updated_at=now() WHERE id=$1 AND lease_token=$2",
+        [lease.id, lease.token],
+      );
   });
   return { id, checksum };
 }

@@ -1,3 +1,4 @@
+import { uploadPrivateStock } from "@/lib/shop/private-files";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -90,6 +91,47 @@ export function DigitalInventoryEditor({
         <label className="block text-sm">
           <input type="checkbox" checked={bulk} onChange={(e) => setBulk(e.target.checked)} />{" "}
           นำเข้าหลายชิ้น (1 บรรทัดต่อชิ้น สูงสุด 200 ชิ้น)
+        </label>
+        <label className="block space-y-2 text-sm">
+          <span>หรือเพิ่มไฟล์สินค้าส่วนตัว PDF / ZIP / TXT สูงสุด 2 MB (1 ไฟล์ = 1 ชิ้น)</span>
+          <input
+            type="file"
+            accept=".pdf,.zip,.txt"
+            disabled={busy}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (!file || !product) return;
+              if (file.size > 2 * 1024 * 1024) {
+                toast.error("ไฟล์ต้องไม่เกิน 2 MB");
+                return;
+              }
+              setBusy(true);
+              const reader = new FileReader();
+              reader.onerror = () => {
+                setBusy(false);
+                toast.error("อ่านไฟล์ไม่สำเร็จ");
+              };
+              reader.onload = () => {
+                void uploadPrivateStock({
+                  data: {
+                    id: crypto.randomUUID(),
+                    productId: product.id,
+                    name: file.name,
+                    encoded: String(reader.result).split(",")[1],
+                  },
+                })
+                  .then(async (r) => {
+                    toast.success(r.message);
+                    onSaved();
+                    setItems(await listDigitalInventory({ data: { productId: product.id } }));
+                  })
+                  .catch(() => toast.error("เพิ่มไฟล์ไม่สำเร็จ ตรวจชนิดไฟล์และการตั้งค่าเข้ารหัส"))
+                  .finally(() => setBusy(false));
+              };
+              reader.readAsDataURL(file);
+            }}
+          />
         </label>
         <Label htmlFor="digital-payload">บัญชี / รหัส / ข้อความส่งสินค้า</Label>
         <Textarea

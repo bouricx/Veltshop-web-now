@@ -1,3 +1,4 @@
+import { onShopChange } from "@/lib/shop/realtime-client";
 import { useEffect, useState } from "react";
 import { publicContent, memberContent } from "@/lib/shop/operations";
 import { Button } from "@/components/ui/button";
@@ -14,17 +15,21 @@ export function StoreContent() {
         if (active) setContent(c);
       });
     load();
+    const unsubscribe = onShopChange(load);
     const timer = setInterval(load, 15000);
     return () => {
       active = false;
       clearInterval(timer);
+      unsubscribe();
     };
   }, [signedIn, user?.id]);
   const banners = content.filter((c) => c.kind === "banner");
   useEffect(() => {
     if (banners.length < 2) return;
     const timer = setInterval(() => setIndex((i) => (i + 1) % banners.length), 6000);
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+    };
   }, [banners.length]);
   const banner = banners[index % banners.length];
   return (

@@ -1,7 +1,10 @@
+import { PrivacyControls } from "@/components/shop/privacy-controls";
+import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { createFileRoute } from "@tanstack/react-router";
 import { useSiteConfiguration } from "@/lib/shop/site-state";
 export const Route = createFileRoute("/shop/privacy")({ component: Privacy });
 function Privacy() {
+  const { user } = useCurrentUserState();
   const { value } = useSiteConfiguration();
   return (
     <article className="mx-auto max-w-2xl space-y-5">
@@ -15,6 +18,7 @@ function Privacy() {
         ขอสำเนาข้อมูลหรือลบบัญชีผ่าน Discord / Facebook ของร้าน
         ข้อมูลธุรกรรมที่จำเป็นจะถูกเก็บตามนโยบายที่ร้านกำหนด
       </p>
+      {user ? <PrivacyControls /> : null}
     </article>
   );
 }

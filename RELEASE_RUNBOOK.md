@@ -48,3 +48,11 @@ Imports accept validated JSON arrays of 1–200 rows. Download blank templates, 
 Use maintenance mode before production changes. Keep financial records and audit events: immutable triggers deliberately reject edit/delete. Refunds append credit and revoke order delivery; sold pieces are not automatically relisted. Revert application artifacts if needed while retaining additive schema and transaction data. Do not drop migrations or reconstruct balances from browser state.
 
 Configure retention, off-site backup copies, database monitoring and incident procedures for the actual deployment. A retention purge, satang migration, provider webhook integration and privately hosted binary deliveries are separate work, not claimed by this release.
+
+## 0.4.0 operations
+
+The native Vercel daily cron calls GET /api/jobs/run at 02:00 UTC (09:00 Thailand). POST remains compatible with an authorized external scheduler. CRON_SECRET is server-only. Inspect the system panel for execution history; manual processing uses the same runner. BACKUP_EVERY_HOURS=24 schedules daily encrypted snapshots. Download encrypted backups to independent storage and preserve original encryption keys before rotating or removing hosting resources.
+
+Private PDF/ZIP/TXT delivery is limited to 2 MB per item. Upload it in the stock editor; it becomes one real stock item. Paid files are served from /api/files only to their buyer, with no caching. Refund/replacement revokes original access. Source files must be trusted; ZIP contents are not malware-scanned.
+
+Privacy exports and account-closure requests are on /shop/privacy; administrators review requests from the privacy tab. Closure retains financial/audit evidence and refuses privileged accounts, balances and open cases. Nonfinancial retention settings default to zero (keep); choose the actual store policy before enabling cleanup.

@@ -1,3 +1,4 @@
+import { onShopChange } from "@/lib/shop/realtime-client";
 import { getMyDelivery } from "@/lib/shop/inventory";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { CheckCircle2, Flame, Pencil, ShoppingBag, Wallet } from "lucide-react";
@@ -64,6 +65,9 @@ export function ProductGrid({
 
   useEffect(() => {
     void reload();
+    const unsubscribe = onShopChange(() => {
+      void reload().catch(() => {});
+    });
     const timer = setInterval(
       () =>
         void Promise.all([listProducts(), listCategories()]).then(([p, c]) => {
@@ -72,7 +76,10 @@ export function ProductGrid({
         }),
       15000,
     );
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      unsubscribe();
+    };
   }, []);
 
   const list = useMemo(() => {
@@ -448,6 +455,11 @@ function BuyDialog({
                 </Button>
               </div>
             </div>
+            {/^\/api\/files\/[a-f\d-]{36}$/i.test(result) ? (
+              <Button asChild>
+                <a href={result}>ดาวน์โหลดไฟล์สินค้า</a>
+              </Button>
+            ) : null}
             <Button className="w-full rounded-full" onClick={() => onOpenChange(false)}>
               ปิดหน้าต่าง
             </Button>

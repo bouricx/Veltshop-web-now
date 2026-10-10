@@ -1,3 +1,4 @@
+import { PrivacyRequestsPanel } from "@/components/shop/privacy-controls";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -59,6 +60,7 @@ const tabs = [
   ["settings", "ตั้งค่าร้าน", "system.manage"],
   ["payment-settings", "ตั้งค่าการชำระ", "system.manage"],
   ["system", "สถานะระบบ", "system.manage"],
+  ["privacy", "คำขอข้อมูลส่วนตัว", "system.manage"],
   ["backups", "สำรองข้อมูล", "system.manage"],
   ["campaigns", "กงล้อ / กล่อง", "promotions.manage"],
 ] as const;
@@ -137,6 +139,8 @@ function AdminPage() {
           <CampaignSettings />
         ) : active === "backups" ? (
           <BackupPanel />
+        ) : active === "privacy" ? (
+          <PrivacyRequestsPanel />
         ) : active === "system" ? (
           <SystemPanel />
         ) : (

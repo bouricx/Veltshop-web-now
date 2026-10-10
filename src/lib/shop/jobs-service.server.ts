@@ -39,11 +39,10 @@ export async function processJobs(sql: Sql, max = 10) {
     try {
       if (item.kind === "backup") {
         const { createBackup } = await import("./backup-service.server.ts");
-        await createBackup(sql, String(item.payload.actorId ?? "scheduler"));
-        await sql.query(
-          "UPDATE jobs SET status='success',lease_until=NULL,lease_token=NULL WHERE id=$1 AND lease_token=$2",
-          [item.id, token],
-        );
+        await createBackup(sql, String(item.payload.actorId ?? "scheduler"), {
+          id: item.id,
+          token,
+        });
         processed++;
         continue;
       }

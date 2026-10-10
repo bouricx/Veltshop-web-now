@@ -18,6 +18,7 @@ import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as ShopRouteImport } from './routes/shop'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AdminTopupsRouteImport } from './routes/admin/topups'
+import { Route as ApiShopEventsRouteImport } from './routes/api/shop-events'
 import { Route as ShopIndexRouteImport } from './routes/shop/index'
 import { Route as ShopAlertsRouteImport } from './routes/shop/alerts'
 import { Route as ShopBoxRouteImport } from './routes/shop/box'
@@ -31,6 +32,7 @@ import { Route as ShopTopupRouteImport } from './routes/shop/topup'
 import { Route as ShopWheelRouteImport } from './routes/shop/wheel'
 import { Route as AdminPaymentsReconciliationRouteImport } from './routes/admin/payments/reconciliation'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiFilesIdRouteImport } from './routes/api/files/$id'
 import { Route as ApiJobsRunRouteImport } from './routes/api/jobs/run'
 import { Route as ApiMediaIdRouteImport } from './routes/api/media/$id'
 import { Route as ApiSlipVerifyRouteImport } from './routes/api/slip/verify'
@@ -80,6 +82,11 @@ const AdminTopupsRoute = AdminTopupsRouteImport.update({
   id: '/topups',
   path: '/topups',
   getParentRoute: () => AdminRoute,
+} as any)
+const ApiShopEventsRoute = ApiShopEventsRouteImport.update({
+  id: '/api/shop-events',
+  path: '/api/shop-events',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ShopIndexRoute = ShopIndexRouteImport.update({
   id: '/',
@@ -147,6 +154,11 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiFilesIdRoute = ApiFilesIdRouteImport.update({
+  id: '/api/files/$id',
+  path: '/api/files/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiJobsRunRoute = ApiJobsRunRouteImport.update({
   id: '/api/jobs/run',
   path: '/api/jobs/run',
@@ -178,6 +190,7 @@ export interface FileRoutesByFullPath {
   '/shop': typeof ShopRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/topups': typeof AdminTopupsRoute
+  '/api/shop-events': typeof ApiShopEventsRoute
   '/shop/alerts': typeof ShopAlertsRoute
   '/shop/box': typeof ShopBoxRoute
   '/shop/catalog': typeof ShopCatalogRoute
@@ -191,6 +204,7 @@ export interface FileRoutesByFullPath {
   '/shop/': typeof ShopIndexRoute
   '/admin/payments/reconciliation': typeof AdminPaymentsReconciliationRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/files/$id': typeof ApiFilesIdRoute
   '/api/jobs/run': typeof ApiJobsRunRoute
   '/api/media/$id': typeof ApiMediaIdRoute
   '/api/slip/verify': typeof ApiSlipVerifyRoute
@@ -205,6 +219,7 @@ export interface FileRoutesByTo {
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/topups': typeof AdminTopupsRoute
+  '/api/shop-events': typeof ApiShopEventsRoute
   '/shop/alerts': typeof ShopAlertsRoute
   '/shop/box': typeof ShopBoxRoute
   '/shop/catalog': typeof ShopCatalogRoute
@@ -218,6 +233,7 @@ export interface FileRoutesByTo {
   '/shop': typeof ShopIndexRoute
   '/admin/payments/reconciliation': typeof AdminPaymentsReconciliationRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/files/$id': typeof ApiFilesIdRoute
   '/api/jobs/run': typeof ApiJobsRunRoute
   '/api/media/$id': typeof ApiMediaIdRoute
   '/api/slip/verify': typeof ApiSlipVerifyRoute
@@ -234,6 +250,7 @@ export interface FileRoutesById {
   '/shop': typeof ShopRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/topups': typeof AdminTopupsRoute
+  '/api/shop-events': typeof ApiShopEventsRoute
   '/shop/alerts': typeof ShopAlertsRoute
   '/shop/box': typeof ShopBoxRoute
   '/shop/catalog': typeof ShopCatalogRoute
@@ -247,6 +264,7 @@ export interface FileRoutesById {
   '/shop/': typeof ShopIndexRoute
   '/admin/payments/reconciliation': typeof AdminPaymentsReconciliationRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/files/$id': typeof ApiFilesIdRoute
   '/api/jobs/run': typeof ApiJobsRunRoute
   '/api/media/$id': typeof ApiMediaIdRoute
   '/api/slip/verify': typeof ApiSlipVerifyRoute
@@ -264,6 +282,7 @@ export interface FileRouteTypes {
     | '/shop'
     | '/sitemap.xml'
     | '/admin/topups'
+    | '/api/shop-events'
     | '/shop/alerts'
     | '/shop/box'
     | '/shop/catalog'
@@ -277,6 +296,7 @@ export interface FileRouteTypes {
     | '/shop/'
     | '/admin/payments/reconciliation'
     | '/api/auth/$'
+    | '/api/files/$id'
     | '/api/jobs/run'
     | '/api/media/$id'
     | '/api/slip/verify'
@@ -291,6 +311,7 @@ export interface FileRouteTypes {
     | '/robots.txt'
     | '/sitemap.xml'
     | '/admin/topups'
+    | '/api/shop-events'
     | '/shop/alerts'
     | '/shop/box'
     | '/shop/catalog'
@@ -304,6 +325,7 @@ export interface FileRouteTypes {
     | '/shop'
     | '/admin/payments/reconciliation'
     | '/api/auth/$'
+    | '/api/files/$id'
     | '/api/jobs/run'
     | '/api/media/$id'
     | '/api/slip/verify'
@@ -319,6 +341,7 @@ export interface FileRouteTypes {
     | '/shop'
     | '/sitemap.xml'
     | '/admin/topups'
+    | '/api/shop-events'
     | '/shop/alerts'
     | '/shop/box'
     | '/shop/catalog'
@@ -332,6 +355,7 @@ export interface FileRouteTypes {
     | '/shop/'
     | '/admin/payments/reconciliation'
     | '/api/auth/$'
+    | '/api/files/$id'
     | '/api/jobs/run'
     | '/api/media/$id'
     | '/api/slip/verify'
@@ -347,7 +371,9 @@ export interface RootRouteChildren {
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   ShopRoute: typeof ShopRouteWithChildren
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  ApiShopEventsRoute: typeof ApiShopEventsRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiFilesIdRoute: typeof ApiFilesIdRoute
   ApiJobsRunRoute: typeof ApiJobsRunRoute
   ApiMediaIdRoute: typeof ApiMediaIdRoute
   ApiSlipVerifyRoute: typeof ApiSlipVerifyRoute
@@ -417,6 +443,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/topups'
       preLoaderRoute: typeof AdminTopupsRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/api/shop-events': {
+      id: '/api/shop-events'
+      path: '/api/shop-events'
+      fullPath: '/api/shop-events'
+      preLoaderRoute: typeof ApiShopEventsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/shop/': {
       id: '/shop/'
@@ -509,6 +542,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/files/$id': {
+      id: '/api/files/$id'
+      path: '/api/files/$id'
+      fullPath: '/api/files/$id'
+      preLoaderRoute: typeof ApiFilesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/jobs/run': {
       id: '/api/jobs/run'
       path: '/api/jobs/run'
@@ -593,7 +633,9 @@ const rootRouteChildren: RootRouteChildren = {
   RobotsDottxtRoute: RobotsDottxtRoute,
   ShopRoute: ShopRouteWithChildren,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  ApiShopEventsRoute: ApiShopEventsRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiFilesIdRoute: ApiFilesIdRoute,
   ApiJobsRunRoute: ApiJobsRunRoute,
   ApiMediaIdRoute: ApiMediaIdRoute,
   ApiSlipVerifyRoute: ApiSlipVerifyRoute,

@@ -1,3 +1,4 @@
+import { onShopChange } from "@/lib/shop/realtime-client";
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { listProducts } from "@/lib/shop/actions";
@@ -14,10 +15,12 @@ export function FlashSale() {
         })
         .catch(() => {});
     load();
+    const unsubscribe = onShopChange(load);
     const timer = setInterval(load, 15000);
     return () => {
       active = false;
       clearInterval(timer);
+      unsubscribe();
     };
   }, []);
   if (!item) return null;

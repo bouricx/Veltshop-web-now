@@ -1,3 +1,5 @@
+import { SHOP_CHANGED, onShopChange } from "./realtime-client";
+import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useEffect } from "react";
 import { create } from "zustand";
 import { getSiteConfiguration } from "./operations";
@@ -7,6 +9,12 @@ export const useSiteConfiguration = create<{ value: SiteConfiguration; loaded: b
   loaded: false,
 }));
 export function SiteRuntime() {
+  const { user } = useCurrentUserState();
+  useEffect(() => {
+    const events = new EventSource("/api/shop-events");
+    events.addEventListener("change", () => window.dispatchEvent(new Event(SHOP_CHANGED)));
+    return () => events.close();
+  }, [user?.id]);
   useEffect(() => {
     let active = true;
     const load = () =>
@@ -23,10 +31,12 @@ export function SiteRuntime() {
         })
         .catch(() => {});
     load();
+    const unsubscribe = onShopChange(load);
     const timer = setInterval(load, 15000);
     return () => {
       active = false;
       clearInterval(timer);
+      unsubscribe();
     };
   }, []);
   return null;
