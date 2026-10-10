@@ -393,3 +393,105 @@ body,
   }
 }
 
+/* Mobile-first storefront sizing: keep cards, dialogs, and navigation usable on narrow screens. */
+[data-shop] {
+  overflow-x: clip;
+}
+
+[data-shop] main,
+[data-shop] footer,
+[data-shop] header,
+[data-shop] section,
+[data-shop] article {
+  min-width: 0;
+}
+
+[data-shop] :where(h1, h2, h3, p, a, button, label, span) {
+  overflow-wrap: anywhere;
+}
+
+[data-shop] :where(input, select, textarea) {
+  width: 100%;
+  min-width: 0;
+}
+
+[data-shop] .product-card {
+  min-width: 0;
+}
+
+[data-shop] .product-card h3 {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+[data-shop] .product-card .product-price-row {
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 639px) {
+  [data-shop] header > div {
+    gap: 0.5rem;
+  }
+
+  [data-shop] main {
+    padding-top: 0.75rem;
+  }
+
+  [data-shop] .product-card > div:last-child {
+    padding: 0.875rem;
+  }
+
+  [data-shop] .product-card h3 {
+    font-size: 0.9375rem;
+    line-height: 1.4;
+  }
+
+  [data-shop] .product-card .product-price {
+    font-size: clamp(1rem, 4.5vw, 1.25rem);
+  }
+
+  [data-shop] [role="dialog"] {
+    width: calc(100vw - 1.25rem);
+    max-width: calc(100vw - 1.25rem);
+    max-height: calc(100dvh - 1.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  [data-shop] .storefront-banner-image {
+    height: clamp(6rem, 31vw, 8rem);
+    object-position: center;
+  }
+
+  [data-shop] footer {
+    padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (min-width: 420px) and (max-width: 639px) {
+  [data-shop] .product-card > div:last-child {
+    padding: 0.75rem;
+  }
+
+  [data-shop] .product-card .product-stock {
+    font-size: 0.6875rem;
+  }
+}
+
+@media (max-width: 359px) {
+  [data-shop] .bottom-dock {
+    width: calc(100vw - 1rem);
+    padding-inline: 0.5rem;
+  }
+
+  [data-shop] .bottom-dock a {
+    min-width: 3.25rem;
+    font-size: 0.6875rem;
+  }
+
+  [data-shop] .product-card .product-action {
+    padding-inline: 0.5rem;
+    font-size: 0.8125rem;
+  }
+}
