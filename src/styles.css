@@ -562,3 +562,13 @@ body,
   [data-shop] .bottom-dock a { min-height: 44px; }
   [data-shop] main { padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px)); }
 }
+
+/* Member records become labelled cards on phones rather than tiny wide rows. */
+@media (max-width: 767px) {
+  .member-table, .member-table tbody { display: block; width: 100%; }
+  .member-table thead { display: none; }
+  .member-table tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .25rem; padding: 1rem; }
+  .member-table td { display: block; min-width: 0; max-width: none; padding: .5rem; overflow-wrap: anywhere; }
+  .member-table td::before { content: attr(data-label); display: block; margin-bottom: .375rem; font-size: .75rem; color: var(--muted); }
+  .member-table td:first-child, .member-table td:last-child { grid-column: 1 / -1; }
+}
