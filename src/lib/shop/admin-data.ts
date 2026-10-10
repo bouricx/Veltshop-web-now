@@ -83,8 +83,8 @@ const definitions: Record<
   stock: {
     permission: "stock.manage",
     query:
-      "SELECT i.id,i.product_id,p.name,i.status,i.order_id,i.created_at::text,i.sold_at::text FROM inventory_items i JOIN products p ON p.id=i.product_id",
-    search: "id,product_id,name,status",
+      "SELECT i.id,i.product_id,p.name,c.label AS category_name,i.status,i.order_id,i.created_at::text,i.sold_at::text FROM inventory_items i JOIN products p ON p.id=i.product_id LEFT JOIN categories c ON c.id=p.category_id",
+    search: "id,product_id,name,category_name,status",
     date: "created_at",
   },
   content: {
