@@ -291,10 +291,16 @@ export async function reviewPayment(
 }
 export const giftHash = (code: string) =>
   createHash("sha256").update(code.trim().toUpperCase()).digest("hex");
-export async function redeemGift(sql: Sql, user: string, code: string, key: string) {
+export async function redeemGift(
+  sql: Sql,
+  user: string,
+  code: string,
+  key: string,
+  selectedProductId?: string,
+) {
   return sql.transaction(async (tx) => {
     const account = await wallet(tx, user);
-    const kind = `gift:${giftHash(code)}`;
+    const kind = `gift:${giftHash(code)}${selectedProductId ? ":" + selectedProductId : ""}`;
     const prev = await prior(tx, user, key, kind);
     if (prev) return prev;
     const [gift] = await tx.query<{
@@ -302,6 +308,7 @@ export async function redeemGift(sql: Sql, user: string, code: string, key: stri
       reward: string;
       amount: number;
       product_id: string;
+      category_id: string | null;
       used: number;
       usage_limit: number;
       active: boolean;
@@ -341,11 +348,23 @@ export async function redeemGift(sql: Sql, user: string, code: string, key: stri
         [randomUUID(), user, gift.amount],
       );
     } else {
-      if (!gift.product_id) throw new CommerceError("สินค้าในโค้ดไม่พร้อมใช้งาน");
+      let productId = gift.product_id;
+      if (gift.category_id) {
+        if (!selectedProductId)
+          throw new CommerceError("โค้ดนี้ใช้เลือกสินค้า กรุณาเลือกสินค้าที่ต้องการรับก่อน");
+        const [selected] = await tx.query<{ id: string }>(
+          "SELECT id FROM products WHERE id=$1 AND category_id=$2 AND active=true",
+          [selectedProductId, gift.category_id],
+        );
+        if (!selected) throw new CommerceError("สินค้าที่เลือกไม่อยู่ในหมวดของโค้ดนี้");
+        productId = selected.id;
+      } else if (selectedProductId && selectedProductId !== productId)
+        throw new CommerceError("สินค้าที่เลือกไม่ตรงกับโค้ดนี้");
+      if (!productId) throw new CommerceError("สินค้าในโค้ดไม่พร้อมใช้งาน");
       const adapter = Object.assign(tx, {
         transaction: async <T>(work: (tx: Sql) => Promise<T>) => work(tx),
       });
-      const result = await purchase(adapter, user, gift.product_id, `gift:${gift.id}:${user}`, {
+      const result = await purchase(adapter, user, productId, `gift:${gift.id}:${user}`, {
         free: true,
       });
       orderId = result.orderId;

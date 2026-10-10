@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { imageTarget, allowedImageFormats } from "@/lib/shop/image-policy";
+import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { uploadMedia } from "@/lib/shop/media";
 import { getSiteConfiguration } from "@/lib/shop/operations";
@@ -16,6 +17,15 @@ export function ImageEditor({
   value?: string;
   onSaved: (url: string) => void;
 }) {
+  const inputId = useId();
+  const [formats, setFormats] = useState(["png", "jpeg", "webp"]);
+  const [fit, setFit] = useState<"contain" | "cover">(
+    kind === "banner" || kind === "profile" ? "cover" : "contain",
+  );
+  const [maxMb, setMaxMb] = useState(5);
+  const [quality, setQuality] = useState(85);
+  const [ready, setReady] = useState(false);
+  const [currentSize, setCurrentSize] = useState({ width: 0, height: 0 });
   const [open, setOpen] = useState(false),
     [source, setSource] = useState(""),
     [file, setFile] = useState<File | null>(null),
@@ -28,18 +38,23 @@ export function ImageEditor({
     [busy, setBusy] = useState(false);
   const canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    void getSiteConfiguration().then((c) =>
-      setTarget(
-        kind === "banner"
-          ? { width: c.imageBannerWidth, height: c.imageBannerHeight }
-          : kind === "logo"
-            ? { width: 500, height: 150 }
-            : { width: c.imageSquare, height: c.imageSquare },
-      ),
-    );
+    let active = true;
+    void getSiteConfiguration()
+      .then((c) => {
+        if (!active) return;
+        setMaxMb(c.imageMaxMb);
+        setQuality(c.imageQuality);
+        setFormats(allowedImageFormats(c));
+        setTarget(imageTarget(kind, c));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
   }, [kind]);
   useEffect(() => {
-    if (!source) return;
+    if (!source || !open) return;
+    setReady(false);
     let active = true;
     const image = new Image();
     image.onload = () => {
@@ -48,27 +63,44 @@ export function ImageEditor({
       const ctx = canvas.current.getContext("2d");
       if (!ctx) return;
       ctx.clearRect(0, 0, target.width, target.height);
+      if (kind === "product") {
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, target.width, target.height);
+      }
       ctx.save();
       ctx.translate(target.width / 2 + x, target.height / 2 + y);
       ctx.rotate((rotation * Math.PI) / 180);
       const swapped = rotation % 180 !== 0;
       const scale =
-        Math.max(
+        (fit === "cover" ? Math.max : Math.min)(
           target.width / (swapped ? image.height : image.width),
           target.height / (swapped ? image.width : image.height),
         ) * zoom;
       ctx.scale(scale, scale);
       ctx.drawImage(image, -image.width / 2, -image.height / 2);
       ctx.restore();
+      setReady(true);
+    };
+    image.onerror = () => {
+      if (active) {
+        setReady(false);
+        toast.error("อ่านรูปไม่ได้ กรุณาเลือก PNG, JPEG หรือ WebP ที่ไม่เสียหาย");
+      }
     };
     image.src = source;
     return () => {
       active = false;
     };
-  }, [source, target, zoom, rotation, x, y]);
+  }, [source, target, zoom, rotation, x, y, open, fit, kind]);
   async function select(f: File) {
-    if (!["image/png", "image/jpeg", "image/webp"].includes(f.type) || f.size > 5 * 1024 * 1024) {
-      toast.error("รองรับ PNG/JPEG/WebP ไม่เกิน 5 MB");
+    if (
+      !formats.map((v) => `image/${v}`).includes(f.type) ||
+      f.size > maxMb * 1024 * 1024 ||
+      !/\.(png|jpe?g|webp)$/i.test(f.name)
+    ) {
+      toast.error(
+        `รองรับ ${formats.join("/")} ไม่เกิน ${maxMb} MB (ไฟล์นี้ ${(f.size / 1024 / 1024).toFixed(2)} MB)`,
+      );
       return;
     }
     const reader = new FileReader();
@@ -80,17 +112,38 @@ export function ImageEditor({
       setX(0);
       setY(0);
     };
+    reader.onerror = () => toast.error("อ่านไฟล์ไม่สำเร็จ กรุณาเลือกใหม่");
     reader.readAsDataURL(f);
   }
-  async function save() {
-    if (!canvas.current) return;
+  async function editCurrent() {
+    if (!value) return;
     setBusy(true);
     try {
+      const url = new URL(value, window.location.origin);
+      if (url.origin !== window.location.origin)
+        throw new Error("กรุณาอัปโหลดต้นฉบับใหม่สำหรับรูปจากเว็บไซต์ภายนอก");
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("โหลดรูปเดิมไม่สำเร็จ");
+      const blob = await response.blob();
+      const ext = blob.type === "image/jpeg" ? "jpg" : blob.type === "image/png" ? "png" : "webp";
+      await select(new File([blob], `current.${ext}`, { type: blob.type }));
+      setOpen(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "โหลดรูปเดิมไม่สำเร็จ");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function save() {
+    if (!canvas.current || !ready) return;
+    setBusy(true);
+    try {
+      const format = formats.includes("webp") ? "webp" : formats.includes("png") ? "png" : "jpeg";
       const result = await uploadMedia({
         data: {
           kind,
-          dataUrl: canvas.current.toDataURL("image/webp", 0.92),
-          fileName: "edited.webp",
+          dataUrl: canvas.current.toDataURL(`image/${format}`, quality / 100),
+          fileName: `edited.${format === "jpeg" ? "jpg" : format}`,
         },
       });
       onSaved(result.url);
@@ -106,24 +159,54 @@ export function ImageEditor({
   return (
     <div className="space-y-2">
       <p className="text-xs text-muted">
-        ขนาดแนะนำ {target.width} × {target.height} px · PNG/JPEG/WebP
+        ขนาดแนะนำ {target.width} × {target.height} px · PNG/JPEG/WebP · สูงสุด {maxMb} MB
       </p>
       {value ? (
-        <img src={value} alt="รูปปัจจุบัน" className="h-20 max-w-full rounded-lg object-contain" />
+        <div className="flex items-center gap-4 rounded-xl border border-border p-3">
+          <img
+            src={value}
+            alt="รูปปัจจุบัน"
+            onLoad={(e) =>
+              setCurrentSize({
+                width: e.currentTarget.naturalWidth,
+                height: e.currentTarget.naturalHeight,
+              })
+            }
+            className="h-20 max-w-32 rounded-lg object-contain"
+          />
+          <div className="text-xs text-muted">
+            รูปปัจจุบัน
+            <p className="mt-1">
+              {currentSize.width} × {currentSize.height} px
+            </p>
+            <p>อัตราส่วน {(currentSize.width / Math.max(1, currentSize.height)).toFixed(2)}</p>
+          </div>
+        </div>
       ) : null}
       <Button type="button" variant="secondary" onClick={() => setOpen(true)}>
         เลือกรูป / ครอป
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
+      {value ? (
+        <Button type="button" variant="ghost" disabled={busy} onClick={() => void editCurrent()}>
+          แก้ไขรูปปัจจุบัน
+        </Button>
+      ) : null}
+      <Dialog
+        open={open}
+        onOpenChange={(v) => {
+          if (!busy) setOpen(v);
+        }}
+      >
         <DialogContent title="ปรับรูปก่อนบันทึก" className="max-h-[90dvh] overflow-auto">
-          <Label htmlFor={`file-${kind}`}>เลือกรูป</Label>
+          <Label htmlFor={inputId}>เลือกรูป</Label>
           <Input
-            id={`file-${kind}`}
+            id={inputId}
             type="file"
-            accept="image/png,image/jpeg,image/webp"
+            accept={formats.map((v) => `image/${v}`).join(",")}
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) void select(f);
+              e.target.value = "";
             }}
           />
           {source ? (
@@ -133,11 +216,27 @@ export function ImageEditor({
                 {((file?.size ?? 0) / 1024 / 1024).toFixed(2)} MB · อัตราส่วน{" "}
                 {(size.width / Math.max(1, size.height)).toFixed(2)}
               </p>
+              <p className="rounded-lg bg-bg p-3 text-xs text-muted">
+                {Math.abs(size.width / Math.max(1, size.height) - target.width / target.height) <
+                0.02
+                  ? "✓ อัตราส่วนเหมาะสม"
+                  : "อัตราส่วนต่างจากขนาดแนะนำ เลื่อนและซูมเพื่อเลือกบริเวณที่ต้องการ"}{" "}
+                · กรอบบันทึก {target.width}:{target.height}
+              </p>
+              <label className="flex min-h-11 items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={fit === "cover"}
+                  onChange={(e) => setFit(e.target.checked ? "cover" : "contain")}
+                />
+                ครอปให้เต็มกรอบ (ปิดเพื่อแสดงภาพครบ)
+              </label>
               <canvas
                 ref={canvas}
                 width={target.width}
                 height={target.height}
-                className="max-h-64 w-full rounded-lg bg-surface-2 object-contain"
+                style={{ aspectRatio: `${target.width}/${target.height}` }}
+                className="mx-auto max-h-64 max-w-full rounded-lg bg-surface-2 object-contain"
               />
               <p className="text-xs">
                 บันทึกเป็น {target.width} × {target.height} px พร้อมรูปขนาดย่อ
@@ -167,7 +266,19 @@ export function ImageEditor({
               >
                 หมุน 90°
               </Button>
-              <Button type="button" disabled={busy} onClick={() => void save()}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setZoom(1);
+                  setRotation(0);
+                  setX(0);
+                  setY(0);
+                }}
+              >
+                คืนค่า
+              </Button>
+              <Button type="button" disabled={busy || !ready} onClick={() => void save()}>
                 {busy ? "กำลังบันทึก…" : "ยืนยันรูป"}
               </Button>
             </>

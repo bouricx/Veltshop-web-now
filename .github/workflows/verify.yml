@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - codex/transactional-wallet-checkout
+      - codex/clean-ux-completion
   pull_request:
     branches:
       - main

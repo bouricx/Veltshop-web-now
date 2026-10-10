@@ -6,9 +6,9 @@ import { EmptyGate } from "@/components/shop/shop-shell";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { authClient, signOut } from "@/lib/auth/client";
 import { myAccountData, redeemGiftCode } from "@/lib/shop/operations";
-import { getMyWallet } from "@/lib/shop/actions";
+import { getMyWallet, listProducts } from "@/lib/shop/actions";
 import { useShop } from "@/lib/shop/store";
-import { Input, Label } from "@/components/ui/input";
+import { Input, Label, NativeSelect } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/shop/profile")({ component: ProfilePage });
 function ProfilePage() {
@@ -31,6 +31,13 @@ function ProfileBody() {
     [currentPassword, setCurrentPassword] = useState(""),
     [newPassword, setNewPassword] = useState(""),
     [error, setError] = useState("");
+  const [giftProducts, setGiftProducts] = useState<Awaited<ReturnType<typeof listProducts>>>([]);
+  const [giftProductId, setGiftProductId] = useState("");
+  useEffect(() => {
+    void listProducts()
+      .then(setGiftProducts)
+      .catch(() => {});
+  }, []);
   const balance = useShop((s) => s.balance);
   const load = () =>
     void myAccountData()
@@ -70,9 +77,20 @@ function ProfileBody() {
             <p>ออเดอร์ {data.profile.orders} รายการ</p>
             <p>เครดิตเติมสะสม {data.profile.topups} บาท</p>
             <p className="col-span-2">
-              สมัครเมื่อ {new Date(data.profile.created_at).toLocaleString("th-TH")}
+              สมัครเมื่อ{" "}
+              {new Date(data.profile.created_at).toLocaleString("th-TH", {
+                timeZone: "Asia/Bangkok",
+              })}
             </p>
           </div>
+          <p className="mt-3 text-xs text-muted">
+            เข้าสู่ระบบล่าสุด{" "}
+            {data.profile.last_login
+              ? new Date(data.profile.last_login).toLocaleString("th-TH", {
+                  timeZone: "Asia/Bangkok",
+                })
+              : "ยังไม่มีบันทึก"}
+          </p>
           <Button asChild className="mt-4" variant="secondary">
             <Link to="/shop/history">ออเดอร์ / สินค้าที่ได้รับ</Link>
           </Button>
@@ -83,7 +101,7 @@ function ProfileBody() {
         onSubmit={(e) => {
           e.preventDefault();
           setBusy(true);
-          void redeemGiftCode({ data: { code, key } })
+          void redeemGiftCode({ data: { code, key, productId: giftProductId || undefined } })
             .then((r) => {
               if (r.ok) {
                 toast.success("รับของขวัญแล้ว");
@@ -100,11 +118,32 @@ function ProfileBody() {
         <Input
           id="gift-code"
           value={code}
-          onChange={(e) => setCode(e.target.value)}
+          onChange={(e) => {
+            setCode(e.target.value);
+            setKey(crypto.randomUUID());
+          }}
           minLength={6}
           maxLength={128}
           required
         />
+        <Label htmlFor="gift-product">เลือกสินค้า (เฉพาะโค้ดที่ให้เลือกสินค้าในหมวด)</Label>
+        <NativeSelect
+          id="gift-product"
+          value={giftProductId}
+          onChange={(e) => {
+            setGiftProductId(e.target.value);
+            setKey(crypto.randomUUID());
+          }}
+        >
+          <option value="">ใช้รางวัลที่ระบุในโค้ด</option>
+          {giftProducts
+            .filter((p) => p.stock > 0)
+            .map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+        </NativeSelect>
         <Button type="submit" disabled={busy}>
           {busy ? "กำลังตรวจ…" : "ใช้โค้ด"}
         </Button>

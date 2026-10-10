@@ -1,14 +1,9 @@
-import { useState, useEffect } from "react";
+import { OperationalBrowser } from "./operational-browser";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  exportMyData,
-  requestMyDeletion,
-  listPrivacyRequests,
-  reviewPrivacyRequest,
-  type PrivacyRequest,
-} from "@/lib/shop/privacy";
+import { exportMyData, requestMyDeletion, reviewPrivacyRequest } from "@/lib/shop/privacy";
 export function PrivacyControls() {
   const [busy, setBusy] = useState(false),
     [reason, setReason] = useState("");
@@ -68,13 +63,9 @@ export function PrivacyControls() {
   );
 }
 export function PrivacyRequestsPanel() {
-  const [rows, setRows] = useState<PrivacyRequest[]>([]),
+  const [refresh, setRefresh] = useState(0),
     [busy, setBusy] = useState(false);
-  const load = () =>
-    void listPrivacyRequests()
-      .then(setRows)
-      .catch(() => toast.error("โหลดคำขอไม่สำเร็จ"));
-  useEffect(load, []);
+  const load = () => setRefresh((v) => v + 1);
   const review = (id: string, approve: boolean) => {
     const reply = window.prompt("ระบุเหตุผล/ผลการตรวจสอบ (อย่างน้อย 3 ตัวอักษร)");
     if (!reply || reply.trim().length < 3) return;
@@ -102,32 +93,38 @@ export function PrivacyRequestsPanel() {
         เก็บประวัติการเงินและการตรวจสอบ แยกจากข้อมูลระบุตัวตน
         ห้ามอนุมัติบัญชีแอดมินหรือบัญชีที่มีเครดิต/รายการค้าง
       </p>
-      {!rows.length ? (
-        <p>ยังไม่มีคำขอ</p>
-      ) : (
-        rows.map((r) => (
-          <article key={r.id} className="rounded-xl border border-border p-4 space-y-2">
-            <p className="break-all">
-              {r.name} · {r.email}
-            </p>
-            <p>
-              {r.reason} · {r.status}
-            </p>
-            {r.status === "pending" ? (
-              <div className="flex gap-2">
-                <Button disabled={busy} onClick={() => review(r.id, true)}>
-                  อนุมัติปิดบัญชี
-                </Button>
-                <Button variant="secondary" disabled={busy} onClick={() => review(r.id, false)}>
-                  ไม่อนุมัติ
-                </Button>
-              </div>
-            ) : (
-              <p>{r.reply}</p>
-            )}
-          </article>
-        ))
-      )}
+      <OperationalBrowser kind="privacy" refresh={refresh}>
+        {(rows) => (
+          <div className="space-y-3">
+            {rows.map((r) => (
+              <article key={String(r.id)} className="rounded-xl border border-border p-4 space-y-2">
+                <p className="break-all">
+                  {r.name} · {r.email}
+                </p>
+                <p>
+                  {r.reason} · {r.status}
+                </p>
+                {r.status === "pending" ? (
+                  <div className="flex gap-2">
+                    <Button disabled={busy} onClick={() => review(String(r.id), true)}>
+                      อนุมัติปิดบัญชี
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => review(String(r.id), false)}
+                    >
+                      ไม่อนุมัติ
+                    </Button>
+                  </div>
+                ) : (
+                  <p>{r.reply}</p>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
+      </OperationalBrowser>
     </section>
   );
 }

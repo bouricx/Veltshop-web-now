@@ -169,7 +169,7 @@ test("backup job writes snapshot and completes lease atomically; stale runner ca
       "success",
     );
     const value = await snapshot(sql);
-    assert.equal(value.migration, "0012");
+    assert.equal(value.migration, "0014");
     assert.ok(value.tables.private_files);
     assert.ok(value.tables.privacy_requests);
   } finally {

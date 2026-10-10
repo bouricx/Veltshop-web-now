@@ -1,0 +1,25 @@
+# Veltshop 0.5.0 — UX and system completion review
+
+Reviewed on 2026-10-10 against main `b80f08f`. The original 75-section brief is preserved in MASTER_REQUIREMENTS_TH.md and mapped item by item in REQUIREMENTS_75_REVIEW.md. This review does not claim all production requirements are complete.
+
+## Changes
+
+- Clean storefront, product-specific colors with readable contrast, description, icon, image containment, search/filter/sort/pagination, reduced-motion support and responsive admin navigation.
+- Real dashboard date ranges in Thailand time, recent records, category-targeted gift redemption and editable gift metadata.
+- Persistent per-admin notification inbox for orders, top-ups, low stock, registrations, rank eligibility and failed jobs. Notifications contain event IDs rather than private payloads. Restore does not replay historical events.
+- Shared image editor and configurable dimensions, formats, quality, resize/crop and thumbnails. Media, privacy requests and backup lists use authenticated SQL filtering and pagination.
+- Latest main administrator permission protections, full product artwork and mobile layout refinements are preserved.
+
+## Validation
+
+- Automated suites: 293 passed, 4 skipped, 0 failed (226 script tests, 55 auth/app-data tests, 12 payment/QR tests). Skips relate to platform skill documentation absent from the exported repository.
+- TypeScript passes; lint has no errors and two existing React Fast Refresh warnings.
+- Production build and isolated browser flows are checked locally; browser coverage includes purchase, refund, claims, private delivery files, backups/restores, search/sort, dashboard, notifications, persisted colors and widths 320–768px. Local QA uses synthetic accounts and no production funds.
+
+## Production check and release boundary
+
+https://veltshop-website.vercel.app/shop and its catalog were opened in the browser. The current live page still uses the prior dark hero. Catalog loads one product named `test`, price ฿99, stock 10; search returns the correct empty result. The badge and Flash Sale labels overlap in the live version; this branch changes their layout. Existing product data was not edited.
+
+The Vercel connector returned HTTP 403 for deployment inspection under team `team_4yTmStuBr7KMKmJk91iJ2q0K`, and no authenticated Vercel CLI is available. Consequently this branch has not been deployed, and migrations 0013/0014 have not been confirmed in production. A successful build with the production DATABASE_URL applies additive migrations through the existing migration runner; deploy only this reviewed commit and verify them afterward. Do not invent provider credentials or replace encryption keys.
+
+Google login, transactional email/password reset delivery and Slip2Go live validation require provider credentials and live end-to-end checks. PostgreSQL multi-connection concurrency, production disaster recovery, staging data isolation and other remaining verification boundaries are documented in REQUIREMENTS_75_REVIEW.md.

@@ -1,7 +1,18 @@
+import { contrastText, selectProducts, type CatalogSort } from "@/lib/shop/presentation";
+import { useSiteConfiguration } from "@/lib/shop/site-state";
 import { onShopChange } from "@/lib/shop/realtime-client";
 import { getMyDelivery } from "@/lib/shop/inventory";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { CheckCircle2, Flame, Pencil, ShoppingBag, Wallet } from "lucide-react";
+import { useEffect, useMemo, useState, useId, type CSSProperties, type ReactNode } from "react";
+import {
+  CheckCircle2,
+  Flame,
+  Pencil,
+  Search,
+  ShoppingBag,
+  Wallet,
+  ArrowRight,
+  RefreshCw,
+} from "lucide-react";
 import { toast } from "sonner";
 import { LoginDialog } from "@/components/login-dialog";
 import { CategoryEditor } from "@/components/shop/category-editor";
@@ -9,7 +20,7 @@ import { ProductEditor } from "@/components/shop/product-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Input, Label } from "@/components/ui/input";
+import { Input, Label, NativeSelect } from "@/components/ui/input";
 import {
   checkoutProduct,
   listCategories,
@@ -25,10 +36,17 @@ import { cn, formatBaht } from "@/lib/utils";
 export function ProductGrid({
   initialCat = "all",
   onlyProductId,
+  featuredOnly = false,
 }: {
   initialCat?: string;
   onlyProductId?: string;
+  featuredOnly?: boolean;
 }) {
+  const searchId = useId();
+  const [sort, setSort] = useState<CatalogSort>("recommended");
+  const [inStock, setInStock] = useState(false);
+  const [page, setPage] = useState(1);
+  const [error, setError] = useState("");
   const flags = useShop((s) => s.navFlags);
   const [cat, setCat] = useState<string>(initialCat);
   const [items, setItems] = useState<Product[]>([]);
@@ -57,30 +75,45 @@ export function ProductGrid({
   }, [user, isPending]);
 
   async function reload() {
-    const [p, c] = await Promise.all([listProducts(), listCategories()]);
-    setItems(p);
-    setCats(c);
-    setLoading(false);
+    try {
+      const [p, c] = await Promise.all([listProducts(), listCategories()]);
+      setItems(p);
+      setCats(c);
+      setError("");
+    } catch {
+      setError("โหลดสินค้าไม่สำเร็จ กรุณาลองอีกครั้ง");
+    } finally {
+      setLoading(false);
+    }
   }
-
   useEffect(() => {
-    void reload();
-    const unsubscribe = onShopChange(() => {
-      void reload().catch(() => {});
-    });
-    const timer = setInterval(
-      () =>
-        void Promise.all([listProducts(), listCategories()]).then(([p, c]) => {
+    let active = true;
+    const load = async () => {
+      try {
+        const [p, c] = await Promise.all([listProducts(), listCategories()]);
+        if (active) {
           setItems(p);
           setCats(c);
-        }),
-      15000,
-    );
+          setError("");
+        }
+      } catch {
+        if (active) setError("โหลดสินค้าไม่สำเร็จ กรุณาลองอีกครั้ง");
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void load();
+    const unsubscribe = onShopChange(() => void load());
+    const timer = setInterval(() => void load(), 15000);
     return () => {
+      active = false;
       clearInterval(timer);
       unsubscribe();
     };
   }, []);
+  useEffect(() => {
+    setPage(1);
+  }, [cat, search, sort, inStock, featuredOnly]);
 
   const list = useMemo(() => {
     const visible = cats.filter((c) => {
@@ -89,86 +122,146 @@ export function ProductGrid({
       if (c.id === "smm" && !flags.smm) return false;
       return true;
     });
-    const q = search.trim().toLowerCase();
     return {
       visible,
-      items: items.filter((p) => {
-        if (onlyProductId && p.id !== onlyProductId) return false;
-        const categoryIsVisible = visible.some((c) => c.id === p.category);
-        const inCategory = categoryIsVisible && (cat === "all" || p.category === cat);
-        if (!inCategory) return false;
-        if (!q) return true;
-        const haystack = `${p.name} ${p.subtitle} ${p.category}`.toLowerCase();
-        return haystack.includes(q);
+      items: selectProducts(items, {
+        category: cat,
+        query: search,
+        sort,
+        inStock,
+        categories: visible,
+        onlyProductId,
+        featuredOnly,
       }),
     };
-  }, [cat, flags, items, cats, search, onlyProductId]);
+  }, [cat, flags, items, cats, search, onlyProductId, sort, inStock, featuredOnly]);
+  const pageSize = featuredOnly ? 3 : 12;
+  const pages = Math.max(1, Math.ceil(list.items.length / pageSize));
+  const currentPage = Math.min(page, pages);
+  const displayed = list.items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
     <div className="min-w-0">
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <label className="block text-xs font-medium uppercase tracking-[0.14em] text-subtle">
-            ค้นหาสินค้า
-          </label>
-          <div className="mt-1 rounded-full border border-border bg-surface px-3 shadow-border">
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="ค้นหาชื่อ / หมวด / รายละเอียด"
-              className="border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
-            />
+      {!featuredOnly && !onlyProductId ? (
+        <div className="catalog-controls space-y-4 rounded-3xl bg-surface p-4 sm:p-5 shadow-border">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="min-w-0 flex-1">
+              <Label htmlFor={searchId}>ค้นหาสินค้า</Label>
+              <div className="relative mt-2">
+                <Search className="pointer-events-none absolute left-3 top-3 size-5 text-subtle" />
+                <Input
+                  id={searchId}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="ชื่อสินค้า หมวด รายละเอียด หรือรหัส"
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="sm:w-48">
+              <Label htmlFor={`${searchId}-sort`}>เรียงสินค้า</Label>
+              <NativeSelect
+                id={`${searchId}-sort`}
+                className="mt-2"
+                value={sort}
+                onChange={(e) => setSort(e.target.value as CatalogSort)}
+              >
+                <option value="recommended">แนะนำ</option>
+                <option value="price-asc">ราคา: น้อยไปมาก</option>
+                <option value="price-desc">ราคา: มากไปน้อย</option>
+                <option value="name">ชื่อสินค้า</option>
+                <option value="stock">จำนวนพร้อมขาย</option>
+              </NativeSelect>
+            </div>
           </div>
-        </div>
-        <div className="text-xs text-muted">{list.items.length} รายการ</div>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="max-w-full flex-1 overflow-x-auto pb-2">
-          <div className="flex w-max gap-2 sm:w-full sm:flex-wrap">
+          <div className="flex flex-wrap gap-2">
             <CatChip active={cat === "all"} onClick={() => setCat("all")}>
               ทั้งหมด
             </CatChip>
             {list.visible.map((c) => (
               <CatChip key={c.id} active={cat === c.id} onClick={() => setCat(c.id)}>
-                <span style={{ color: c.color }}>
-                  {c.image ? (
-                    <img src={c.image} alt="" className="inline size-5 rounded object-cover mr-1" />
-                  ) : c.icon ? (
-                    <span className="mr-1">{c.icon}</span>
-                  ) : null}
-                  {c.label}
-                </span>
+                {c.image ? (
+                  <img src={c.image} alt="" className="mr-1 inline size-5 rounded object-cover" />
+                ) : c.icon ? (
+                  <span className="mr-1">{c.icon}</span>
+                ) : (
+                  <span
+                    className="mr-2 inline-block size-2 rounded-full"
+                    style={{ background: c.color ?? "#71717a" }}
+                  />
+                )}
+                {c.label}
               </CatChip>
             ))}
           </div>
-        </div>
-        {isAdmin ? (
-          <div className="flex shrink-0 flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant="secondary"
-              className="rounded-full"
-              onClick={() => setEditingCats(true)}
-            >
-              แก้หมวด
-            </Button>
-            <Button size="sm" className="rounded-full" onClick={() => setCreating(true)}>
-              เพิ่มสินค้า
-            </Button>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+            <label className="flex min-h-10 items-center gap-2 text-sm text-muted">
+              <input
+                type="checkbox"
+                className="size-4 accent-current"
+                checked={inStock}
+                onChange={(e) => setInStock(e.target.checked)}
+              />
+              เฉพาะสินค้าพร้อมขาย
+            </label>
+            <p className="text-xs text-muted" aria-live="polite">
+              พบ {list.items.length} รายการ
+            </p>
+            {isAdmin ? (
+              <div className="flex gap-2">
+                <Button size="sm" variant="secondary" onClick={() => setEditingCats(true)}>
+                  แก้หมวด
+                </Button>
+                <Button size="sm" onClick={() => setCreating(true)}>
+                  เพิ่มสินค้า
+                </Button>
+              </div>
+            ) : null}
           </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
+      {error ? (
+        <div
+          role="alert"
+          className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-amber-50 p-4 text-sm text-amber-900"
+        >
+          <span>{error}</span>
+          <Button variant="secondary" size="sm" onClick={() => void reload()}>
+            <RefreshCw className="size-4" />
+            ลองอีกครั้ง
+          </Button>
+        </div>
+      ) : null}
       {loading ? (
-        <p className="mt-8 text-sm text-muted">กำลังโหลดสินค้า…</p>
+        <div
+          role="status"
+          aria-label="กำลังโหลดสินค้า"
+          className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+        >
+          {[0, 1, 2].map((n) => (
+            <div key={n} className="overflow-hidden rounded-3xl bg-surface shadow-border">
+              <div className="skeleton h-48" />
+              <div className="space-y-3 p-5">
+                <div className="skeleton h-5 w-2/3 rounded" />
+                <div className="skeleton h-4 w-1/2 rounded" />
+                <div className="skeleton h-11 rounded-xl" />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : list.items.length === 0 ? (
         <div className="mt-8 rounded-3xl bg-surface px-6 py-12 text-center shadow-border">
           <p className="font-medium">
-            {items.length === 0 ? "ยังไม่มีสินค้าในร้าน" : "ยังไม่มีสินค้าในหมวดนี้"}
+            {featuredOnly
+              ? "สินค้าคัดสรรจะปรากฏที่นี่"
+              : items.length === 0
+                ? "ยังไม่มีสินค้าในร้าน"
+                : "ไม่พบสินค้าที่ตรงกับการค้นหา"}
           </p>
           <p className="mt-2 text-sm text-muted">
             {items.length === 0
-              ? "แอดมินสามารถเพิ่มสินค้าที่ถูกต้องตามนโยบายร้านได้จากปุ่มด้านบน"
-              : "ลองเลือกหมวดอื่น หรือเพิ่มสินค้าใหม่ในหมวดนี้"}
+              ? "ร้านกำลังเตรียมสินค้า สามารถติดต่อทีมงานเพื่อสอบถามได้"
+              : "ลองเปลี่ยนคำค้น หมวดสินค้า หรือตัวกรองพร้อมขาย"}
           </p>
           {isAdmin ? (
             <Button className="mt-5 rounded-full" onClick={() => setCreating(true)}>
@@ -177,8 +270,8 @@ export function ProductGrid({
           ) : null}
         </div>
       ) : (
-        <div className="mt-6 grid min-w-0 grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-          {list.items.map((p) => (
+        <div className="stagger-in mt-6 grid min-w-0 grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+          {displayed.map((p) => (
             <ProductCard
               key={p.id}
               product={p}
@@ -189,6 +282,27 @@ export function ProductGrid({
           ))}
         </div>
       )}
+      {!featuredOnly && pages > 1 ? (
+        <nav aria-label="หน้ารายการสินค้า" className="mt-6 flex items-center justify-center gap-4">
+          <Button
+            variant="secondary"
+            disabled={currentPage <= 1}
+            onClick={() => setPage(currentPage - 1)}
+          >
+            ก่อนหน้า
+          </Button>
+          <span className="text-sm text-muted" aria-live="polite">
+            {currentPage} / {pages}
+          </span>
+          <Button
+            variant="secondary"
+            disabled={currentPage >= pages}
+            onClick={() => setPage(currentPage + 1)}
+          >
+            ถัดไป
+          </Button>
+        </nav>
+      ) : null}
       {isAdmin ? (
         <>
           <ProductEditor
@@ -226,6 +340,7 @@ function CatChip({
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
         "min-h-10 shrink-0 rounded-full px-4 text-sm",
         active ? "bg-accent text-accent-fg" : "bg-surface text-muted shadow-border hover:text-fg",
@@ -248,13 +363,23 @@ function ProductCard({
   onBought: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const lowStock = useSiteConfiguration((s) => s.value.lowStock);
+  const theme = product.cardColor ?? "#18181b";
+  const accent = product.accentColor ?? theme;
+  const badge = product.badgeColor ?? accent;
   const { user } = useCurrentUserState();
 
   return (
     <>
       <article
-        style={{ borderColor: product.cardColor }}
-        className="product-card relative flex min-w-0 flex-col overflow-hidden rounded-3xl border bg-surface shadow-border"
+        style={
+          {
+            "--product-color": theme,
+            "--product-accent": accent,
+            borderColor: `${product.borderColor ?? theme}45`,
+          } as CSSProperties
+        }
+        className="product-card group relative flex min-w-0 flex-col overflow-hidden rounded-3xl border border-border bg-surface"
       >
         {canEdit ? (
           <button
@@ -266,20 +391,25 @@ function ProductCard({
             <Pencil className="size-4" />
           </button>
         ) : null}
-        {product.badge ? (
-          <span className="absolute top-3 left-3 z-10 rounded-full bg-surface px-3 py-1 text-xs">
-            {product.badge}
-          </span>
-        ) : null}
-        <div className="relative aspect-square w-full overflow-hidden bg-white">
+        <div className="product-art relative aspect-square overflow-hidden p-3">
           <img
             src={product.image}
             alt={product.name}
             loading="lazy"
             decoding="async"
-            className="product-image absolute inset-0 h-full w-full object-contain p-2 transition-transform duration-300 hover:scale-[1.03]"
+            width={800}
+            height={800}
+            className="product-image h-full w-full rounded-2xl bg-white object-contain transition-transform duration-500 group-hover:scale-[1.03]"
           />
-          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+          <div className="absolute top-5 left-5 right-14 flex flex-wrap gap-1.5">
+            {product.badge ? (
+              <span
+                className="rounded-full px-3 py-1 text-xs font-medium shadow-sm"
+                style={{ background: badge, color: contrastText(badge) }}
+              >
+                {product.badge}
+              </span>
+            ) : null}
             {product.flash ? (
               <Badge tone="amber" className="gap-1 font-semibold shadow-xs">
                 <Flame className="size-3 fill-amber-500 text-amber-500" /> Flash Sale
@@ -292,8 +422,11 @@ function ProductCard({
             ) : null}
           </div>
         </div>
-        <div className="flex flex-1 flex-col p-4">
-          <h3 className="pr-8 font-semibold tracking-tight">{product.name}</h3>
+        <div className="flex flex-1 flex-col p-5 pt-2">
+          <h3 className="font-semibold tracking-tight">
+            {product.icon ? <span className="mr-2">{product.icon}</span> : null}
+            {product.name}
+          </h3>
           <p className="mt-1 text-sm text-muted line-clamp-1">{product.subtitle}</p>
           <div className="product-price-row mt-4 flex items-end justify-between border-t border-border/40 pt-3">
             <div>
@@ -307,10 +440,9 @@ function ProductCard({
               ) : null}
             </div>
             <div>
-              {product.stock > 5 ? (
+              {product.stock > lowStock ? (
                 <span className="product-stock inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600">
-                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> มีของ (
-                  {product.stock})
+                  <span className="size-1.5 rounded-full bg-emerald-500" /> มีของ ({product.stock})
                 </span>
               ) : product.stock > 0 ? (
                 <span className="product-stock inline-flex items-center gap-1.5 text-xs font-medium text-amber-600">
@@ -328,11 +460,13 @@ function ProductCard({
               "product-action mt-4 w-full rounded-full gap-2 font-medium transition-all",
               product.stock > 0 ? "hover:opacity-90" : "",
             )}
+            style={{ background: accent, color: contrastText(accent) }}
             onClick={() => setOpen(true)}
             disabled={product.stock <= 0}
           >
             <ShoppingBag className="size-4" />
             {product.stock <= 0 ? "สินค้าหมดชั่วคราว" : "สั่งซื้อทันที"}
+            <ArrowRight className="ml-auto size-4" />
           </Button>
         </div>
       </article>
@@ -373,6 +507,7 @@ function BuyDialog({
       setResult(null);
       setDelivered(false);
       setUid("");
+      setCoupon("");
     }
   }, [open, product.id]);
 
@@ -428,7 +563,7 @@ function BuyDialog({
         if (!busy) onOpenChange(value);
       }}
     >
-      <DialogContent title={product.name}>
+      <DialogContent title={product.name} className="max-h-[90dvh] overflow-y-auto">
         {result ? (
           <div className="space-y-4">
             <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-center">
@@ -483,6 +618,16 @@ function BuyDialog({
               </div>
             </div>
 
+            {product.description ? (
+              <p className="whitespace-pre-wrap break-words rounded-xl bg-bg p-4 text-sm text-muted">
+                {product.description}
+              </p>
+            ) : null}
+            {product.warrantyDays ? (
+              <p className="text-xs text-muted">
+                รับประกัน {product.warrantyDays} วัน ตามเงื่อนไขสินค้า
+              </p>
+            ) : null}
             <p className="text-xs text-muted">
               {product.stockMode === "individual"
                 ? "เมื่อชำระสำเร็จ ระบบจะส่งสินค้าจากสต็อกให้ทันที และเปิดดูซ้ำได้ในประวัติการซื้อ"
@@ -516,7 +661,7 @@ function BuyDialog({
                   <span className="tabular font-medium text-fg">-{formatBaht(product.price)}</span>
                 </div>
                 <div className="border-t border-border/40 pt-1.5 flex items-center justify-between font-semibold">
-                  <span>คงเหลือหลังสั่งซื้อ</span>
+                  <span>{coupon.trim() ? "คงเหลือก่อนคำนวณส่วนลด" : "คงเหลือหลังสั่งซื้อ"}</span>
                   <span className={cn("tabular", canAfford ? "text-emerald-600" : "text-rose-600")}>
                     {formatBaht(remaining)}
                   </span>

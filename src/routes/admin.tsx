@@ -1,3 +1,4 @@
+import { AdminNotifications } from "@/components/shop/admin-notifications";
 import { PrivacyRequestsPanel } from "@/components/shop/privacy-controls";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -17,7 +18,7 @@ import {
 } from "@/components/shop/admin-console";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/input";
+import { Input, Label, NativeSelect } from "@/components/ui/input";
 import { z } from "zod";
 import { DataImport } from "@/components/shop/data-import";
 import { Plus, Pencil } from "lucide-react";
@@ -42,6 +43,7 @@ export const Route = createFileRoute("/admin")({
 });
 const tabs = [
   ["dashboard", "ภาพรวม", "dashboard.read"],
+  ["notifications", "แจ้งเตือน", "dashboard.read"],
   ["products", "สินค้า / หมวด", "products.manage"],
   ["stock", "สต็อก", "stock.manage"],
   ["orders", "ออเดอร์", "orders.manage"],
@@ -66,6 +68,7 @@ const tabs = [
 ] as const;
 function AdminPage() {
   const search = Route.useSearch();
+  const navigate = Route.useNavigate();
   const { user, isPending } = useCurrentUserState();
   const [access, setAccess] = useState<Awaited<ReturnType<typeof getAdminStatus>> | null>(null),
     [tab, setTab] = useState(search.tab ?? "dashboard"),
@@ -111,46 +114,78 @@ function AdminPage() {
           </Button>
         </div>
       </header>
-      <main className="mx-auto max-w-7xl p-4 sm:p-6">
-        <nav aria-label="เมนูแอดมิน" className="mb-6 flex gap-2 overflow-x-auto pb-3">
+      <main className="mx-auto grid max-w-[1440px] gap-6 p-4 sm:p-6 lg:grid-cols-[220px_minmax(0,1fr)]">
+        <nav
+          aria-label="เมนูแอดมิน"
+          className="hidden self-start rounded-2xl bg-surface p-3 shadow-border lg:sticky lg:top-4 lg:grid lg:gap-1"
+        >
           {allowed.map(([id, label]) => (
             <Button
               key={id}
               variant={active === id ? "primary" : "secondary"}
-              className="shrink-0"
-              onClick={() => setTab(id)}
+              className="justify-start text-left text-sm"
+              aria-current={active === id ? "page" : undefined}
+              onClick={() => {
+                setTab(id);
+                void navigate({ search: { tab: id } });
+              }}
             >
               {label}
             </Button>
           ))}
         </nav>
-        <h1 className="mb-5 text-xl font-semibold">{allowed.find((t) => t[0] === active)?.[1]}</h1>
-        {active === "dashboard" ? (
-          <RealDashboard />
-        ) : active === "products" ? (
-          <ProductsAdmin />
-        ) : active === "settings" ? (
-          <RealSettings />
-        ) : active === "payment-settings" ? (
-          <PaymentSettings />
-        ) : active === "media" ? (
-          <MediaLibrary />
-        ) : active === "campaigns" ? (
-          <CampaignSettings />
-        ) : active === "backups" ? (
-          <BackupPanel />
-        ) : active === "privacy" ? (
-          <PrivacyRequestsPanel />
-        ) : active === "system" ? (
-          <SystemPanel />
-        ) : (
-          <AdminRecords
-            key={active}
-            kind={active as RecordKind}
-            permissions={access.permissions}
-            initialStatus={active === "payments" ? search.status : undefined}
-          />
-        )}
+        <div className="min-w-0">
+          <div className="mb-5 lg:hidden">
+            <Label htmlFor="admin-navigation">เมนูหลังบ้าน</Label>
+            <NativeSelect
+              id="admin-navigation"
+              className="mt-2"
+              value={active}
+              onChange={(e) => {
+                setTab(e.target.value);
+                void navigate({ search: { tab: e.target.value } });
+              }}
+            >
+              {allowed.map(([id, label]) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+          <p className="mb-1 text-xs tracking-widest text-subtle">WORKSPACE / VELTSHOP</p>
+          <h1 className="mb-6 text-2xl font-semibold">
+            {allowed.find((t) => t[0] === active)?.[1]}
+          </h1>
+          {active === "dashboard" ? (
+            <RealDashboard />
+          ) : active === "notifications" ? (
+            <AdminNotifications />
+          ) : active === "products" ? (
+            <ProductsAdmin />
+          ) : active === "settings" ? (
+            <RealSettings />
+          ) : active === "payment-settings" ? (
+            <PaymentSettings />
+          ) : active === "media" ? (
+            <MediaLibrary />
+          ) : active === "campaigns" ? (
+            <CampaignSettings />
+          ) : active === "backups" ? (
+            <BackupPanel />
+          ) : active === "privacy" ? (
+            <PrivacyRequestsPanel />
+          ) : active === "system" ? (
+            <SystemPanel />
+          ) : (
+            <AdminRecords
+              key={active}
+              kind={active as RecordKind}
+              permissions={access.permissions}
+              initialStatus={active === "payments" ? search.status : undefined}
+            />
+          )}
+        </div>
       </main>
     </div>
   );

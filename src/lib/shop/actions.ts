@@ -39,6 +39,11 @@ export type ProductInput = {
   delivery: Product["delivery"];
   warrantyDays?: number;
   cardColor?: string;
+  borderColor?: string;
+  accentColor?: string;
+  badgeColor?: string;
+  description?: string;
+  icon?: string;
   badge?: string;
   sortOrder?: number;
   featured?: boolean;
@@ -85,6 +90,11 @@ type ProductRow = {
   delivery: string;
   warranty_days: number;
   card_color: string;
+  border_color: string;
+  accent_color: string;
+  badge_color: string;
+  description: string;
+  icon: string;
   badge: string;
   sort_order: number;
   featured: boolean;
@@ -106,6 +116,11 @@ function mapProduct(row: ProductRow): Product & { active: boolean } {
     delivery: row.delivery as Product["delivery"],
     warrantyDays: row.warranty_days,
     cardColor: row.card_color,
+    borderColor: row.border_color || undefined,
+    accentColor: row.accent_color || undefined,
+    badgeColor: row.badge_color || undefined,
+    description: row.description,
+    icon: row.icon,
     badge: row.badge,
     sortOrder: row.sort_order,
     featured: Boolean(row.featured),
@@ -223,7 +238,7 @@ export const listProducts = createServerFn({ method: "GET" }).handler(async () =
   await ensureSeed();
   const sql = await getSql();
   const rows = await sql<ProductRow>`
-    select id, name, subtitle, category_id, price, compare_at, stock, stock_mode, image, delivery, warranty_days, card_color, badge, sort_order, featured, flash, active
+    select id, name, subtitle, category_id, price, compare_at, stock, stock_mode, image, delivery, warranty_days, card_color, border_color, accent_color, badge_color, description, icon, badge, sort_order, featured, flash, active
     from products
     where active = true
     order by sort_order, featured desc, name
@@ -236,7 +251,7 @@ export const getPublicProduct = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const sql = await getSql();
     const rows =
-      await sql<ProductRow>`SELECT id,name,subtitle,category_id,price,compare_at,stock,stock_mode,image,delivery,warranty_days,card_color,badge,sort_order,featured,flash,active FROM products WHERE id=${data.id} AND active=true`;
+      await sql<ProductRow>`SELECT id,name,subtitle,category_id,price,compare_at,stock,stock_mode,image,delivery,warranty_days,card_color,border_color,accent_color,badge_color,description,icon,badge,sort_order,featured,flash,active FROM products WHERE id=${data.id} AND active=true`;
     return rows[0] ? mapProduct(rows[0]) : null;
   });
 
@@ -247,7 +262,7 @@ export const listAllProducts = createServerFn({ method: "GET" })
     await ensureSeed();
     const sql = await getSql();
     const rows = await sql<ProductRow>`
-      select id, name, subtitle, category_id, price, compare_at, stock, stock_mode, image, delivery, warranty_days, card_color, badge, sort_order, featured, flash, active
+      select id, name, subtitle, category_id, price, compare_at, stock, stock_mode, image, delivery, warranty_days, card_color, border_color, accent_color, badge_color, description, icon, badge, sort_order, featured, flash, active
       from products
       order by updated_at desc
     `;
@@ -271,11 +286,11 @@ export const saveProduct = createServerFn({ method: "POST" })
       if (!cats[0]) return { ok: false as const, message: "หมวดสินค้าไม่ถูกต้อง" };
       await sql`
       insert into products (
-        id, name, subtitle, category_id, price, compare_at, stock, image, delivery, warranty_days, card_color, badge, sort_order, featured, flash, active, updated_at
+        id, name, subtitle, category_id, price, compare_at, stock, image, delivery, warranty_days, card_color, border_color, accent_color, badge_color, description, icon, badge, sort_order, featured, flash, active, updated_at
       ) values (
         ${id}, ${name}, ${data.subtitle.trim()}, ${data.category}, ${price},
         ${data.compareAt ? Math.round(Number(data.compareAt)) : null},
-        ${stock}, ${data.image || "/images/cat-stream.jpg"}, ${data.delivery}, ${data.warrantyDays ?? 0}, ${data.cardColor ?? "#18181b"}, ${data.badge ?? ""}, ${data.sortOrder ?? 0},
+        ${stock}, ${data.image || "/images/cat-stream.jpg"}, ${data.delivery}, ${data.warrantyDays ?? 0}, ${data.cardColor ?? "#18181b"}, ${data.borderColor ?? ""}, ${data.accentColor ?? ""}, ${data.badgeColor ?? ""}, ${data.description ?? ""}, ${data.icon ?? ""}, ${data.badge ?? ""}, ${data.sortOrder ?? 0},
         ${Boolean(data.featured)}, ${Boolean(data.flash)}, ${data.active !== false}, now()
       )
       on conflict (id) do update set
@@ -287,19 +302,23 @@ export const saveProduct = createServerFn({ method: "POST" })
         stock = CASE WHEN products.stock_mode = 'individual' THEN products.stock ELSE excluded.stock END,
         image = excluded.image,
         delivery = excluded.delivery,
-        warranty_days=excluded.warranty_days,card_color=excluded.card_color,badge=excluded.badge,sort_order=excluded.sort_order,
+        warranty_days=excluded.warranty_days,card_color=excluded.card_color,border_color=excluded.border_color,accent_color=excluded.accent_color,badge_color=excluded.badge_color,description=excluded.description,icon=excluded.icon,badge=excluded.badge,sort_order=excluded.sort_order,
         featured = excluded.featured,
         flash = excluded.flash,
         active = excluded.active,
         updated_at = now()
     `;
       const rows = await sql<ProductRow>`
-      select id, name, subtitle, category_id, price, compare_at, stock, stock_mode, image, delivery, warranty_days, card_color, badge, sort_order, featured, flash, active
+      select id, name, subtitle, category_id, price, compare_at, stock, stock_mode, image, delivery, warranty_days, card_color, border_color, accent_color, badge_color, description, icon, badge, sort_order, featured, flash, active
       from products where id = ${id}
     `;
       await audit(sql, String(context.userId), "product.saved", "product", id, {
         price,
         active: data.active !== false,
+        cardColor: data.cardColor,
+        borderColor: data.borderColor,
+        accentColor: data.accentColor,
+        badgeColor: data.badgeColor,
       });
       return { ok: true as const, product: mapProduct(rows[0]), message: "บันทึกสินค้าแล้ว" };
     });
@@ -373,7 +392,7 @@ export const archiveProduct = createServerFn({ method: "POST" })
       update products
       set active = false, updated_at = now()
       where id = ${data.id}
-      returning id, name, subtitle, category_id, price, compare_at, stock, stock_mode, image, delivery, warranty_days, card_color, badge, sort_order, featured, flash, active
+      returning id, name, subtitle, category_id, price, compare_at, stock, stock_mode, image, delivery, warranty_days, card_color, border_color, accent_color, badge_color, description, icon, badge, sort_order, featured, flash, active
     `;
       if (!rows[0]) return { ok: false as const, message: "ไม่พบสินค้า" };
       await audit(sql, String(context.userId), "product.archived", "product", data.id);

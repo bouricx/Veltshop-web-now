@@ -1,3 +1,4 @@
+import { dashboardRange, dashboardRangeSchema } from "./dashboard-range";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
@@ -54,7 +55,7 @@ const definitions: Record<
   gifts: {
     permission: "gift_codes.manage",
     query:
-      "SELECT id,label,reward,amount,product_id,active,expires_at::text,usage_limit,used,created_at::text FROM gift_codes",
+      "SELECT id,label,reward,amount,product_id,category_id,active,expires_at::text,usage_limit,used,created_at::text FROM gift_codes",
     search: "id,label,reward",
     date: "created_at",
   },
@@ -157,31 +158,49 @@ export const adminRecords = createServerFn({ method: "GET" })
     return { rows, total: Number(rows[0]?.total_rows ?? 0) };
   });
 export const dashboardData = createServerFn({ method: "GET" })
-  .validator((v: unknown) =>
-    z.object({ days: z.number().int().min(1).max(3650).default(30) }).parse(v),
-  )
+  .validator((v: unknown) => dashboardRangeSchema.parse(v))
   .middleware([authMiddleware])
   .handler(async ({ data, context }) => {
     await requirePermission(String(context.userId), "dashboard.read", context.bearerToken);
     const sql = await getSql();
     const settings = await configuration(sql);
+    const range = dashboardRange(data);
     const [totals] = await sql.query<Record<string, number>>(
-      `SELECT (SELECT count(*)::int FROM "user") AS members,(SELECT count(*)::int FROM "user" WHERE "createdAt">=now()-$1*interval '1 day') AS new_members,(SELECT count(*)::int FROM products WHERE active=true) AS products,(SELECT COALESCE(sum(stock),0)::int FROM products WHERE active=true) AS stock,(SELECT count(*)::int FROM products WHERE active=true AND stock<=$2) AS low_stock,(SELECT count(*)::int FROM orders WHERE created_at>=now()-$1*interval '1 day') AS orders,(SELECT COALESCE(sum(total),0)::int FROM orders WHERE status='completed' AND created_at>=now()-$1*interval '1 day') AS sales,(SELECT COALESCE(sum(credit),0)::int FROM payments WHERE status='success' AND created_at>=now()-$1*interval '1 day') AS topups,(SELECT COALESCE(sum(balance),0)::bigint FROM wallet_accounts) AS credit,(SELECT count(*)::int FROM orders WHERE status='processing') AS waiting_delivery,(SELECT count(*)::int FROM claims WHERE status IN ('pending','accepted')) AS pending_claims`,
-      [data.days, settings.lowStock],
+      `SELECT (SELECT count(*)::int FROM "user") AS members,(SELECT count(*)::int FROM "user" WHERE ($1::timestamptz IS NULL OR "createdAt">=$1) AND "createdAt"<$3) AS new_members,(SELECT count(*)::int FROM products WHERE active=true) AS products,(SELECT COALESCE(sum(stock),0)::int FROM products WHERE active=true) AS stock,(SELECT count(*)::int FROM products WHERE active=true AND stock<=$2) AS low_stock,(SELECT count(*)::int FROM orders WHERE ($1::timestamptz IS NULL OR created_at>=$1) AND created_at<$3) AS orders,(SELECT COALESCE(sum(total),0)::int FROM orders WHERE status='completed' AND ($1::timestamptz IS NULL OR created_at>=$1) AND created_at<$3) AS sales,(SELECT COALESCE(sum(credit),0)::int FROM payments WHERE status='success' AND ($1::timestamptz IS NULL OR created_at>=$1) AND created_at<$3) AS topups,(SELECT COALESCE(sum(balance),0)::bigint FROM wallet_accounts) AS credit,(SELECT count(*)::int FROM orders WHERE status='processing') AS waiting_delivery,(SELECT count(*)::int FROM claims WHERE status IN ('pending','accepted')) AS pending_claims,(SELECT count(*)::int FROM products WHERE active=true AND stock>0) AS ready_products,(SELECT count(*)::int FROM payments WHERE status IN ('pending','reconciliation_required')) AS pending_topups,(SELECT count(*)::int FROM jobs WHERE status='dead_letter') AS failed_jobs`,
+      [range.from, settings.lowStock, range.to],
     );
     const chart = await sql.query<{ day: string; sales: number }>(
-      "SELECT (created_at AT TIME ZONE 'Asia/Bangkok')::date::text AS day,sum(total)::int AS sales FROM orders WHERE status='completed' AND created_at>=now()-$1*interval '1 day' GROUP BY 1 ORDER BY 1",
-      [data.days],
+      "SELECT (created_at AT TIME ZONE 'Asia/Bangkok')::date::text AS day,sum(total)::int AS sales FROM orders WHERE status='completed' AND ($1::timestamptz IS NULL OR created_at>=$1) AND created_at<$2 GROUP BY 1 ORDER BY 1",
+      [range.from, range.to],
     );
     const best = await sql.query<{ name: string; quantity: number }>(
-      "SELECT i.product_name AS name,sum(i.quantity)::int AS quantity FROM order_items i JOIN orders o ON o.id=i.order_id WHERE o.status='completed' AND o.created_at>=now()-$1*interval '1 day' GROUP BY i.product_name ORDER BY quantity DESC LIMIT 10",
-      [data.days],
+      "SELECT i.product_name AS name,sum(i.quantity)::int AS quantity FROM order_items i JOIN orders o ON o.id=i.order_id WHERE o.status='completed' AND ($1::timestamptz IS NULL OR o.created_at>=$1) AND o.created_at<$2 GROUP BY i.product_name ORDER BY quantity DESC LIMIT 10",
+      [range.from, range.to],
     );
     const eligible = await sql.query<Record<string, string | number | boolean | null>>(
-      `SELECT u.id,u.name,COALESCE(m.rank,'New Member') AS rank,sum(o.total)::int AS spending FROM "user" u JOIN orders o ON o.user_id=u.id AND o.status='completed' LEFT JOIN member_profiles m ON m.user_id=u.id GROUP BY u.id,u.name,m.rank HAVING sum(o.total)>=$1 ORDER BY spending DESC LIMIT 100`,
-      [settings.vip],
+      `SELECT u.id,u.name,COALESCE(m.rank,'New Member') AS rank,sum(o.total)::int AS spending,CASE WHEN sum(o.total)>=$2 THEN 'VVip' ELSE 'VIP Member' END AS target_rank FROM "user" u JOIN orders o ON o.user_id=u.id AND o.status='completed' LEFT JOIN member_profiles m ON m.user_id=u.id GROUP BY u.id,u.name,m.rank HAVING (sum(o.total)>=$2 AND COALESCE(m.rank,'New Member')<>'VVip') OR (sum(o.total)>=$1 AND COALESCE(m.rank,'New Member')='New Member') ORDER BY spending DESC LIMIT 100`,
+      [settings.vip, settings.vvip],
     );
-    return { totals, chart, best, eligible };
+    const recentOrders = await sql.query<{
+      id: string;
+      name: string;
+      total: number;
+      status: string;
+      created_at: string;
+    }>(
+      "SELECT o.id,i.product_name AS name,o.total,o.status,o.created_at::text FROM orders o JOIN order_items i ON i.order_id=o.id WHERE ($1::timestamptz IS NULL OR o.created_at>=$1) AND o.created_at<$2 ORDER BY o.created_at DESC LIMIT 5",
+      [range.from, range.to],
+    );
+    const recentTopups = await sql.query<{
+      id: string;
+      credit: number;
+      status: string;
+      created_at: string;
+    }>(
+      "SELECT id,credit,status,created_at::text FROM payments WHERE ($1::timestamptz IS NULL OR created_at>=$1) AND created_at<$2 ORDER BY created_at DESC LIMIT 5",
+      [range.from, range.to],
+    );
+    return { totals, chart, best, eligible, recentOrders, recentTopups, range };
   });
 export const disableGift = createServerFn({ method: "POST" })
   .validator((v: unknown) =>
@@ -289,8 +308,45 @@ export const systemHealth = createServerFn({ method: "GET" })
             ? "configured-unverified"
             : "requires-credentials",
       },
-      version: "0.4.0",
-      migration: "0012",
+      version: "0.5.0",
+      migration: "0014",
       realtime: "SSE ตรวจการเปลี่ยนแปลงทุก 5 วินาที / polling สำรอง 15 วินาที",
     };
+  });
+
+export const editGiftDetails = createServerFn({ method: "POST" })
+  .validator((v: unknown) =>
+    z
+      .object({
+        id: z.string().min(1).max(200),
+        label: z.string().trim().min(1).max(120),
+        usageLimit: z.number().int().min(1).max(100000),
+        expiresAt: z.string().datetime().nullable(),
+      })
+      .parse(v),
+  )
+  .middleware([authMiddleware])
+  .handler(async ({ data, context }) => {
+    await requirePermission(String(context.userId), "gift_codes.manage", context.bearerToken);
+    const sql = await getSql();
+    return sql.transaction(async (tx) => {
+      const [gift] = await tx.query<{ used: number }>(
+        "SELECT used FROM gift_codes WHERE id=$1 FOR UPDATE",
+        [data.id],
+      );
+      if (!gift || data.usageLimit < gift.used)
+        throw new CommerceError("จำนวนสิทธิ์ต้องไม่น้อยกว่าจำนวนที่ใช้แล้ว");
+      await tx.query("UPDATE gift_codes SET label=$2,usage_limit=$3,expires_at=$4 WHERE id=$1", [
+        data.id,
+        data.label,
+        data.usageLimit,
+        data.expiresAt,
+      ]);
+      await audit(tx, String(context.userId), "gift.updated", "gift", data.id, {
+        label: data.label,
+        usageLimit: data.usageLimit,
+        expiresAt: data.expiresAt,
+      });
+      return { ok: true };
+    });
   });
