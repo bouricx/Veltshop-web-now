@@ -17,7 +17,7 @@
 
 ## Release and external boundaries
 
-The production release is verified separately after deployment. Daily cron is configured, but its first scheduled execution must be observed in the system history. Locally verified recovery is not a real production PostgreSQL disaster-recovery exercise.
+Production deployment dpl_5QJDXosgpYgq6r3BPYvsfXMUQUJB is READY at https://veltshop-website.vercel.app, source commit 700704a0a3c224765923577ba49cc60a4448af6c. Staging dpl_3d5jxd8TWq4uqPExzQpKB3YE7JpY was READY first. Neon confirms 0012_system_completion.sql applied. The requested owner account remains enabled with super_admin and 19 permissions. Daily cron is configured, but its first scheduled execution must be observed in the system history. Production log/error scanning and independent live HTTP checks were not completed because the connector lacks the required protection/log scopes. Locally verified recovery is not a real production PostgreSQL disaster-recovery exercise.
 
 Google callback, email sending and live Slip2Go verification require owner-supplied provider credentials. Signed provider webhooks cannot be implemented against an invented contract; the existing synchronous verification/reconciliation flow stays authoritative until an official event/signature specification is available. TrueMoney Gift remains manual/pending as required when no authorized API is configured. No payment is credited using mock verification.
 

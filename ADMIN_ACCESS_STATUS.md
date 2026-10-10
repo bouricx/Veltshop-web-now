@@ -11,3 +11,7 @@
 - The owner's password was not changed, read or requested. Administrator status is verified from production database permissions; an interactive login using the owner's password remains for the owner to verify.
 
 Log out, sign in with the existing account, then open `/admin`. Invalid email/password is a separate password-authentication issue; the admin role does not reset a password. Missing payment/encryption/provider configuration and real-provider staging checks remain as described in the release runbook. This repair does not attest to readiness to accept money.
+
+## Subsequent system release 0.4.0
+
+Production 700704a0a3c224765923577ba49cc60a4448af6c (deployment dpl_5QJDXosgpYgq6r3BPYvsfXMUQUJB) is READY on the main domain; migration 0012 applied. The owner subsequently confirmed login/admin access after the authorized password reset. This release preserves the enabled super_admin role and all 19 permissions.
