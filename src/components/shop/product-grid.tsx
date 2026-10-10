@@ -177,7 +177,7 @@ export function ProductGrid({
           ) : null}
         </div>
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid min-w-0 grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:gap-4 lg:grid-cols-3">
           {list.items.map((p) => (
             <ProductCard
               key={p.id}
@@ -254,7 +254,7 @@ function ProductCard({
     <>
       <article
         style={{ borderColor: product.cardColor }}
-        className="relative flex flex-col overflow-hidden rounded-3xl border bg-surface shadow-border"
+        className="product-card relative flex min-w-0 flex-col overflow-hidden rounded-3xl border bg-surface shadow-border"
       >
         {canEdit ? (
           <button
@@ -295,9 +295,9 @@ function ProductCard({
         <div className="flex flex-1 flex-col p-4">
           <h3 className="pr-8 font-semibold tracking-tight">{product.name}</h3>
           <p className="mt-1 text-sm text-muted line-clamp-1">{product.subtitle}</p>
-          <div className="mt-4 flex items-end justify-between border-t border-border/40 pt-3">
+          <div className="product-price-row mt-4 flex items-end justify-between border-t border-border/40 pt-3">
             <div>
-              <p className="tabular text-xl font-bold tracking-tight text-fg">
+              <p className="product-price tabular text-xl font-bold tracking-tight text-fg">
                 {formatBaht(product.price)}
               </p>
               {product.compareAt ? (
@@ -308,16 +308,16 @@ function ProductCard({
             </div>
             <div>
               {product.stock > 5 ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+                <span className="product-stock inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600">
                   <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> มีของ (
                   {product.stock})
                 </span>
               ) : product.stock > 0 ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600">
+                <span className="product-stock inline-flex items-center gap-1.5 text-xs font-medium text-amber-600">
                   <span className="size-1.5 rounded-full bg-amber-500" /> เหลือ {product.stock}
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-rose-500">
+                <span className="product-stock inline-flex items-center gap-1.5 text-xs font-medium text-rose-500">
                   <span className="size-1.5 rounded-full bg-rose-400" /> สินค้าหมด
                 </span>
               )}
@@ -325,7 +325,7 @@ function ProductCard({
           </div>
           <Button
             className={cn(
-              "mt-4 w-full rounded-full gap-2 font-medium transition-all",
+              "product-action mt-4 w-full rounded-full gap-2 font-medium transition-all",
               product.stock > 0 ? "hover:opacity-90" : "",
             )}
             onClick={() => setOpen(true)}
