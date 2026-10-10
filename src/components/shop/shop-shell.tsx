@@ -1,5 +1,4 @@
 import { useCart } from "@/lib/shop/cart-store";
-import { onShopChange } from "@/lib/shop/realtime-client";
 import { useSiteConfiguration } from "@/lib/shop/site-state";
 import { StoreContent } from "./store-content";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
@@ -18,19 +17,19 @@ import {
   ScrollText,
   Settings2,
   Wallet,
+  ShoppingCart,
   Wrench,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { signOut } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { getMyWallet } from "@/lib/shop/actions";
 import { getAdminStatus } from "@/lib/shop/admin-gate";
 import { Button } from "@/components/ui/button";
 import { categories, type CategoryId } from "@/lib/shop/catalog";
 import { formatThaiClock, shopMeta } from "@/lib/shop/meta";
 import { useShop } from "@/lib/shop/store";
 import { BrandMark } from "@/components/brand-mark";
-import { cn, formatBaht } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const catIcon: Record<CategoryId, typeof MonitorPlay> = {
   stream: MonitorPlay,
@@ -47,7 +46,6 @@ export function ShopShell() {
   const { value: site } = useSiteConfiguration();
   const loggedIn = useShop((s) => s.loggedIn);
   const name = useShop((s) => s.displayName);
-  const balance = useShop((s) => s.balance);
   const login = useShop((s) => s.login);
   const logout = useShop((s) => s.logout);
   const { user, isPending } = useCurrentUserState();
@@ -88,23 +86,7 @@ export function ShopShell() {
     if (isPending) return;
     if (user && !user.isDevFallback) {
       login(user.displayName || user.primaryEmail || "สมาชิก");
-      let active = true;
-      const refresh = () =>
-        void getMyWallet()
-          .then((wallet) => {
-            if (active) useShop.setState({ balance: wallet.balance });
-          })
-          .catch(() => {
-            if (active) useShop.setState({ balance: 0 });
-          });
-      refresh();
-      const unsubscribe = onShopChange(refresh);
-      const timer = setInterval(refresh, 15000);
-      return () => {
-        active = false;
-        clearInterval(timer);
-        unsubscribe();
-      };
+
     } else if (!user || user.isDevFallback) {
       logout();
     }
@@ -128,7 +110,6 @@ export function ShopShell() {
       <ShopHeader
         loggedIn={loggedIn}
         name={name}
-        balance={balance}
         onLogout={() => void handleLogout()}
       />
       <div className="mx-auto flex max-w-6xl justify-end px-4 pt-3 sm:px-6"><Button asChild variant="outline" className="min-h-11 rounded-full"><Link to="/shop/cart">ตะกร้าสินค้า ({cartCount}) · ส่งรายการให้ร้าน</Link></Button></div>
@@ -146,7 +127,7 @@ export function ShopShell() {
           <>
             {site.maintenance ? (
               <p role="status" className="mb-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
-                ร้านอยู่ในโหมดปรับปรุง · คุณกำลังดูในฐานะแอดมิน การซื้อและเติมเงินยังระงับอยู่
+                ร้านอยู่ในโหมดปรับปรุง · คุณกำลังดูในฐานะแอดมิน การส่งรายการยังระงับอยู่
               </p>
             ) : null}
             <StoreContent />
@@ -163,12 +144,10 @@ export function ShopShell() {
 function ShopHeader({
   loggedIn,
   name,
-  balance,
   onLogout,
 }: {
   loggedIn: boolean;
   name: string;
-  balance: number;
   onLogout: () => void;
 }) {
   return (
@@ -187,12 +166,6 @@ function ShopHeader({
           <LiveClock />
           {loggedIn ? (
             <>
-              <Link
-                to="/shop/topup"
-                className="inline-flex min-h-10 items-center rounded-full bg-accent px-3 text-sm font-medium text-accent-fg"
-              >
-                {formatBaht(balance)}
-              </Link>
               <ProfileMenu name={name} onLogout={onLogout} />
             </>
           ) : (
@@ -542,8 +515,8 @@ function ShopFooter() {
 function BottomDock() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const items = [
-    { to: "/shop/topup", label: "เติมเงิน", icon: Wallet },
-    { to: "/shop/catalog", label: "ซื้อแอพ", icon: MonitorPlay },
+    { to: "/shop/cart", label: "ตะกร้า", icon: ShoppingCart },
+    { to: "/shop/catalog", label: "เลือกสินค้า", icon: MonitorPlay },
   ] as const;
 
   return (
@@ -603,7 +576,7 @@ export function EmptyGate({ children }: { children: ReactNode }) {
   return (
     <div className="rounded-3xl bg-surface px-6 py-12 text-center shadow-border">
       <p className="font-medium">เข้าสู่ระบบเพื่อใช้งานส่วนนี้</p>
-      <p className="mt-2 text-sm text-muted">ดูเครดิตและประวัติรายการของคุณ</p>
+      <p className="mt-2 text-sm text-muted">เข้าสู่ระบบเพื่อส่งรายการสินค้าและติดตามสถานะ</p>
       <Button asChild className="mt-5 rounded-full">
         <Link to="/login">เข้าสู่ระบบ</Link>
       </Button>

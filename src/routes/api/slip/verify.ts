@@ -8,11 +8,11 @@ export const Route = createFileRoute("/api/slip/verify")({
         Response.json({
           service: "veltshop-slip-verification",
           auto_release: false,
-          flow: "signed-in shop topup",
+          flow: "cart product lists; customer payments disabled",
         }),
       POST: () =>
         Response.json(
-          { ok: false, credited: 0, message: "กรุณาเข้าสู่ระบบและส่งสลิปผ่านหน้าเติมเงิน" },
+          { ok: false, credited: 0, message: "ร้านรับรายการสินค้าผ่านตะกร้า ไม่รับเติมเงินหรือสลิป" },
           { status: 410 },
         ),
     },
