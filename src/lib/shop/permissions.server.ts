@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSessionUser } from "@/lib/auth/verify.server";
-import { getSql } from "@/lib/db";
+import { getSql, type Sql } from "@/lib/db";
 import { uid } from "@/lib/utils";
 import { isAdminEmail } from "./admin";
 
@@ -13,16 +13,15 @@ export type PermissionId = string;
 const auditMetadata = (value: Record<string, unknown>) => JSON.stringify(value);
 
 /** Prevent an ordinary allowlisted admin from granting themselves or others super-admin. */
-export async function assertCanAssignRole(actorId: string, roleId: RoleId): Promise<void> {
+export async function assertCanAssignRole(sql: Sql, actorId: string, roleId: RoleId): Promise<void> {
   if (roleId !== "super_admin") return;
-  const sql = await getSql();
-  const rows = await sql<{ allowed: boolean }>`
-    select exists (
-      select 1 from user_roles
-      where user_id = ${actorId} and role_id = 'super_admin'
-    ) as allowed
-  `;
-  if (!rows[0]?.allowed) throw new Error("Forbidden: only a super admin can assign the super_admin role");
+  // Lock the authority row in the same transaction as the grant to avoid a
+  // concurrent role revocation racing this authorization check.
+  const rows = await sql.query<{ user_id: string }>(
+    "SELECT user_id FROM user_roles WHERE user_id=$1 AND role_id='super_admin' FOR UPDATE",
+    [actorId],
+  );
+  if (!rows[0]) throw new Error("Forbidden: only a super admin can assign the super_admin role");
 }
 
 export async function hasPermission(userId: string, permission: PermissionId): Promise<boolean> {
@@ -84,9 +83,9 @@ export const assignRole = createServerFn({ method: "POST" })
       "roles.manage",
       context.bearerToken,
     );
-    await assertCanAssignRole(actor.id, data.roleId);
     const sql = await getSql();
     await sql.transaction(async (tx) => {
+      await assertCanAssignRole(tx, actor.id, data.roleId);
       const [target] = await tx.query('SELECT id FROM "user" WHERE id=$1', [data.userId]);
       if (!target) throw new Error("User not found");
       await tx.query(
