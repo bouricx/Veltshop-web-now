@@ -277,7 +277,7 @@ function ProductCard({
             alt={product.name}
             loading="lazy"
             decoding="async"
-            className="h-full w-full object-contain p-2 transition-transform duration-300 hover:scale-[1.03]"
+            className="product-image absolute inset-0 h-full w-full object-contain p-2 transition-transform duration-300 hover:scale-[1.03]"
           />
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
             {product.flash ? (

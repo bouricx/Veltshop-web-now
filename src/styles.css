@@ -290,7 +290,7 @@ html[data-shop][data-accent="slate"],
     max-width: 100%;
   }
 
-  [data-shop] img:not(.storefront-banner-image) {
+  [data-shop] img:not(.storefront-banner-image):not(.product-image) {
     height: auto;
   }
 
