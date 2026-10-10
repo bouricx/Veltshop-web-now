@@ -290,8 +290,12 @@ html[data-shop][data-accent="slate"],
     max-width: 100%;
   }
 
-  [data-shop] img {
+  [data-shop] img:not(.storefront-banner-image) {
     height: auto;
+  }
+
+  [data-shop] .storefront-banner-image {
+    height: 120px;
   }
 
   [data-shop] :where(.overflow-x-auto) {
