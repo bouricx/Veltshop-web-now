@@ -309,3 +309,87 @@ html[data-shop][data-accent="slate"],
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
+
+/* Storefront responsive layout recovery.
+   Keep the actual page shell full-width on phones/tablets and bounded on desktop;
+   do not let nested content shrink to its intrinsic width. */
+html,
+body {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+}
+
+body,
+#root {
+  min-width: 0;
+  max-width: 100%;
+}
+
+[data-shop] {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  margin-inline: auto;
+  box-sizing: border-box;
+}
+
+[data-shop] *,
+[data-shop] *::before,
+[data-shop] *::after {
+  box-sizing: border-box;
+}
+
+[data-shop] > main,
+[data-shop] > footer {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 72rem;
+  margin-inline: auto;
+}
+
+[data-shop] > main > :where(div, section, article),
+[data-shop] > main > div > :where(section, div, article),
+[data-shop] > footer > div {
+  min-width: 0;
+  max-width: 100%;
+}
+
+[data-shop] .storefront-banner-image {
+  display: block;
+  width: 100%;
+  height: clamp(7.5rem, 25vw, 18rem);
+  max-width: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+@media (min-width: 48rem) {
+  [data-shop] .storefront-banner-image {
+    height: auto;
+    aspect-ratio: 16 / 5;
+  }
+}
+
+@media (max-width: 47.999rem) {
+  [data-shop] > main {
+    padding-inline: clamp(0.75rem, 3.5vw, 1rem);
+  }
+
+  [data-shop] > footer {
+    padding-inline: clamp(0.75rem, 3.5vw, 1rem);
+  }
+
+  [data-shop] .grid {
+    min-width: 0;
+  }
+
+  [data-shop] :where(article, section, [data-card]) {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
