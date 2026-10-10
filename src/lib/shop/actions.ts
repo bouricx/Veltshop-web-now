@@ -74,6 +74,7 @@ type ProductRow = {
   price: number;
   compare_at: number | null;
   stock: number;
+  stock_mode: "quantity" | "individual";
   image: string;
   delivery: string;
   featured: boolean;
@@ -90,6 +91,7 @@ function mapProduct(row: ProductRow): Product & { active: boolean } {
     price: Number(row.price),
     compareAt: row.compare_at == null ? undefined : Number(row.compare_at),
     stock: Number(row.stock),
+    stockMode: row.stock_mode,
     image: row.image,
     delivery: row.delivery as Product["delivery"],
     featured: Boolean(row.featured),
@@ -197,7 +199,7 @@ export const listProducts = createServerFn({ method: "GET" }).handler(async () =
   await ensureSeed();
   const sql = await getSql();
   const rows = await sql<ProductRow>`
-    select id, name, subtitle, category_id, price, compare_at, stock, image, delivery, featured, flash, active
+    select id, name, subtitle, category_id, price, compare_at, stock, stock_mode, image, delivery, featured, flash, active
     from products
     where active = true
     order by featured desc, name
@@ -212,7 +214,7 @@ export const listAllProducts = createServerFn({ method: "GET" })
     await ensureSeed();
     const sql = await getSql();
     const rows = await sql<ProductRow>`
-      select id, name, subtitle, category_id, price, compare_at, stock, image, delivery, featured, flash, active
+      select id, name, subtitle, category_id, price, compare_at, stock, stock_mode, image, delivery, featured, flash, active
       from products
       order by updated_at desc
     `;
@@ -248,7 +250,7 @@ export const saveProduct = createServerFn({ method: "POST" })
         category_id = excluded.category_id,
         price = excluded.price,
         compare_at = excluded.compare_at,
-        stock = excluded.stock,
+        stock = CASE WHEN products.stock_mode = 'individual' THEN products.stock ELSE excluded.stock END,
         image = excluded.image,
         delivery = excluded.delivery,
         featured = excluded.featured,
@@ -257,7 +259,7 @@ export const saveProduct = createServerFn({ method: "POST" })
         updated_at = now()
     `;
     const rows = await sql<ProductRow>`
-      select id, name, subtitle, category_id, price, compare_at, stock, image, delivery, featured, flash, active
+      select id, name, subtitle, category_id, price, compare_at, stock, stock_mode, image, delivery, featured, flash, active
       from products where id = ${id}
     `;
     return { ok: true as const, product: mapProduct(rows[0]), message: "บันทึกสินค้าแล้ว" };
@@ -278,7 +280,14 @@ export const checkoutProduct = createServerFn({ method: "POST" })
         data.id,
         data.idempotencyKey,
       );
-      return { ok: true as const, ...result, message: "รับคำสั่งซื้อแล้ว · รอดำเนินการจัดส่ง" };
+      return {
+        ok: true as const,
+        ...result,
+        message:
+          result.status === "completed"
+            ? "จัดส่งสินค้าสำเร็จแล้ว"
+            : "รับคำสั่งซื้อแล้ว · รอดำเนินการจัดส่ง",
+      };
     } catch (error) {
       if (error instanceof CommerceError) return { ok: false as const, message: error.message };
       throw error;
@@ -316,7 +325,7 @@ export const archiveProduct = createServerFn({ method: "POST" })
       update products
       set active = false, updated_at = now()
       where id = ${data.id}
-      returning id, name, subtitle, category_id, price, compare_at, stock, image, delivery, featured, flash, active
+      returning id, name, subtitle, category_id, price, compare_at, stock, stock_mode, image, delivery, featured, flash, active
     `;
     if (!rows[0]) return { ok: false as const, message: "ไม่พบสินค้า" };
     return {

@@ -1,3 +1,5 @@
+import { useCurrentUserState } from "@/lib/auth/use-current-user";
+import { getMyDelivery } from "@/lib/shop/inventory";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { EmptyGate } from "@/components/shop/shop-shell";
@@ -9,6 +11,7 @@ import { formatBaht, formatTime } from "@/lib/utils";
 export const Route = createFileRoute("/shop/history")({ component: HistoryPage });
 
 function HistoryPage() {
+  const { user } = useCurrentUserState();
   return (
     <div className="mx-auto max-w-3xl">
       <p className="text-xs font-medium tracking-[0.16em] text-muted uppercase">บัญชี</p>
@@ -16,7 +19,7 @@ function HistoryPage() {
       <p className="mt-2 text-sm text-muted">เติมเงินและการซื้อของคุณ</p>
       <div className="mt-8">
         <EmptyGate>
-          <HistoryBody />
+          <HistoryBody key={user?.id ?? "signed-out"} />
         </EmptyGate>
       </div>
     </div>
@@ -24,6 +27,7 @@ function HistoryPage() {
 }
 
 function HistoryBody() {
+  const [deliveries, setDeliveries] = useState<Record<string, string>>({});
   const [orders, setOrders] = useState<
     {
       id: string;
@@ -186,6 +190,28 @@ function HistoryBody() {
                       </Badge>
                     </div>
                   </div>
+                  {o.status === "completed" ? (
+                    <Button
+                      size="sm"
+                      className="mt-3"
+                      onClick={() => {
+                        void getMyDelivery({ data: { orderId: o.id } })
+                          .then((res) => {
+                            if (res.ok)
+                              setDeliveries((current) => ({ ...current, [o.id]: res.payload }));
+                            else setPayError(res.message);
+                          })
+                          .catch(() => setPayError("โหลดข้อมูลสินค้าไม่สำเร็จ"));
+                      }}
+                    >
+                      ดูสินค้าที่ได้รับ
+                    </Button>
+                  ) : null}
+                  {deliveries[o.id] ? (
+                    <pre className="mt-3 whitespace-pre-wrap break-all rounded-md bg-bg p-3 font-mono text-xs select-all">
+                      {deliveries[o.id]}
+                    </pre>
+                  ) : null}
                   {o.payload ? (
                     <pre className="mt-3 whitespace-pre-wrap rounded-md bg-bg p-3 font-mono text-xs">
                       {o.payload}

@@ -1,3 +1,4 @@
+import { decryptInventory } from "./inventory-crypto.server.ts";
 import type { Sql } from "../db";
 import { randomUUID } from "node:crypto";
 
@@ -13,22 +14,45 @@ export async function purchase(sql: Sql, userId: string, productId: string, key:
       "SELECT balance FROM wallet_accounts WHERE user_id=$1 FOR UPDATE",
       [userId],
     );
-    const [previous] = await tx.query<{ id: string; product_id: string }>(
-      "SELECT o.id, i.product_id FROM orders o JOIN order_items i ON i.order_id=o.id WHERE o.user_id=$1 AND o.idempotency_key=$2",
+    const [previous] = await tx.query<{ id: string; product_id: string; status: string }>(
+      "SELECT o.id, i.product_id, o.status FROM orders o JOIN order_items i ON i.order_id=o.id WHERE o.user_id=$1 AND o.idempotency_key=$2",
       [userId, key],
     );
     if (previous) {
       if (previous.product_id !== productId) throw new CommerceError("คำขอซ้ำไม่ตรงกับสินค้าเดิม");
-      return { orderId: previous.id, balance: Number(wallet.balance), replay: true };
+      return {
+        orderId: previous.id,
+        status: previous.status,
+        balance: Number(wallet.balance),
+        replay: true,
+      };
     }
-    const [product] = await tx.query<{ id: string; name: string; price: number; stock: number }>(
-      "SELECT id,name,price,stock FROM products WHERE id=$1 AND active=true FOR UPDATE",
+    const [product] = await tx.query<{
+      id: string;
+      name: string;
+      price: number;
+      stock: number;
+      stock_mode: string;
+    }>(
+      "SELECT id,name,price,stock,stock_mode FROM products WHERE id=$1 AND active=true FOR UPDATE",
       [productId],
     );
     if (!product || product.stock <= 0) throw new CommerceError("สินค้าหมดหรือปิดขายแล้ว");
     if (!Number.isSafeInteger(product.price) || product.price < 0)
       throw new CommerceError("ราคาสินค้าไม่ถูกต้อง");
     if (wallet.balance < product.price) throw new CommerceError("เครดิตไม่เพียงพอ");
+    let inventoryId: string | null = null;
+    if (product.stock_mode === "individual") {
+      const [item] = await tx.query<{ id: string; payload_ciphertext: string }>(
+        "SELECT id,payload_ciphertext FROM inventory_items WHERE product_id=$1 AND status='available' ORDER BY created_at,id FOR UPDATE SKIP LOCKED LIMIT 1",
+        [productId],
+      );
+      if (!item) throw new CommerceError("สินค้าหมด");
+      // Validate decryption before any financial change; missing/wrong key rolls back.
+      decryptInventory(productId, item.payload_ciphertext);
+      inventoryId = item.id;
+    }
+    const status = inventoryId ? "completed" : "processing";
     const orderId = randomUUID();
     const balance = Number(wallet.balance) - product.price;
     await tx.query("UPDATE products SET stock=stock-1,updated_at=now() WHERE id=$1", [productId]);
@@ -37,8 +61,8 @@ export async function purchase(sql: Sql, userId: string, productId: string, key:
       balance,
     ]);
     await tx.query(
-      "INSERT INTO orders(id,user_id,status,subtotal,total,idempotency_key) VALUES($1,$2,'processing',$3,$3,$4)",
-      [orderId, userId, product.price, key],
+      "INSERT INTO orders(id,user_id,status,subtotal,total,idempotency_key) VALUES($1,$2,$5,$3,$3,$4)",
+      [orderId, userId, product.price, key, status],
     );
     await tx.query(
       "INSERT INTO order_items(id,order_id,product_id,product_name,unit_price,quantity,line_total) VALUES($1,$2,$3,$4,$5,1,$5)",
@@ -57,7 +81,17 @@ export async function purchase(sql: Sql, userId: string, productId: string, key:
       "INSERT INTO transactions(id,user_id,order_id,kind,status,amount) VALUES($1,$2,$3,'PURCHASE','success',$4)",
       [randomUUID(), userId, orderId, product.price],
     );
-    return { orderId, balance, replay: false };
+    if (inventoryId) {
+      await tx.query(
+        "UPDATE inventory_items SET status='reserved',order_id=$2 WHERE id=$1 AND status='available'",
+        [inventoryId, orderId],
+      );
+      await tx.query(
+        "UPDATE inventory_items SET status='sold',sold_at=now() WHERE id=$1 AND order_id=$2 AND status='reserved'",
+        [inventoryId, orderId],
+      );
+    }
+    return { orderId, status, balance, replay: false };
   });
 }
 

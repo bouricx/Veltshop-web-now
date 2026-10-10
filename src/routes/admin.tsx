@@ -1,3 +1,4 @@
+import { DigitalInventoryEditor } from "@/components/shop/digital-inventory-editor";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowDownLeft,
@@ -844,6 +845,7 @@ function Settings() {
 }
 
 function ProductsAdmin() {
+  const [inventoryProduct, setInventoryProduct] = useState<Product | null>(null);
   const [rows, setRows] = useState<Product[]>([]);
   const [editing, setEditing] = useState<Product | null>(null);
   const [creating, setCreating] = useState(false);
@@ -879,6 +881,9 @@ function ProductsAdmin() {
                 {categories.find((c) => c.id === p.category)?.label ?? p.category} · คงเหลือ {p.stock} · {formatBaht(p.price)}
               </p>
             </div>
+            <Button size="sm" variant="secondary" onClick={() => setInventoryProduct(p)}>
+              สต็อกจริง
+            </Button>
             {p.active === false ? <Badge tone="warn">ซ่อน</Badge> : null}
             {p.flash ? <Badge tone="warn">Flash</Badge> : null}
             <Button size="sm" variant="secondary" className="rounded-full" onClick={() => setEditing(p)}>
@@ -888,6 +893,11 @@ function ProductsAdmin() {
           </li>
         ))}
       </ul>
+      <DigitalInventoryEditor
+        product={inventoryProduct}
+        onClose={() => setInventoryProduct(null)}
+        onSaved={() => void reload()}
+      />
       <ProductEditor
         open={Boolean(editing) || creating}
         product={creating ? null : editing}

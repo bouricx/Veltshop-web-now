@@ -8,6 +8,7 @@ export type Product = {
   price: number;
   compareAt?: number;
   stock: number;
+  stockMode?: "quantity" | "individual";
   image: string;
   delivery: "account" | "code" | "otp" | "smm" | "topup";
   featured?: boolean;

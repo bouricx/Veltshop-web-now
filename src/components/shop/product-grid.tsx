@@ -1,3 +1,4 @@
+import { getMyDelivery } from "@/lib/shop/inventory";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { CheckCircle2, Flame, Pencil, ShoppingBag, Wallet } from "lucide-react";
 import { toast } from "sonner";
@@ -218,6 +219,7 @@ function ProductCard({
   onBought: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const { user } = useCurrentUserState();
 
   return (
     <>
@@ -295,7 +297,13 @@ function ProductCard({
           </Button>
         </div>
       </article>
-      <BuyDialog product={product} open={open} onOpenChange={setOpen} onBought={onBought} />
+      <BuyDialog
+        key={user?.id ?? "signed-out"}
+        product={product}
+        open={open}
+        onOpenChange={setOpen}
+        onBought={onBought}
+      />
     </>
   );
 }
@@ -315,8 +323,18 @@ function BuyDialog({
   const balance = useShop((s) => s.balance);
   const [requestKey, setRequestKey] = useState<string | null>(null);
   const [uid, setUid] = useState("");
+  const [delivered, setDelivered] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setRequestKey(null);
+      setResult(null);
+      setDelivered(false);
+      setUid("");
+    }
+  }, [open, product.id]);
 
   async function purchase() {
     if (balance < product.price) {
@@ -335,6 +353,16 @@ function BuyDialog({
       }
       useShop.setState({ balance: res.balance });
       setResult(`${res.message}\nหมายเลขคำสั่งซื้อ: ${res.orderId}`);
+      if (res.status === "completed") {
+        const delivery = await getMyDelivery({ data: { orderId: res.orderId } });
+        if (delivery.ok) {
+          setResult(delivery.payload);
+          setDelivered(true);
+        } else
+          setResult(
+            `คำสั่งซื้อสำเร็จแล้ว โปรดเปิดสินค้าจากประวัติการซื้อ\nหมายเลขคำสั่งซื้อ: ${res.orderId}`,
+          );
+      }
       toast.success(res.message);
       onBought();
     } catch {
@@ -348,7 +376,12 @@ function BuyDialog({
   const canAfford = remaining >= 0;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(value) => {
+        if (!busy) onOpenChange(value);
+      }}
+    >
       <DialogContent title={product.name}>
         {result ? (
           <div className="space-y-4">
@@ -357,14 +390,14 @@ function BuyDialog({
                 <CheckCircle2 className="size-6" />
               </div>
               <p className="mt-2 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-                รับคำสั่งซื้อแล้ว · รอจัดส่ง
+                {delivered ? "จัดส่งสินค้าสำเร็จแล้ว" : "รับคำสั่งซื้อแล้ว · รอจัดส่ง"}
               </p>
               <p className="text-xs text-subtle mt-0.5">บันทึกลงในประวัติการสั่งซื้อของคุณแล้ว</p>
             </div>
             <div>
               <Label className="text-xs text-subtle mb-1 block">รายละเอียดคำสั่งซื้อ:</Label>
               <div className="rounded-xl border border-border/60 bg-surface-2 p-3 font-mono text-xs select-all break-all flex items-start justify-between gap-2">
-                <span>{result}</span>
+                <span className="whitespace-pre-wrap">{result}</span>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -398,6 +431,12 @@ function BuyDialog({
                 </p>
               </div>
             </div>
+
+            <p className="text-xs text-muted">
+              {product.stockMode === "individual"
+                ? "เมื่อชำระสำเร็จ ระบบจะส่งสินค้าจากสต็อกให้ทันที และเปิดดูซ้ำได้ในประวัติการซื้อ"
+                : "สินค้านี้รอแอดมินจัดส่งหลังชำระเงิน ตรวจสอบสถานะได้ในประวัติการซื้อ"}
+            </p>
 
             {/* Financial summary breakdown */}
             {loggedIn ? (

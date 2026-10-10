@@ -154,7 +154,8 @@ export function ProductEditor({
               />
             </Field>
             <Field label="สต๊อก">
-              <Input type="number" min={0} value={form.stock} onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })} />
+              <Input type="number" min={0} disabled={product?.stockMode === "individual"} value={form.stock} onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })} />
+              {product?.stockMode === "individual" ? <p className="text-xs text-muted">จำนวนคงเหลือคำนวณจากสต็อกจริง เพิ่มสินค้าได้ที่ปุ่มสต็อกจริง</p> : null}
             </Field>
           </div>
 
@@ -256,7 +257,7 @@ function blank(category = "stream"): ProductInput {
     subtitle: "",
     category,
     price: 99,
-    stock: 10,
+    stock: 0,
     image: "/images/cat-stream.jpg",
     delivery: "code",
     active: true,
