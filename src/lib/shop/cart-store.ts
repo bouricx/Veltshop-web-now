@@ -1,7 +1,13 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Product } from "./catalog";
-export type CartLine = { productId: string; name: string; price: number; quantity: number };
+export type CartLine = {
+  productId: string;
+  name: string;
+  price: number;
+  quantity: number;
+  markColor?: string;
+};
 export const useCart = create<{
   items: CartLine[];
   add: (p: Product) => boolean;
@@ -18,8 +24,27 @@ export const useCart = create<{
         if ((existing?.quantity ?? 0) >= 99 || (!existing && items.length >= 30)) return false;
         set({
           items: existing
-            ? items.map((i) => (i.productId === p.id ? { ...i, quantity: i.quantity + 1 } : i))
-            : [...items, { productId: p.id, name: p.name, price: p.price, quantity: 1 }],
+            ? items.map((i) =>
+                i.productId === p.id
+                  ? {
+                      ...i,
+                      name: p.name,
+                      price: p.price,
+                      markColor: p.cardColor ?? p.accentColor ?? i.markColor,
+                      quantity: i.quantity + 1,
+                    }
+                  : i,
+              )
+            : [
+                ...items,
+                {
+                  productId: p.id,
+                  name: p.name,
+                  price: p.price,
+                  quantity: 1,
+                  markColor: p.cardColor ?? p.accentColor ?? "#18181b",
+                },
+              ],
         });
         return true;
       },
