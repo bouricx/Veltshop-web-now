@@ -48,7 +48,12 @@ export async function storeMedia(
   const height = isBanner ? settings.imageBannerHeight : isLogo ? 150 : settings.imageSquare;
   const optimized = await image
     .rotate()
-    .resize(width, height, { fit: "cover" })
+    .resize(width, height, {
+      // Preserve the full artwork for products, categories, icons, and logos.
+      // Only banners and profile photos intentionally fill/crop their frame.
+      fit: isBanner || kind === "profile" ? "cover" : "contain",
+      background: kind === "product" ? "#ffffff" : { r: 0, g: 0, b: 0, alpha: 0 },
+    })
     .webp({ quality: settings.imageQuality })
     .toBuffer();
   const thumbnail = await sharp(optimized)
