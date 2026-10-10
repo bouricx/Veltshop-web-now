@@ -11,6 +11,7 @@ export type CartLine = {
 export const useCart = create<{
   items: CartLine[];
   add: (p: Product) => boolean;
+  syncProductMarks: (products: Product[]) => void;
   quantity: (id: string, n: number) => void;
   remove: (id: string) => void;
   clear: () => void;
@@ -18,6 +19,17 @@ export const useCart = create<{
   persist(
     (set, get) => ({
       items: [],
+      syncProductMarks: (products) => {
+        const colors = new Map(
+          products.map((p) => [p.id, p.cardColor ?? p.accentColor ?? "#18181b"]),
+        );
+        const items = get().items;
+        const next = items.map((i) => {
+          const markColor = colors.get(i.productId);
+          return markColor && markColor !== i.markColor ? { ...i, markColor } : i;
+        });
+        if (next.some((item, index) => item !== items[index])) set({ items: next });
+      },
       add: (p) => {
         const items = get().items,
           existing = items.find((i) => i.productId === p.id);

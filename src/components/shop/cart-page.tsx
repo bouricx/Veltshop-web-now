@@ -6,6 +6,7 @@ import { Input, Label, Textarea } from "@/components/ui/input";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useCart } from "@/lib/shop/cart-store";
 import { listMyCartRequests, submitCartRequest, type CartRequest } from "@/lib/shop/cart-requests";
+import { listProducts } from "@/lib/shop/actions";
 import { formatBaht } from "@/lib/utils";
 import { RequestSummary } from "./request-summary";
 import { ProductMark } from "./product-mark";
@@ -13,6 +14,7 @@ import { ProductMark } from "./product-mark";
 export function CartPage() {
   const { user, isPending } = useCurrentUserState();
   const items = useCart((s) => s.items),
+    syncProductMarks = useCart((s) => s.syncProductMarks),
     setQuantity = useCart((s) => s.quantity),
     remove = useCart((s) => s.remove),
     clear = useCart((s) => s.clear);
@@ -25,6 +27,19 @@ export function CartPage() {
     [historyError, setHistoryError] = useState(""),
     [revision, setRevision] = useState(0);
   const retry = useRef<{ signature: string; key: string } | null>(null);
+  useEffect(() => {
+    let active = true;
+    void listProducts()
+      .then((products) => {
+        if (active) syncProductMarks(products);
+      })
+      .catch(() => {
+        /* Saved mark colors remain visible when the catalog is unavailable. */
+      });
+    return () => {
+      active = false;
+    };
+  }, [syncProductMarks]);
   const userId = user && !user.isDevFallback ? user.id : undefined;
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
   useEffect(() => {
