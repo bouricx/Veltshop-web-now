@@ -27,8 +27,8 @@ function CatalogPage() {
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">{label}</h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
-            ดูราคาและสถานะสินค้า แล้วกดเพิ่มลงตะกร้าได้เลย ร้านจะตรวจสอบและยืนยันรายการให้ก่อน
-            ไม่มีการชำระเงินในขั้นตอนนี้
+            ดูราคาและสถานะสินค้า แล้วเพิ่มลงตะกร้าเพื่อส่งรายการให้ร้านตรวจสอบ
+            หลังส่งให้แคปหน้าจอทักแอดมินทาง Facebook Page หรือ Discord เพื่อรับรายละเอียดการชำระเงิน
           </p>
         </div>
       </div>
