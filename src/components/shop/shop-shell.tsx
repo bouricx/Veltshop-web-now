@@ -30,6 +30,7 @@ import { formatThaiClock, shopMeta } from "@/lib/shop/meta";
 import { useShop } from "@/lib/shop/store";
 import { BrandMark } from "@/components/brand-mark";
 import { cn } from "@/lib/utils";
+import { ShopThemePicker, type ShopTheme } from "./shop-theme-picker";
 
 const catIcon: Record<CategoryId, typeof MonitorPlay> = {
   stream: MonitorPlay,
@@ -41,8 +42,19 @@ const catIcon: Record<CategoryId, typeof MonitorPlay> = {
 };
 
 export function ShopShell() {
-  const cartCount=useCart(s=>s.items.reduce((n,i)=>n+i.quantity,0));
-  useEffect(()=>{void useCart.persist.rehydrate();},[]);
+  const cartCount = useCart((s) => s.items.reduce((n, i) => n + i.quantity, 0));
+  const [shopTheme, setShopTheme] = useState<ShopTheme>("ink");
+  useEffect(() => {
+    void useCart.persist.rehydrate();
+    try {
+      const saved = localStorage.getItem("veltshop-theme");
+      if (saved === "ink" || saved === "ocean" || saved === "violet" || saved === "forest") {
+        setShopTheme(saved);
+      }
+    } catch {
+      // Keep the default black and white theme when local storage is unavailable.
+    }
+  }, []);
   const { value: site } = useSiteConfiguration();
   const loggedIn = useShop((s) => s.loggedIn);
   const name = useShop((s) => s.displayName);
@@ -86,7 +98,6 @@ export function ShopShell() {
     if (isPending) return;
     if (user && !user.isDevFallback) {
       login(user.displayName || user.primaryEmail || "สมาชิก");
-
     } else if (!user || user.isDevFallback) {
       logout();
     }
@@ -103,7 +114,7 @@ export function ShopShell() {
   }
 
   return (
-    <div data-shop className="min-h-dvh bg-bg text-fg">
+    <div data-shop data-shop-theme={shopTheme} className="min-h-dvh bg-bg text-fg">
       <a href="#shop-main" className="skip-link">
         ข้ามไปเนื้อหา
       </a>
@@ -111,8 +122,38 @@ export function ShopShell() {
         loggedIn={loggedIn}
         name={name}
         onLogout={() => void handleLogout()}
+        theme={shopTheme}
+        onThemeChange={(theme) => {
+          setShopTheme(theme);
+          try {
+            localStorage.setItem("veltshop-theme", theme);
+          } catch {
+            // The selected theme remains active for this visit.
+          }
+        }}
       />
-      <div className="mx-auto flex max-w-6xl justify-end px-4 pt-3 sm:px-6"><Button asChild variant="outline" className="min-h-11 rounded-full"><Link to="/shop/cart">ตะกร้าสินค้า ({cartCount}) · ส่งรายการให้ร้าน</Link></Button></div>
+      <div className="mx-auto flex max-w-6xl justify-end px-4 pt-3 sm:px-6">
+        <Button
+          asChild
+          className="group min-h-12 rounded-full bg-accent px-4 text-accent-fg shadow-md hover:opacity-90 sm:px-5"
+        >
+          <Link to="/shop/cart" aria-label={`เปิดตะกร้า มีสินค้า ${cartCount} ชิ้น`}>
+            <span className="relative inline-flex">
+              <ShoppingCart className="size-4" aria-hidden="true" />
+              <span className="absolute -top-2 -right-2 grid size-4 place-items-center rounded-full bg-white text-[10px] font-bold text-black">
+                {cartCount > 99 ? "99+" : cartCount}
+              </span>
+            </span>
+            <span className="ml-1 text-left leading-tight">
+              <span className="block text-sm font-semibold">ตะกร้าสินค้า</span>
+              <span className="hidden text-[11px] font-normal opacity-80 sm:block">
+                ดูรายการ · ยังไม่ชำระเงิน
+              </span>
+            </span>
+            <span className="sr-only">({cartCount} ชิ้น)</span>
+          </Link>
+        </Button>
+      </div>
       <main
         id="shop-main"
         tabIndex={-1}
@@ -145,10 +186,14 @@ function ShopHeader({
   loggedIn,
   name,
   onLogout,
+  theme,
+  onThemeChange,
 }: {
   loggedIn: boolean;
   name: string;
   onLogout: () => void;
+  theme: ShopTheme;
+  onThemeChange: (theme: ShopTheme) => void;
 }) {
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-surface/90 backdrop-blur-xl">
@@ -163,6 +208,7 @@ function ShopHeader({
         </nav>
         <BrandMark to="/shop" className="shrink-0" />
         <div className="ml-auto flex items-center gap-2">
+          <ShopThemePicker value={theme} onChange={onThemeChange} />
           <LiveClock />
           {loggedIn ? (
             <>
