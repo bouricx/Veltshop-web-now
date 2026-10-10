@@ -3,25 +3,14 @@ import { contrastText, selectProducts, type CatalogSort } from "@/lib/shop/prese
 import { useSiteConfiguration } from "@/lib/shop/site-state";
 import { onShopChange } from "@/lib/shop/realtime-client";
 import { useEffect, useMemo, useState, useId, type CSSProperties, type ReactNode } from "react";
-import {
-  Flame,
-  Pencil,
-  Search,
-  ShoppingBag,
-  ArrowRight,
-  RefreshCw,
-} from "lucide-react";
+import { Flame, Pencil, Search, ShoppingBag, Check, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { CategoryEditor } from "@/components/shop/category-editor";
 import { ProductEditor } from "@/components/shop/product-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Label, NativeSelect } from "@/components/ui/input";
-import {
-  listCategories,
-  listProducts,
-  type CategoryRow,
-} from "@/lib/shop/actions";
+import { listCategories, listProducts, type CategoryRow } from "@/lib/shop/actions";
 import { getAdminStatus } from "@/lib/shop/admin-gate";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import type { Product } from "@/lib/shop/catalog";
@@ -267,12 +256,7 @@ export function ProductGrid({
       ) : (
         <div className="stagger-in mt-6 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
           {displayed.map((p) => (
-            <ProductCard
-              key={p.id}
-              product={p}
-              canEdit={isAdmin}
-              onEdit={() => setEditing(p)}
-            />
+            <ProductCard key={p.id} product={p} canEdit={isAdmin} onEdit={() => setEditing(p)} />
           ))}
         </div>
       )}
@@ -355,6 +339,9 @@ function ProductCard({
   onEdit: () => void;
 }) {
   const lowStock = useSiteConfiguration((s) => s.value.lowStock);
+  const inCartQuantity = useCart(
+    (s) => s.items.find((item) => item.productId === product.id)?.quantity ?? 0,
+  );
   const theme = product.cardColor ?? "#18181b";
   const accent = product.accentColor ?? theme;
   const badge = product.badgeColor ?? accent;
@@ -418,6 +405,11 @@ function ProductCard({
             {product.name}
           </h3>
           <p className="mt-1 text-sm text-muted line-clamp-1">{product.subtitle}</p>
+          {product.description ? (
+            <p className="mt-2 text-xs leading-relaxed text-muted line-clamp-2">
+              {product.description}
+            </p>
+          ) : null}
           <div className="product-price-row mt-4 flex items-end justify-between border-t border-border/40 pt-3">
             <div>
               <p className="product-price tabular text-xl font-bold tracking-tight text-fg">
@@ -447,20 +439,40 @@ function ProductCard({
           </div>
           <Button
             className={cn(
-              "product-action mt-4 w-full rounded-full gap-2 font-medium transition-all",
-              product.stock > 0 ? "hover:opacity-90" : "",
+              "product-action mt-4 w-full justify-between rounded-2xl gap-2 font-semibold transition-all",
+              inCartQuantity > 0 ? "ring-2 ring-accent/20" : "",
             )}
-            style={{ background: accent, color: contrastText(accent) }}
-            onClick={() => { if(useCart.getState().add(product))toast.success("เพิ่มลงตะกร้าแล้ว · ยังไม่ต้องชำระเงิน");else toast.error("เพิ่มไม่ได้ จำนวนถึงขีดจำกัดตะกร้าแล้ว"); }}
+            onClick={() => {
+              if (useCart.getState().add(product))
+                toast.success(`เพิ่ม ${product.name} ลงตะกร้าแล้ว`);
+              else toast.error("เพิ่มไม่ได้ จำนวนถึงขีดจำกัดตะกร้าแล้ว");
+            }}
+            aria-label={
+              inCartQuantity > 0
+                ? `เพิ่ม ${product.name} อีกชิ้น ปัจจุบันอยู่ในตะกร้า ${inCartQuantity} ชิ้น`
+                : `เพิ่ม ${product.name} ลงตะกร้า`
+            }
           >
-            <ShoppingBag className="size-4" />
-            เพิ่มลงตะกร้า
-            <ArrowRight className="ml-auto size-4" />
+            <span className="inline-flex items-center gap-2">
+              {inCartQuantity > 0 ? (
+                <Check className="size-4" aria-hidden="true" />
+              ) : (
+                <ShoppingBag className="size-4" aria-hidden="true" />
+              )}
+              {inCartQuantity > 0 ? "เพิ่มอีกชิ้น" : "เพิ่มลงตะกร้า"}
+            </span>
+            {inCartQuantity > 0 ? (
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-xs"
+                aria-live="polite"
+              >
+                <ShoppingBag className="size-3.5" aria-hidden="true" />
+                ในตะกร้า {inCartQuantity}
+              </span>
+            ) : null}
           </Button>
-
         </div>
       </article>
-
     </>
   );
 }

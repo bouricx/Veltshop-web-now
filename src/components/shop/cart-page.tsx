@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ShoppingCart, Trash2, CheckCircle2 } from "lucide-react";
+import { ShoppingCart, Trash2, CheckCircle2, Package, ReceiptText, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -12,7 +12,7 @@ import { RequestSummary } from "./request-summary";
 export function CartPage() {
   const { user, isPending } = useCurrentUserState();
   const items = useCart((s) => s.items),
-    quantity = useCart((s) => s.quantity),
+    setQuantity = useCart((s) => s.quantity),
     remove = useCart((s) => s.remove),
     clear = useCart((s) => s.clear);
   const [contact, setContact] = useState(""),
@@ -25,6 +25,7 @@ export function CartPage() {
     [revision, setRevision] = useState(0);
   const retry = useRef<{ signature: string; key: string } | null>(null);
   const userId = user && !user.isDevFallback ? user.id : undefined;
+  const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
   useEffect(() => {
     setContact(user?.primaryEmail || "");
     setNote("");
@@ -112,13 +113,19 @@ export function CartPage() {
   return (
     <section className="space-y-6">
       <div>
-        <p className="text-xs text-muted">เลือกสินค้าแล้วให้ร้านดูแลต่อ</p>
-        <h1 className="mt-1 flex items-center gap-2 text-2xl font-semibold">
-          <ShoppingCart className="size-6" />
+        <p className="text-xs font-semibold tracking-[0.14em] text-muted uppercase">
+          VELTSHOP · รายการที่เลือก
+        </p>
+        <h1 className="mt-1 flex items-center gap-2 text-2xl font-semibold tracking-tight">
+          <ShoppingCart className="size-6" aria-hidden="true" />
           ตะกร้าสินค้า
+          <span className="rounded-full bg-surface-2 px-2.5 py-1 text-sm font-medium text-muted">
+            {totalQuantity} ชิ้น
+          </span>
         </h1>
         <p className="mt-2 text-sm text-muted">
-          ส่งรายการให้ร้านโดยไม่ต้องชำระเงิน ไม่หักเครดิต และร้านจะตรวจสอบความพร้อมของสินค้าก่อนยืนยัน
+          ส่งรายการให้ร้านโดยไม่ต้องชำระเงิน ไม่หักเครดิต
+          และร้านจะตรวจสอบความพร้อมของสินค้าก่อนยืนยัน
         </p>
       </div>
       {success ? (
@@ -144,14 +151,22 @@ export function CartPage() {
             {items.map((i) => (
               <article
                 key={i.productId}
-                className="rounded-2xl border border-border bg-surface p-4"
+                className="rounded-2xl border border-border bg-surface p-4 shadow-border sm:p-5"
               >
-                <h2 className="break-words font-semibold">{i.name}</h2>
-                <p className="mt-1 text-sm text-muted">
-                  ราคาโดยประมาณ {formatBaht(i.price)} / ชิ้น
-                </p>
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-2 text-fg">
+                    <Package className="size-5" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="break-words font-semibold">{i.name}</h2>
+                    <p className="mt-1 text-sm text-muted">
+                      ราคาโดยประมาณ {formatBaht(i.price)} / ชิ้น
+                    </p>
+                  </div>
+                </div>
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
+                    <span className="mr-1 text-xs text-muted">จำนวน</span>
                     <Button
                       type="button"
                       variant="outline"
@@ -159,7 +174,7 @@ export function CartPage() {
                       aria-label={`ลดจำนวน ${i.name}`}
                       onClick={() => {
                         setError("");
-                        quantity(i.productId, i.quantity - 1);
+                        setQuantity(i.productId, i.quantity - 1);
                       }}
                     >
                       −
@@ -175,7 +190,7 @@ export function CartPage() {
                       disabled={busy}
                       onChange={(e) => {
                         setError("");
-                        quantity(i.productId, Number(e.target.value));
+                        setQuantity(i.productId, Number(e.target.value));
                       }}
                     />
                     <Button
@@ -185,7 +200,7 @@ export function CartPage() {
                       aria-label={`เพิ่มจำนวน ${i.name}`}
                       onClick={() => {
                         setError("");
-                        quantity(i.productId, i.quantity + 1);
+                        setQuantity(i.productId, i.quantity + 1);
                       }}
                     >
                       +
@@ -205,17 +220,32 @@ export function CartPage() {
                     นำออก
                   </Button>
                 </div>
-                <p className="mt-3 text-right font-semibold">{formatBaht(i.price * i.quantity)}</p>
+                <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3">
+                  <span className="text-sm text-muted">รวมสินค้านี้</span>
+                  <span className="font-semibold tabular-nums">
+                    {formatBaht(i.price * i.quantity)}
+                  </span>
+                </div>
               </article>
             ))}
           </div>
           <div className="min-w-0 space-y-4 self-start rounded-2xl border border-border bg-surface p-5">
-            <h2 className="font-semibold">สรุปรายการ</h2>
-            <div className="flex justify-between gap-3 text-sm">
-              <span>{items.reduce((n, i) => n + i.quantity, 0)} ชิ้น</span>
-              <span className="font-semibold">{formatBaht(total)}</span>
+            <h2 className="flex items-center gap-2 font-semibold">
+              <ReceiptText className="size-4" aria-hidden="true" />
+              สรุปรายการ
+            </h2>
+            <div className="space-y-2 rounded-xl bg-surface-2 p-3 text-sm">
+              <div className="flex justify-between gap-3">
+                <span className="text-muted">จำนวนสินค้ารวม</span>
+                <span className="font-medium">{totalQuantity} ชิ้น</span>
+              </div>
+              <div className="flex justify-between gap-3 border-t border-border pt-2">
+                <span className="font-medium">ยอดรวมโดยประมาณ</span>
+                <span className="font-bold">{formatBaht(total)}</span>
+              </div>
             </div>
-            <p className="text-xs text-muted">
+            <p className="flex gap-2 text-xs leading-relaxed text-muted">
+              <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               ร้านจะยืนยันราคาและความพร้อมอีกครั้ง ยอดนี้ยังไม่ใช่การชำระเงิน
             </p>
             <div>
