@@ -90,7 +90,7 @@ function ShopHome() {
             <h1 className="text-3xl leading-tight font-bold tracking-tight sm:text-4xl lg:text-5xl">สินค้าดิจิทัลคุณภาพ<br />ครบ จบ ในที่เดียว</h1>
             <p className="mt-3 max-w-lg text-sm leading-6 text-white/70 sm:text-base">เกม · แอปพรีเมียม · บริการออนไลน์ · บัตรเติมเงิน</p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link to="/shop/catalog" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-black transition hover:bg-white/90">ดูสินค้าทั้งหมด <span aria-hidden="true">→</span></Link>
+              <Link to="/shop/catalog" search={{ cat: "all" }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-black transition hover:bg-white/90">ดูสินค้าทั้งหมด <span aria-hidden="true">→</span></Link>
               <a href={config.discord || shopMeta.discordInvite} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/25 px-5 text-sm font-medium text-white transition hover:bg-white/10">ติดต่อแอดมิน</a>
             </div>
           </div>
