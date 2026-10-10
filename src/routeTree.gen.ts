@@ -22,6 +22,7 @@ import { Route as ApiShopEventsRouteImport } from './routes/api/shop-events'
 import { Route as ShopIndexRouteImport } from './routes/shop/index'
 import { Route as ShopAlertsRouteImport } from './routes/shop/alerts'
 import { Route as ShopBoxRouteImport } from './routes/shop/box'
+import { Route as ShopCartRouteImport } from './routes/shop/cart'
 import { Route as ShopCatalogRouteImport } from './routes/shop/catalog'
 import { Route as ShopClaimsRouteImport } from './routes/shop/claims'
 import { Route as ShopHistoryRouteImport } from './routes/shop/history'
@@ -101,6 +102,11 @@ const ShopAlertsRoute = ShopAlertsRouteImport.update({
 const ShopBoxRoute = ShopBoxRouteImport.update({
   id: '/box',
   path: '/box',
+  getParentRoute: () => ShopRoute,
+} as any)
+const ShopCartRoute = ShopCartRouteImport.update({
+  id: '/cart',
+  path: '/cart',
   getParentRoute: () => ShopRoute,
 } as any)
 const ShopCatalogRoute = ShopCatalogRouteImport.update({
@@ -193,6 +199,7 @@ export interface FileRoutesByFullPath {
   '/api/shop-events': typeof ApiShopEventsRoute
   '/shop/alerts': typeof ShopAlertsRoute
   '/shop/box': typeof ShopBoxRoute
+  '/shop/cart': typeof ShopCartRoute
   '/shop/catalog': typeof ShopCatalogRoute
   '/shop/claims': typeof ShopClaimsRoute
   '/shop/history': typeof ShopHistoryRoute
@@ -222,6 +229,7 @@ export interface FileRoutesByTo {
   '/api/shop-events': typeof ApiShopEventsRoute
   '/shop/alerts': typeof ShopAlertsRoute
   '/shop/box': typeof ShopBoxRoute
+  '/shop/cart': typeof ShopCartRoute
   '/shop/catalog': typeof ShopCatalogRoute
   '/shop/claims': typeof ShopClaimsRoute
   '/shop/history': typeof ShopHistoryRoute
@@ -253,6 +261,7 @@ export interface FileRoutesById {
   '/api/shop-events': typeof ApiShopEventsRoute
   '/shop/alerts': typeof ShopAlertsRoute
   '/shop/box': typeof ShopBoxRoute
+  '/shop/cart': typeof ShopCartRoute
   '/shop/catalog': typeof ShopCatalogRoute
   '/shop/claims': typeof ShopClaimsRoute
   '/shop/history': typeof ShopHistoryRoute
@@ -285,6 +294,7 @@ export interface FileRouteTypes {
     | '/api/shop-events'
     | '/shop/alerts'
     | '/shop/box'
+    | '/shop/cart'
     | '/shop/catalog'
     | '/shop/claims'
     | '/shop/history'
@@ -314,6 +324,7 @@ export interface FileRouteTypes {
     | '/api/shop-events'
     | '/shop/alerts'
     | '/shop/box'
+    | '/shop/cart'
     | '/shop/catalog'
     | '/shop/claims'
     | '/shop/history'
@@ -344,6 +355,7 @@ export interface FileRouteTypes {
     | '/api/shop-events'
     | '/shop/alerts'
     | '/shop/box'
+    | '/shop/cart'
     | '/shop/catalog'
     | '/shop/claims'
     | '/shop/history'
@@ -472,6 +484,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShopBoxRouteImport
       parentRoute: typeof ShopRoute
     }
+    '/shop/cart': {
+      id: '/shop/cart'
+      path: '/cart'
+      fullPath: '/shop/cart'
+      preLoaderRoute: typeof ShopCartRouteImport
+      parentRoute: typeof ShopRoute
+    }
     '/shop/catalog': {
       id: '/shop/catalog'
       path: '/catalog'
@@ -595,6 +614,7 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 interface ShopRouteChildren {
   ShopAlertsRoute: typeof ShopAlertsRoute
   ShopBoxRoute: typeof ShopBoxRoute
+  ShopCartRoute: typeof ShopCartRoute
   ShopCatalogRoute: typeof ShopCatalogRoute
   ShopClaimsRoute: typeof ShopClaimsRoute
   ShopHistoryRoute: typeof ShopHistoryRoute
@@ -610,6 +630,7 @@ interface ShopRouteChildren {
 const ShopRouteChildren: ShopRouteChildren = {
   ShopAlertsRoute: ShopAlertsRoute,
   ShopBoxRoute: ShopBoxRoute,
+  ShopCartRoute: ShopCartRoute,
   ShopCatalogRoute: ShopCatalogRoute,
   ShopClaimsRoute: ShopClaimsRoute,
   ShopHistoryRoute: ShopHistoryRoute,

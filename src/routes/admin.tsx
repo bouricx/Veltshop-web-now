@@ -1,3 +1,4 @@
+import { AdminCartRequests } from "@/components/shop/admin-cart-requests";
 import { AdminNotifications } from "@/components/shop/admin-notifications";
 import { PrivacyRequestsPanel } from "@/components/shop/privacy-controls";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -47,6 +48,7 @@ const tabs = [
   ["products", "สินค้า / หมวด", "products.manage"],
   ["stock", "สต็อก", "stock.manage"],
   ["orders", "ออเดอร์", "orders.manage"],
+  ["cart-requests", "รายการจากตะกร้า", "orders.manage"],
   ["payments", "เติมเงิน", "topups.manage"],
   ["users", "สมาชิก", "users.read"],
   ["claims", "เคลม", "claims.manage"],
@@ -77,7 +79,7 @@ const groupColors: Record<string, string> = {
 const menuGroups = [
   { label: "ภาพรวม", ids: ["dashboard", "notifications"] },
   { label: "สินค้าและสื่อ", ids: ["products", "stock", "media"] },
-  { label: "การขายและการเงิน", ids: ["orders", "payments", "transactions", "claims", "payment-settings"] },
+  { label: "การขายและการเงิน", ids: ["orders", "cart-requests", "payments", "transactions", "claims", "payment-settings"] },
   { label: "สมาชิกและความปลอดภัย", ids: ["users", "sessions", "logins", "privacy", "audit"] },
   { label: "การตลาด", ids: ["gifts", "coupons", "content", "campaigns"] },
   { label: "ระบบและการตั้งค่า", ids: ["system", "jobs", "backups", "settings"] },
@@ -184,6 +186,8 @@ function AdminPage() {
             <RealDashboard />
           ) : active === "notifications" ? (
             <AdminNotifications />
+          ) : active === "cart-requests" ? (
+            <AdminCartRequests />
           ) : active === "products" ? (
             <ProductsAdmin />
           ) : active === "settings" ? (

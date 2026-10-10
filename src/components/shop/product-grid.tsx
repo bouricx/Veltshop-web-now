@@ -1,3 +1,4 @@
+import { useCart } from "@/lib/shop/cart-store";
 import { contrastText, selectProducts, type CatalogSort } from "@/lib/shop/presentation";
 import { useSiteConfiguration } from "@/lib/shop/site-state";
 import { onShopChange } from "@/lib/shop/realtime-client";
@@ -461,13 +462,14 @@ function ProductCard({
               product.stock > 0 ? "hover:opacity-90" : "",
             )}
             style={{ background: accent, color: contrastText(accent) }}
-            onClick={() => setOpen(true)}
+            onClick={() => { if(useCart.getState().add(product))toast.success("เพิ่มลงตะกร้าแล้ว · ยังไม่ต้องชำระเงิน");else toast.error("เพิ่มไม่ได้ จำนวนถึงสต็อกหรือขีดจำกัดตะกร้าแล้ว"); }}
             disabled={product.stock <= 0}
           >
             <ShoppingBag className="size-4" />
-            {product.stock <= 0 ? "สินค้าหมดชั่วคราว" : "สั่งซื้อทันที"}
+            {product.stock <= 0 ? "สินค้าหมดชั่วคราว" : "เพิ่มลงตะกร้า"}
             <ArrowRight className="ml-auto size-4" />
           </Button>
+          <Button variant="outline" className="mt-2 min-h-11 w-full rounded-full" disabled={product.stock<=0} onClick={()=>setOpen(true)}>ซื้อด้วยเครดิตทันที</Button>
         </div>
       </article>
       <BuyDialog

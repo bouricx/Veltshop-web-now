@@ -6,6 +6,7 @@ import { onShopChange } from "@/lib/shop/realtime-client";
 import { Button } from "@/components/ui/button";
 const labels: Record<string, [string, string]> = {
   "user.created": ["สมาชิกใหม่", "users"],
+  "cart.requested": ["รายการใหม่จากตะกร้า", "cart-requests"],
   "order.created": ["คำสั่งซื้อใหม่", "orders"],
   "order.completed": ["จัดส่งสินค้าแล้ว", "orders"],
   "topup.created": ["รายการเติมเงินใหม่", "payments"],

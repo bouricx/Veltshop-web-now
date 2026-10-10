@@ -1,3 +1,4 @@
+import { useCart } from "@/lib/shop/cart-store";
 import { onShopChange } from "@/lib/shop/realtime-client";
 import { useSiteConfiguration } from "@/lib/shop/site-state";
 import { StoreContent } from "./store-content";
@@ -41,6 +42,8 @@ const catIcon: Record<CategoryId, typeof MonitorPlay> = {
 };
 
 export function ShopShell() {
+  const cartCount=useCart(s=>s.items.reduce((n,i)=>n+i.quantity,0));
+  useEffect(()=>{void useCart.persist.rehydrate();},[]);
   const { value: site } = useSiteConfiguration();
   const loggedIn = useShop((s) => s.loggedIn);
   const name = useShop((s) => s.displayName);
@@ -128,6 +131,7 @@ export function ShopShell() {
         balance={balance}
         onLogout={() => void handleLogout()}
       />
+      <div className="mx-auto flex max-w-6xl justify-end px-4 pt-3 sm:px-6"><Button asChild variant="outline" className="min-h-11 rounded-full"><Link to="/shop/cart">ตะกร้าสินค้า ({cartCount}) · ส่งรายการให้ร้าน</Link></Button></div>
       <main
         id="shop-main"
         tabIndex={-1}
