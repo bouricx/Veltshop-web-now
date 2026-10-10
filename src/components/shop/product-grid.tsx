@@ -472,7 +472,7 @@ function BuyDialog({
               <img
                 src={product.image}
                 alt=""
-                className="size-16 rounded-xl object-cover shrink-0 border border-border/40"
+                className="size-16 shrink-0 rounded-xl border border-border/40 bg-white object-contain p-1"
               />
               <div>
                 <p className="font-semibold text-base">{product.name}</p>
