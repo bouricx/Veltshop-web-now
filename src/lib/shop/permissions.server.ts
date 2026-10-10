@@ -2,15 +2,28 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSessionUser } from "@/lib/auth/verify.server";
-import { getSql } from "@/lib/db";
+import { getSql, type Sql } from "@/lib/db";
 import { uid } from "@/lib/utils";
 import { isAdminEmail } from "./admin";
+import { ForbiddenError } from "./require-admin.server";
 
 export const ROLE_IDS = ["super_admin", "admin", "staff", "customer"] as const;
 export type RoleId = (typeof ROLE_IDS)[number];
 export type PermissionId = string;
 
 const auditMetadata = (value: Record<string, unknown>) => JSON.stringify(value);
+
+/** Only an existing super admin may grant privileged admin roles. */
+export async function assertCanAssignRole(sql: Sql, actorId: string, roleId: RoleId): Promise<void> {
+  if (roleId !== "super_admin" && roleId !== "admin") return;
+  // Lock the authority row in the same transaction as the grant to avoid a
+  // concurrent role revocation racing this authorization check.
+  const rows = await sql.query<{ user_id: string }>(
+    "SELECT user_id FROM user_roles WHERE user_id=$1 AND role_id='super_admin' FOR UPDATE",
+    [actorId],
+  );
+  if (!rows[0]) throw new ForbiddenError();
+}
 
 export async function hasPermission(userId: string, permission: PermissionId): Promise<boolean> {
   const sql = await getSql();
@@ -73,6 +86,7 @@ export const assignRole = createServerFn({ method: "POST" })
     );
     const sql = await getSql();
     await sql.transaction(async (tx) => {
+      await assertCanAssignRole(tx, actor.id, data.roleId);
       const [target] = await tx.query('SELECT id FROM "user" WHERE id=$1', [data.userId]);
       if (!target) throw new Error("User not found");
       await tx.query(

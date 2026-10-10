@@ -3,7 +3,7 @@ import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql } from "@/lib/db";
 import { uid } from "@/lib/utils";
-import { requirePermission, ROLE_IDS } from "./permissions.server";
+import { assertCanAssignRole, requirePermission, ROLE_IDS } from "./permissions.server";
 
 const schema = z.object({ userId: z.string().trim().min(1).max(200), roleId: z.enum(ROLE_IDS) });
 
@@ -18,6 +18,7 @@ export const setUserRole = createServerFn({ method: "POST" })
     );
     const sql = await getSql();
     await sql.transaction(async (tx) => {
+      await assertCanAssignRole(tx, actor.id, data.roleId);
       const [target] = await tx.query('SELECT id FROM "user" WHERE id=$1', [data.userId]);
       if (!target) throw new Error("User not found");
       await tx.query(
