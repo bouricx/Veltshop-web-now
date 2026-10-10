@@ -123,9 +123,9 @@ function ShopHome() {
                 key={tile.label}
                 to={tile.to}
                 search={tile.search}
-                className="quick-link flex flex-col items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/50 px-3 py-5 text-center"
+                className="quick-link flex flex-col items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/50 px-3 py-3 sm:py-5 text-center"
               >
-                <span className={cn("grid size-12 place-items-center rounded-2xl", tile.tint)}>
+                <span className={cn("grid size-10 place-items-center rounded-2xl sm:size-12", tile.tint)}>
                   <tile.icon className="size-5" />
                 </span>
                 <span>
@@ -140,9 +140,9 @@ function ShopHome() {
             href={config.discord || shopMeta.discordInvite}
             target="_blank"
             rel="noreferrer"
-            className="quick-link flex flex-col items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/50 px-3 py-5 text-center"
+            className="quick-link flex flex-col items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/50 px-3 py-3 sm:py-5 text-center"
           >
-            <span className="grid size-12 place-items-center rounded-2xl bg-indigo-100 text-indigo-600">
+            <span className="grid size-10 place-items-center rounded-2xl sm:size-12 bg-indigo-100 text-indigo-600">
               <MessageCircle className="size-5" />
             </span>
             <span>
