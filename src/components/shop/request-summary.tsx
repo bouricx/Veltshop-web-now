@@ -41,7 +41,7 @@ export function RequestSummary({
         ))}
       </ul>
       <p className="mt-2 text-right font-semibold">ยอดรายการ {formatBaht(r.total)}</p>
-      <p className="mt-1 text-right text-xs text-muted">ยังไม่ใช่หลักฐานการชำระเงิน</p>
+      <p className="mt-1 text-right text-xs text-muted">ยังไม่ได้ชำระเงิน · ทักเพจ/Discord พร้อมภาพหน้าจอรายการเพื่อรับวิธีชำระ · จัดส่งภายใน 5–10 นาทีหลังยืนยัน</p>
       {r.note ? (
         <p className="mt-4 whitespace-pre-wrap break-words rounded-xl bg-bg p-3 text-sm">
           หมายเหตุ: {r.note}

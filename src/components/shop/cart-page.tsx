@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ShoppingCart, Trash2, CheckCircle2, ReceiptText, Info } from "lucide-react";
+import { ShoppingCart, Trash2, CheckCircle2, ReceiptText, Info, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -10,9 +10,12 @@ import { listProducts } from "@/lib/shop/actions";
 import { formatBaht } from "@/lib/utils";
 import { RequestSummary } from "./request-summary";
 import { ProductMark } from "./product-mark";
+import { AdminContactPicker } from "./admin-contact-picker";
+import { useSiteConfiguration } from "@/lib/shop/site-state";
 
 export function CartPage() {
   const { user, isPending } = useCurrentUserState();
+  const site = useSiteConfiguration((s) => s.value);
   const items = useCart((s) => s.items),
     syncProductMarks = useCart((s) => s.syncProductMarks),
     setQuantity = useCart((s) => s.quantity),
@@ -140,8 +143,8 @@ export function CartPage() {
           </span>
         </h1>
         <p className="mt-2 text-sm text-muted">
-          ส่งรายการให้ร้านโดยไม่ต้องชำระเงิน ไม่หักเครดิต
-          และร้านจะตรวจสอบความพร้อมของสินค้าก่อนยืนยัน
+          ส่งรายการให้ร้านตรวจสอบก่อนได้ ไม่มีการชำระเงินบนเว็บไซต์หรือหักเครดิต
+          หลังส่งรายการให้แคปหน้าจอและทักแอดมินเพื่อรับรายละเอียดการชำระเงิน
         </p>
       </div>
       {success ? (
@@ -155,7 +158,19 @@ export function CartPage() {
           <p className="mt-1 text-sm">
             ยอดตามรายการ {formatBaht(success.total)} · ยังไม่ได้ชำระเงิน
           </p>
-          <p className="mt-2 text-sm">ร้านจะตรวจสอบสินค้าและติดต่อกลับตามช่องทางที่แจ้งไว้</p>
+          <p className="mt-2 text-sm leading-relaxed">
+            แคปหน้าจอนี้แล้วส่งให้แอดมินทาง Facebook Page หรือ Discord เพื่อรับรายละเอียดการชำระเงิน
+            หลังยืนยันการชำระเงินและสินค้าพร้อม ร้านจัดส่งภายใน 5–10 นาที
+          </p>
+          <AdminContactPicker
+            facebookUrl={site.facebook}
+            discordUrl={site.discord}
+            description="ส่งภาพหน้าจอยืนยันรายการนี้ให้แอดมิน เพื่อรับช่องทางและรายละเอียดการชำระเงิน"
+            className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-emerald-950 px-5 text-sm font-semibold text-white transition hover:bg-emerald-900"
+          >
+            <MessageCircle className="size-4" aria-hidden="true" />
+            เลือกช่องทางติดต่อแอดมิน
+          </AdminContactPicker>
         </div>
       ) : null}
       {items.length ? (
@@ -266,7 +281,7 @@ export function CartPage() {
             </div>
             <p className="flex gap-2 text-xs leading-relaxed text-muted">
               <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-              ร้านจะยืนยันราคาและความพร้อมอีกครั้ง ยอดนี้ยังไม่ใช่การชำระเงิน
+              ส่งรายการก่อน แล้วแคปหน้าจอยืนยันส่งให้แอดมินเพื่อรับช่องทางชำระเงิน · จัดส่งภายใน 5–10 นาทีหลังยืนยันชำระและสต็อก
             </p>
             <div>
               <Label htmlFor="cart-contact">ช่องทางให้ร้านติดต่อกลับ</Label>
