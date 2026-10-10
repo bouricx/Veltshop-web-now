@@ -191,14 +191,20 @@ export const reviewTopup = createServerFn({ method: "POST" })
   );
 export const redeemGiftCode = createServerFn({ method: "POST" })
   .validator((v: unknown) =>
-    z.object({ code: z.string().trim().min(6).max(128), key: z.string().uuid() }).parse(v),
+    z
+      .object({
+        code: z.string().trim().min(6).max(128),
+        key: z.string().uuid(),
+        productId: id.optional(),
+      })
+      .parse(v),
   )
   .middleware([authMiddleware])
   .handler(async ({ data, context }) =>
     safe(async () => {
       const sql = await getSql();
       await limit(sql, `gift:${context.userId}`, 5);
-      return redeemGift(sql, String(context.userId), data.code, data.key);
+      return redeemGift(sql, String(context.userId), data.code, data.key, data.productId);
     }),
   );
 export const createGiftCode = createServerFn({ method: "POST" })
@@ -209,6 +215,7 @@ export const createGiftCode = createServerFn({ method: "POST" })
         reward: z.enum(["credit", "product"]),
         amount: z.number().int().min(0).max(1000000),
         productId: id.optional(),
+        categoryId: id.optional(),
         usageLimit: z.number().int().min(1).max(100000),
         expiresAt: z.string().datetime().nullable(),
       })
@@ -218,7 +225,11 @@ export const createGiftCode = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) =>
     safe(async () => {
       await requirePermission(String(context.userId), "gift_codes.manage", context.bearerToken);
-      if (data.reward === "product" && !data.productId) throw new CommerceError("ต้องเลือกสินค้า");
+      if (
+        data.reward === "product" &&
+        Number(Boolean(data.productId)) + Number(Boolean(data.categoryId)) !== 1
+      )
+        throw new CommerceError("เลือกสินค้าหรือหมวดอย่างใดอย่างหนึ่ง");
       if (data.reward === "credit" && data.amount <= 0) throw new CommerceError("ต้องกำหนดเครดิต");
       const { randomBytes } = await import("node:crypto");
       const code = randomBytes(16).toString("hex").toUpperCase();
@@ -226,16 +237,17 @@ export const createGiftCode = createServerFn({ method: "POST" })
       const sql = await getSql();
       await sql.transaction(async (tx) => {
         await tx.query(
-          "INSERT INTO gift_codes(id,code_hash,label,reward,amount,product_id,usage_limit,expires_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
+          "INSERT INTO gift_codes(id,code_hash,label,reward,amount,product_id,usage_limit,expires_at,category_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)",
           [
             giftId,
             giftHash(code),
             data.label,
             data.reward,
             data.amount,
-            data.productId ?? null,
+            data.reward === "product" ? (data.productId ?? null) : null,
             data.usageLimit,
             data.expiresAt,
+            data.reward === "product" ? (data.categoryId ?? null) : null,
           ],
         );
         await audit(tx, String(context.userId), "gift.created", "gift", giftId, {
@@ -392,13 +404,14 @@ export const myAccountData = createServerFn({ method: "GET" })
       email: string;
       image: string | null;
       created_at: string;
+      last_login: string | null;
       rank: string;
       rank_color: string;
       spending: number;
       orders: number;
       topups: number;
     }>(
-      `SELECT u.id,u.name,u.email,u.image,u."createdAt"::text AS created_at,COALESCE(m.rank,'New Member') AS rank,COALESCE(m.rank_color,'#64748b') AS rank_color,(SELECT COALESCE(sum(total),0)::int FROM orders WHERE user_id=u.id AND status='completed') AS spending,(SELECT count(*)::int FROM orders WHERE user_id=u.id) AS orders,(SELECT COALESCE(sum(credit),0)::int FROM payments WHERE user_id=u.id AND status='success') AS topups FROM "user" u LEFT JOIN member_profiles m ON m.user_id=u.id WHERE u.id=$1`,
+      `SELECT u.id,u.name,u.email,u.image,u."createdAt"::text AS created_at,COALESCE(m.rank,'New Member') AS rank,COALESCE(m.rank_color,'#64748b') AS rank_color,(SELECT COALESCE(sum(total),0)::int FROM orders WHERE user_id=u.id AND status='completed') AS spending,(SELECT count(*)::int FROM orders WHERE user_id=u.id) AS orders,(SELECT COALESCE(sum(credit),0)::int FROM payments WHERE user_id=u.id AND status='success') AS topups,(SELECT max(created_at)::text FROM login_history WHERE user_id=u.id AND event='auth.login') AS last_login FROM "user" u LEFT JOIN member_profiles m ON m.user_id=u.id WHERE u.id=$1`,
       [user],
     );
     const claims = await sql.query<{

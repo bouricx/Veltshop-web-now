@@ -23,12 +23,12 @@
   --color-border: var(--border);
   --color-ring: var(--accent);
   --color-line: var(--line);
-  --color-cat-wallet: #111111;
-  --color-cat-premium: #2a2a2a;
-  --color-cat-mail: #3d3d3d;
-  --color-cat-otp: #525252;
-  --color-cat-house: #1a1a1a;
-  --color-cat-line: #06c755;
+  --color-cat-wallet: #2563eb;
+  --color-cat-premium: #7c3aed;
+  --color-cat-mail: #db2777;
+  --color-cat-otp: #0891b2;
+  --color-cat-house: #d97706;
+  --color-cat-line: #4f46e5;
   --color-cat-stock: #6b6b6b;
   --color-cat-ready: #000000;
   --color-soft: var(--soft);
@@ -44,12 +44,12 @@
 
 /* Streetwear B&W light is the product default — never boot into charcoal or cream–orange. */
 :root {
-  --bg: #f6f6f4;
+  --bg: #f7f8fa;
   --surface: #ffffff;
-  --surface-2: #ebebe9;
-  --fg: #000000;
-  --muted: #3f3f3f;
-  --subtle: #7a7a7a;
+  --surface-2: #eff1f5;
+  --fg: #18181b;
+  --muted: #52525b;
+  --subtle: #62626d;
   --accent: #000000;
   --accent-fg: #ffffff;
   --teal: #0d9488;
@@ -57,11 +57,9 @@
   --ok: #10b981;
   --warn: #f59e0b;
   --line: #06c755;
-  --soft: #ececeb;
-  --border: color-mix(in oklab, #000000 16%, transparent);
-  --elev-border:
-    0 0 0 1.5px color-mix(in oklab, #000000 20%, transparent),
-    0 14px 32px color-mix(in oklab, #000000 7%, transparent);
+  --soft: #eff1f5;
+  --border: #e6e8ee;
+  --elev-border: 0 0 0 1px #e6e8ee, 0 4px 16px #18181b03;
   --hero-wash: transparent;
   color-scheme: light;
 }
@@ -87,38 +85,6 @@
   color-scheme: dark;
 }
 
-html[data-shop],
-[data-shop] {
-  --bg: #f6f6f4;
-  --surface: #ffffff;
-  --surface-2: #ebebe9;
-  --fg: #000000;
-  --muted: #3f3f3f;
-  --subtle: #7a7a7a;
-  --accent: #000000;
-  --accent-fg: #ffffff;
-  --teal: #0d9488;
-  --danger: #e11d48;
-  --ok: #10b981;
-  --warn: #f59e0b;
-  --line: #06c755;
-  --soft: #ececeb;
-  --border: color-mix(in oklab, #000000 16%, transparent);
-  --elev-border:
-    0 0 0 1.5px color-mix(in oklab, #000000 20%, transparent),
-    0 14px 32px color-mix(in oklab, #000000 7%, transparent);
-  --hero-wash: transparent;
-  color-scheme: light;
-}
-
-html[data-shop][data-accent="ice"],
-html[data-shop][data-accent="teal"],
-html[data-shop][data-accent="slate"],
-[data-shop] {
-  --accent: #000000;
-  --accent-fg: #ffffff;
-}
-
 @layer base {
   html {
     -webkit-font-smoothing: antialiased;
@@ -142,7 +108,7 @@ html[data-shop][data-accent="slate"],
   }
 
   button:not(:disabled):active {
-    scale: 0.96;
+    transform: translateY(1px);
   }
 
   h1,
@@ -215,12 +181,10 @@ html[data-shop][data-accent="slate"],
   from {
     opacity: 0;
     transform: translateY(12px);
-    filter: blur(4px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
-    filter: blur(0);
   }
 }
 
@@ -236,10 +200,100 @@ html[data-shop][data-accent="slate"],
   transition-timing-function: cubic-bezier(0.12, 0.7, 0.16, 1);
 }
 
+/* Quiet surfaces, product-specific color, and motion that never gates interaction. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+.product-card {
+  box-shadow: 0 4px 16px #18181b04;
+  transition:
+    transform 220ms ease,
+    box-shadow 220ms ease;
+}
+.product-art {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--product-color) 10%, white), white);
+}
+@media (hover: hover) {
+  .product-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 32px #18181b0b;
+  }
+  .quick-link:hover {
+    background: var(--surface-2);
+    transform: translateY(-2px);
+  }
+}
+.quick-link {
+  transition:
+    background 180ms ease,
+    transform 180ms ease;
+}
+.skeleton {
+  background: linear-gradient(110deg, #eff1f5 25%, #f9fafb 45%, #eff1f5 65%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+.hero-orbit {
+  animation: orbit-float 7s ease-in-out infinite;
+}
+@keyframes orbit-float {
+  50% {
+    transform: translateY(-8px) rotate(2deg);
+  }
+}
+.page-enter {
+  animation: rise 350ms ease both;
+}
+.skip-link {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 100;
+  transform: translateY(-200%);
+  padding: 12px 20px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: 12px;
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation: none !important;
+    transition: none !important;
+  }
+  .product-card:hover,
+  .quick-link:hover,
+  button:not(:disabled):active {
+    transform: none;
+  }
+}
 
 /* Product polish: visible keyboard focus, forgiving touch targets, and restrained motion. */
 @layer base {
-  :where(a, button, input, select, textarea, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
+  :where(
+    a,
+    button,
+    input,
+    select,
+    textarea,
+    [role="button"],
+    [tabindex]:not([tabindex="-1"])
+  ):focus-visible {
     outline: 3px solid color-mix(in oklab, var(--teal) 82%, white);
     outline-offset: 3px;
   }
@@ -285,13 +339,9 @@ html[data-shop][data-accent="slate"],
     min-height: 44px;
   }
 
-  [data-shop] :where(input, select, textarea) {
+  [data-shop] :where(input:not([type="checkbox"]):not([type="radio"]):not([type="color"]), select, textarea) {
     min-height: 44px;
     max-width: 100%;
-  }
-
-  [data-shop] img:not(.storefront-banner-image):not(.product-image) {
-    height: auto;
   }
 
   [data-shop] .storefront-banner-image {
@@ -342,7 +392,6 @@ body,
   box-sizing: border-box;
 }
 
-[data-shop] > main,
 [data-shop] > footer {
   display: block;
   width: 100%;
@@ -410,7 +459,7 @@ body,
   overflow-wrap: anywhere;
 }
 
-[data-shop] :where(input, select, textarea) {
+[data-shop] :where(input:not([type="checkbox"]):not([type="radio"]):not([type="color"]), select, textarea) {
   width: 100%;
   min-width: 0;
 }
@@ -494,4 +543,22 @@ body,
     padding-inline: 0.5rem;
     font-size: 0.8125rem;
   }
+}
+
+/* Keep controls and content usable without relying on clipped overflow. */
+[data-shop] input[type="checkbox"],
+[data-shop] input[type="radio"] {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+[data-shop] .storefront-hero h1 { overflow-wrap: normal; }
+[data-shop] .bottom-dock { max-width: calc(100% - 1rem); }
+[data-shop] .bottom-dock a { flex: 1 1 0; min-width: 0; }
+@media (max-width: 639px) {
+  [data-shop] :where(input, select, textarea) { font-size: 16px; }
+  [data-shop] .storefront-hero h1 { font-size: clamp(1.5rem, 7vw, 1.875rem); line-height: 1.35; }
+  [data-shop] .storefront-hero { border-radius: 1.5rem; }
+  [data-shop] .bottom-dock a { min-height: 44px; }
+  [data-shop] main { padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px)); }
 }

@@ -1,3 +1,4 @@
+import { imageTarget, allowedImageFormats } from "./image-policy.ts";
 import sharp from "sharp";
 import { randomUUID } from "node:crypto";
 import type { Sql } from "../db";
@@ -23,6 +24,8 @@ export async function storeMedia(
   const settings = await configuration(sql);
   const match = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
   if (!match) throw new CommerceError("รองรับ PNG, JPEG และ WebP เท่านั้น");
+  if (!allowedImageFormats(settings).includes(match[1]))
+    throw new CommerceError("ชนิดรูปนี้ถูกปิดในตั้งค่าร้าน");
   const bytes = Buffer.from(match[2], "base64");
   if (bytes.length > settings.imageMaxMb * 1024 * 1024 || bytes.length < 8)
     throw new CommerceError(`ไฟล์ต้องไม่เกิน ${settings.imageMaxMb} MB`);
@@ -42,34 +45,33 @@ export async function storeMedia(
     (metadata.pages ?? 1) > 1
   )
     throw new CommerceError("ชนิดไฟล์ไม่ตรงหรือเป็นภาพเคลื่อนไหว");
-  const isBanner = kind === "banner";
-  const isLogo = kind === "logo";
-  const width = isBanner ? settings.imageBannerWidth : isLogo ? 500 : settings.imageSquare;
-  const height = isBanner ? settings.imageBannerHeight : isLogo ? 150 : settings.imageSquare;
-  const optimized = await image
-    .rotate()
-    .resize(width, height, {
-      // Preserve the full artwork for products, categories, icons, and logos.
-      // Only banners and profile photos intentionally fill/crop their frame.
-      fit: isBanner || kind === "profile" ? "cover" : "contain",
+  const { width: recommendedWidth, height: recommendedHeight } = imageTarget(kind, settings);
+  const width = settings.imageAutoResize ? recommendedWidth : metadata.width;
+  const height = settings.imageAutoResize ? recommendedHeight : metadata.height;
+  if (width > 2560 || height > 2560)
+    throw new CommerceError("รูปเกิน 2560 px กรุณาเปิดย่ออัตโนมัติหรือย่อรูปก่อนบันทึก");
+  let pipeline = image.rotate();
+  if (settings.imageAutoResize)
+    pipeline = pipeline.resize(width, height, {
+      fit: settings.imageAutoCrop || kind === "banner" || kind === "profile" ? "cover" : "contain",
       background: kind === "product" ? "#ffffff" : { r: 0, g: 0, b: 0, alpha: 0 },
-    })
-    .webp({ quality: settings.imageQuality })
-    .toBuffer();
+    });
+  const optimized = await pipeline.webp({ quality: settings.imageQuality }).toBuffer();
+  const outputMetadata = await sharp(optimized).metadata();
   const thumbnail = await sharp(optimized)
-    .resize(240, 240, { fit: "inside" })
+    .resize(settings.imageThumbnail, settings.imageThumbnail, { fit: "inside" })
     .webp({ quality: 75 })
     .toBuffer();
   const id = randomUUID();
   await sql.transaction(async (tx) => {
     await tx.query(
       "INSERT INTO media_assets(id,kind,mime,width,height,bytes,thumbnail) VALUES($1,$2,'image/webp',$3,$4,$5,$6)",
-      [id, kind, width, height, optimized, thumbnail],
+      [id, kind, outputMetadata.width, outputMetadata.height, optimized, thumbnail],
     );
     await audit(tx, actor, "media.created", "media", id, {
       kind,
-      width,
-      height,
+      width: outputMetadata.width,
+      height: outputMetadata.height,
       size: optimized.length,
     });
   });
@@ -77,8 +79,8 @@ export async function storeMedia(
     id,
     url: `/api/media/${id}`,
     thumbnail: `/api/media/${id}?variant=thumbnail`,
-    width,
-    height,
+    width: outputMetadata.width!,
+    height: outputMetadata.height!,
     size: optimized.length,
     mime: "image/webp",
   };

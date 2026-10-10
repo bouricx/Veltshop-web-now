@@ -65,6 +65,18 @@ export const configurationSchema = z
     notificationRetentionDays: z.number().int().min(0).max(3650).default(0),
     loginRetentionDays: z.number().int().min(0).max(3650).default(0),
     jobRetentionDays: z.number().int().min(0).max(3650).default(0),
+    imageFormats: z
+      .string()
+      .regex(/^(png|jpeg|webp)(,(png|jpeg|webp))*$/)
+      .refine((v) => new Set(v.split(",")).size === v.split(",").length)
+      .default("png,jpeg,webp"),
+    imageThumbnail: z.number().int().min(64).max(512).default(240),
+    imageIcon: z.number().int().min(128).max(2048).default(512),
+    imageProfile: z.number().int().min(128).max(2048).default(512),
+    imageLogoWidth: z.number().int().min(128).max(2048).default(500),
+    imageLogoHeight: z.number().int().min(64).max(1024).default(150),
+    imageAutoResize: z.boolean().default(true),
+    imageAutoCrop: z.boolean().default(false),
     imageMaxMb: z.number().min(0.1).max(5).default(5),
     imageQuality: z.number().int().min(40).max(95).default(82),
     imageSquare: z.number().int().min(128).max(2048).default(800),

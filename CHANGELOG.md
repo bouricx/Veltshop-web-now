@@ -1,3 +1,15 @@
+# 0.5.0 — clean storefront and remaining admin operations
+
+- Clean surfaces, product palettes with contrasting text, deliberate/reduced-motion animation, responsive navigation and accessibility labels.
+- Descriptions/icons and separately persisted card/border/accent/badge colors; unified image editor, re-edit existing media, formats/dimensions/thumbnail/optimization settings.
+- Storefront multi-word search, sort, available filter and pagination; real featured products and truthful empty/error states.
+- Thai calendar reports: today, month, all time and inclusive custom date ranges, recent orders/topups.
+- Category gift selection with transactional validation and immutable retry identity; edit gift limits/expiry/name.
+- Persistent admin notification inbox with per-admin read state; SQL search/date/status/pagination for media/privacy/backups.
+- Merge with main406d63f preserves privilege-grant security and full product artwork/mobile sizing fixes.
+- Additive migrations0013/0014; encrypted backup/restore covers new events and suppresses notification replay during restore.
+- Original 75-section master prompt and a clause-by-clause review added; provider/live verification boundaries remain explicit.
+
 # Changelog
 
 ## 0.3.0

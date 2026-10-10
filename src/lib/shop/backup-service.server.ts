@@ -44,6 +44,8 @@ export const backupTables = [
   "private_files",
   "privacy_requests",
   "system_runs",
+  "admin_events",
+  "admin_event_reads",
 ] as const;
 export type Snapshot = {
   version: 1;
@@ -103,7 +105,7 @@ export async function snapshot(sql: Sql): Promise<Snapshot> {
       );
       tables[table] = rows.map((r) => r.data);
     }
-    return { version: 1, migration: "0012", createdAt: new Date().toISOString(), tables };
+    return { version: 1, migration: "0014", createdAt: new Date().toISOString(), tables };
   });
 }
 export async function restoreIntoEmpty(sql: Sql, value: Snapshot) {
@@ -115,6 +117,7 @@ export async function restoreIntoEmpty(sql: Sql, value: Snapshot) {
       "shop_settings",
       "site_configuration",
     ]);
+    await tx.query("SELECT set_config('veltshop.restoring','1',true)");
     for (const table of backupTables) {
       if (!seedTables.has(table) && (await tx.query(`SELECT 1 FROM "${table}" LIMIT 1`)).length)
         throw new CommerceError("กู้คืนได้เฉพาะฐานข้อมูลว่างที่แยกจากระบบใช้งาน");

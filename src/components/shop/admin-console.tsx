@@ -1,14 +1,17 @@
+import { OperationalBrowser } from "./operational-browser";
+import { formatBaht } from "@/lib/utils";
 import { onShopChange } from "@/lib/shop/realtime-client";
 import { getPaymentSlipEvidence } from "@/lib/shop/actions";
 import { addDigitalInventory } from "@/lib/shop/inventory";
 import { DataImport } from "./data-import";
 import { getRewardCampaign, saveRewardCampaign } from "@/lib/shop/rewards";
-import { backupNow, listBackups, downloadBackup, verifyBackup } from "@/lib/shop/backups";
+import { backupNow, downloadBackup, verifyBackup } from "@/lib/shop/backups";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   adminRecords,
   dashboardData,
+  editGiftDetails,
   systemHealth,
   disableGift,
   changeInventoryStatus,
@@ -29,7 +32,7 @@ import {
   saveSiteConfiguration,
 } from "@/lib/shop/operations";
 import { updateAccess } from "@/lib/shop/access";
-import { listMedia, deleteMedia } from "@/lib/shop/media";
+import { deleteMedia } from "@/lib/shop/media";
 import { runJobs, retryJob } from "@/lib/shop/jobs";
 import { ImageEditor } from "./image-editor";
 import type { SiteConfiguration } from "@/lib/shop/settings-schema";
@@ -394,6 +397,31 @@ export function AdminRecords({
         fields: [],
         run: () => result(disableGift({ data: { id, active: !row.active } })),
       });
+    if (kind === "gifts")
+      list.push({
+        title: "แก้ไขโค้ด",
+        fields: [
+          field("label", "ชื่อโค้ด", "text", row.label ?? ""),
+          field("usageLimit", "จำนวนสิทธิ์รวม", "number", row.usage_limit ?? 1),
+          field(
+            "expiresAt",
+            "หมดอายุ (เว้นว่าง = ไม่หมดอายุ)",
+            "datetime",
+            row.expires_at ? new Date(String(row.expires_at)).toISOString().slice(0, 16) : "",
+          ),
+        ],
+        run: (v) =>
+          result(
+            editGiftDetails({
+              data: {
+                id,
+                label: String(v.label),
+                usageLimit: Number(v.usageLimit),
+                expiresAt: v.expiresAt ? new Date(String(v.expiresAt)).toISOString() : null,
+              },
+            }),
+          ),
+      });
     if (kind === "stock" && ["available", "disabled"].includes(String(row.status)))
       list.push({
         title: row.status === "available" ? "ปิดขายชิ้นนี้" : "เปิดขายชิ้นนี้",
@@ -607,7 +635,8 @@ function giftAction(): Action {
       field("label", "ชื่อโค้ด"),
       field("reward", "รางวัล", "select", "credit", ["credit", "product"]),
       field("amount", "เครดิต", "number", 0),
-      field("productId", "รหัสสินค้า (สำหรับรางวัลสินค้า)"),
+      field("productId", "รหัสสินค้า (เลือกสินค้าเฉพาะ)"),
+      field("categoryId", "รหัสหมวด (ให้ผู้รับเลือกในหมวดแทนสินค้าเฉพาะ)"),
       field("usageLimit", "จำนวนสิทธิ์", "number", 1),
       field("expiresAt", "หมดอายุ", "datetime"),
     ],
@@ -619,6 +648,7 @@ function giftAction(): Action {
             reward: String(v.reward) as "credit" | "product",
             amount: Number(v.amount),
             productId: v.productId ? String(v.productId) : undefined,
+            categoryId: v.categoryId ? String(v.categoryId) : undefined,
             usageLimit: Number(v.usageLimit),
             expiresAt: v.expiresAt ? new Date(String(v.expiresAt)).toISOString() : null,
           },
@@ -840,15 +870,31 @@ function ActionDialog({
   );
 }
 export function RealDashboard() {
-  const [days, setDays] = useState(30),
-    [data, setData] = useState<Awaited<ReturnType<typeof dashboardData>> | null>(null),
+  const [period, setPeriod] = useState("30");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [data, setData] = useState<Awaited<ReturnType<typeof dashboardData>> | null>(null),
     [error, setError] = useState("");
   useEffect(() => {
+    if (period === "custom" && (!from || !to || from > to)) return;
     let active = true;
+    setError("");
+    setData(null);
     const load = () =>
-      void dashboardData({ data: { days } })
+      void dashboardData({
+        data: {
+          days: Number(period) || 30,
+          period: ["today", "month", "all", "custom"].includes(period)
+            ? (period as "today" | "month" | "all" | "custom")
+            : "rolling",
+          ...(period === "custom" ? { from, to } : {}),
+        },
+      })
         .then((d) => {
-          if (active) setData(d);
+          if (active) {
+            setData(d);
+            setError("");
+          }
         })
         .catch(() => {
           if (active) setError("โหลดภาพรวมไม่สำเร็จ");
@@ -861,7 +907,7 @@ export function RealDashboard() {
       clearInterval(timer);
       unsubscribe();
     };
-  }, [days]);
+  }, [period, from, to]);
   const names: Record<string, string> = {
     members: "สมาชิก",
     new_members: "สมาชิกใหม่",
@@ -874,27 +920,79 @@ export function RealDashboard() {
     credit: "เครดิตรวม",
     waiting_delivery: "รอจัดส่ง",
     pending_claims: "เคลมค้าง",
+    ready_products: "สินค้าพร้อมส่ง",
+    pending_topups: "เติมเงินรอตรวจ",
+    failed_jobs: "งานที่ต้องตรวจสอบ",
   };
   return (
     <div className="space-y-5">
-      <NativeSelect
-        aria-label="ช่วงเวลา"
-        value={days}
-        onChange={(e) => setDays(Number(e.target.value))}
-      >
-        {[
-          [1, "วันนี้ (24 ชั่วโมง)"],
-          [7, "7 วัน"],
-          [30, "30 วัน"],
-          [3650, "ทั้งหมด (10 ปี)"],
-        ].map(([v, l]) => (
-          <option key={v} value={v}>
-            {l}
-          </option>
-        ))}
-      </NativeSelect>
-      {error ? <p>{error}</p> : null}
+      <div className="flex flex-wrap items-end gap-3 rounded-2xl bg-surface p-4 shadow-border">
+        <div className="min-w-44 flex-1">
+          <Label htmlFor="dashboard-period">ช่วงรายงาน</Label>
+          <NativeSelect
+            id="dashboard-period"
+            className="mt-2"
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+          >
+            {[
+              ["today", "วันนี้"],
+              ["7", "7 วันย้อนหลัง"],
+              ["30", "30 วันย้อนหลัง"],
+              ["month", "เดือนนี้"],
+              ["all", "ทั้งหมด"],
+              ["custom", "กำหนดวันที่เอง"],
+            ].map(([v, l]) => (
+              <option key={v} value={v}>
+                {l}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
+        {period === "custom" ? (
+          <>
+            <div>
+              <Label htmlFor="dashboard-from">ตั้งแต่</Label>
+              <Input
+                id="dashboard-from"
+                className="mt-2"
+                type="date"
+                value={from}
+                max={to || undefined}
+                onChange={(e) => setFrom(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="dashboard-to">ถึง</Label>
+              <Input
+                id="dashboard-to"
+                className="mt-2"
+                type="date"
+                value={to}
+                min={from || undefined}
+                onChange={(e) => setTo(e.target.value)}
+              />
+            </div>
+          </>
+        ) : null}
+        <p className="pb-2 text-xs text-muted">เวลาไทย (UTC+7) · อัปเดตอัตโนมัติ</p>
+      </div>
+      {period === "custom" && (!from || !to || from > to) ? (
+        <p role="status" className="text-sm text-muted">
+          เลือกวันเริ่มต้นและวันสิ้นสุดเพื่อดูรายงาน
+        </p>
+      ) : null}
+      {error ? (
+        <p role="alert" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
+          {error}
+        </p>
+      ) : null}
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+        {!data && !error
+          ? [0, 1, 2, 3].map((n) => (
+              <div key={n} className="skeleton h-28 rounded-2xl" aria-hidden="true" />
+            ))
+          : null}
         {Object.entries(data?.totals ?? {}).map(([k, v]) => (
           <div key={k} className="rounded-2xl bg-surface p-5 shadow-border">
             <p className="text-xs text-muted">{names[k] ?? k}</p>
@@ -902,8 +1000,11 @@ export function RealDashboard() {
           </div>
         ))}
       </div>
-      <section className="rounded-2xl bg-surface p-5">
+      <section className="rounded-2xl bg-surface p-5 shadow-border">
         <h2 className="font-medium">ยอดขายรายวัน</h2>
+        {data && !data.chart.length ? (
+          <p className="mt-4 text-sm text-muted">ยังไม่มียอดขายสำเร็จในช่วงนี้</p>
+        ) : null}
         {data?.chart.map((r) => (
           <div key={r.day} className="flex justify-between py-2 text-sm">
             <span>{r.day}</span>
@@ -911,22 +1012,71 @@ export function RealDashboard() {
           </div>
         ))}
       </section>
-      <section className="rounded-2xl bg-surface p-5">
+      <section className="rounded-2xl bg-surface p-5 shadow-border">
         <h2 className="font-medium">ขายดี</h2>
+        {data && !data.best.length ? (
+          <p className="mt-4 text-sm text-muted">ยังไม่มีข้อมูลสินค้าขายดีในช่วงนี้</p>
+        ) : null}
         {data?.best.map((r) => (
           <p key={r.name} className="mt-2 text-sm">
             {r.name} · {r.quantity} ชิ้น
           </p>
         ))}
       </section>
-      <section className="rounded-2xl bg-surface p-5">
+      <section className="rounded-2xl bg-surface p-5 shadow-border">
         <h2 className="font-medium">สมาชิกถึงเกณฑ์ · ตรวจและอนุมัติในหน้าสมาชิก</h2>
+        {data && !data.eligible.length ? (
+          <p className="mt-4 text-sm text-muted">ยังไม่มีสมาชิกถึงเกณฑ์</p>
+        ) : null}
         {data?.eligible.map((r) => (
           <p key={String(r.id)} className="mt-2 text-sm">
             {r.name} · {r.spending} บาท · {r.rank}
           </p>
         ))}
       </section>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <section className="rounded-2xl bg-surface p-5 shadow-border">
+          <h2 className="font-medium">คำสั่งซื้อล่าสุด</h2>
+          {data?.recentOrders.map((r) => (
+            <div
+              key={String(r.id)}
+              className="mt-3 flex justify-between gap-3 border-t border-border pt-3 text-sm"
+            >
+              <div className="min-w-0">
+                <p className="truncate">{r.name}</p>
+                <p className="text-xs text-muted">
+                  {r.status} ·{" "}
+                  {new Date(r.created_at).toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok" })}
+                </p>
+              </div>
+              <span className="shrink-0">{formatBaht(r.total)}</span>
+            </div>
+          ))}
+          {data && !data.recentOrders.length ? (
+            <p className="mt-4 text-sm text-muted">ยังไม่มีคำสั่งซื้อในช่วงนี้</p>
+          ) : null}
+        </section>
+        <section className="rounded-2xl bg-surface p-5 shadow-border">
+          <h2 className="font-medium">เติมเงินล่าสุด</h2>
+          {data?.recentTopups.map((r) => (
+            <div
+              key={String(r.id)}
+              className="mt-3 flex justify-between gap-3 border-t border-border pt-3 text-sm"
+            >
+              <div>
+                <p>{r.status}</p>
+                <p className="text-xs text-muted">
+                  {new Date(r.created_at).toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok" })}
+                </p>
+              </div>
+              <span>{formatBaht(r.credit)}</span>
+            </div>
+          ))}
+          {data && !data.recentTopups.length ? (
+            <p className="mt-4 text-sm text-muted">ยังไม่มีรายการเติมเงินในช่วงนี้</p>
+          ) : null}
+        </section>
+      </div>
     </div>
   );
 }
@@ -962,6 +1112,14 @@ export function RealSettings() {
     notificationRetentionDays: "เก็บการแจ้งเตือนที่อ่านแล้ว (วัน, 0 = ไม่ลบ)",
     loginRetentionDays: "เก็บประวัติเข้าสู่ระบบ (วัน, 0 = ไม่ลบ)",
     jobRetentionDays: "เก็บงานที่สำเร็จ (วัน, 0 = ไม่ลบ)",
+    imageFormats: "ชนิดรูปที่อนุญาต (png,jpeg,webp)",
+    imageThumbnail: "ขนาดรูปย่อ px",
+    imageIcon: "ขนาดไอคอน / favicon px",
+    imageProfile: "ขนาดรูปโปรไฟล์ px",
+    imageLogoWidth: "ความกว้างโลโก้ px",
+    imageLogoHeight: "ความสูงโลโก้ px",
+    imageAutoResize: "ย่อรูปอัตโนมัติ",
+    imageAutoCrop: "ครอปอัตโนมัติ (ปิดเพื่อรักษารูปสินค้าครบ)",
     imageMaxMb: "ไฟล์รูปสูงสุด MB",
     imageQuality: "คุณภาพรูป 40–95",
     imageSquare: "ขนาดรูปสี่เหลี่ยม px",
@@ -1031,85 +1189,120 @@ export function RealSettings() {
   );
 }
 export function MediaLibrary() {
-  const [assets, setAssets] = useState<Awaited<ReturnType<typeof listMedia>>>([]);
-  const load = () => void listMedia().then(setAssets);
-  useEffect(load, []);
+  const [refresh, setRefresh] = useState(0);
+  const load = () => setRefresh((v) => v + 1);
   return (
     <div className="space-y-4">
       <ImageEditor kind="product" onSaved={load} />
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {assets.map((a) => (
-          <div key={a.id} className="rounded-xl border p-3">
-            <img
-              src={`/api/media/${a.id}?variant=thumbnail`}
-              alt={a.kind}
-              className="h-32 w-full object-contain"
-            />
-            <p className="text-xs mt-2">
-              {a.kind} · {a.width}×{a.height} · {Math.ceil(a.size / 1024)} KB
-            </p>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => {
-                void navigator.clipboard.writeText(`/api/media/${a.id}`);
-                toast.success("คัดลอกที่อยู่รูปแล้ว");
-              }}
-            >
-              คัดลอกที่อยู่
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                if (!window.confirm("ลบรูปที่ไม่ได้ใช้งานนี้?")) return;
-                void deleteMedia({ data: { id: a.id } }).then((r) => {
-                  if (!r.ok) toast.error(r.message);
-                  else load();
-                });
-              }}
-            >
-              ลบ
-            </Button>
+      <OperationalBrowser kind="media" refresh={refresh}>
+        {(assets) => (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {assets.map((a) => (
+              <div key={String(a.id)} className="rounded-xl border p-3">
+                <img
+                  src={`/api/media/${a.id}?variant=thumbnail`}
+                  alt={String(a.kind)}
+                  className="h-32 w-full object-contain"
+                />
+                <p className="text-xs mt-2">
+                  {a.kind} · {a.width}×{a.height} · {Math.ceil(Number(a.size) / 1024)} KB
+                </p>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(`/api/media/${a.id}`);
+                    toast.success("คัดลอกที่อยู่รูปแล้ว");
+                  }}
+                >
+                  คัดลอกที่อยู่
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    if (!window.confirm("ลบรูปที่ไม่ได้ใช้งานนี้?")) return;
+                    void deleteMedia({ data: { id: String(a.id) } }).then((r) => {
+                      if (!r.ok) toast.error(r.message);
+                      else load();
+                    });
+                  }}
+                >
+                  ลบ
+                </Button>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        )}
+      </OperationalBrowser>
     </div>
   );
 }
 export function SystemPanel() {
   const [health, setHealth] = useState<Awaited<ReturnType<typeof systemHealth>> | null>(null);
-  const load = () => void systemHealth().then(setHealth);
-  useEffect(load, []);
+  const [error, setError] = useState(false);
+  const load = () => void systemHealth().then((value) => { setHealth(value); setError(false); }).catch(() => setError(true));
+  useEffect(() => {
+    let active = true;
+    const refresh = () => void systemHealth().then((value) => { if (active) { setHealth(value); setError(false); } }).catch(() => { if (active) setError(true); });
+    refresh();
+    const timer = setInterval(refresh, 30000);
+    return () => { active = false; clearInterval(timer); };
+  }, []);
+  const statuses: Record<string, { label: string; style: string }> = {
+    healthy: { label: "ทำงานปกติ", style: "bg-emerald-50 text-emerald-800" },
+    warning: { label: "ต้องตรวจสอบ", style: "bg-amber-50 text-amber-900" },
+    configured: { label: "ตั้งค่าแล้ว", style: "bg-blue-50 text-blue-800" },
+    "configured-unverified": { label: "ตั้งค่าแล้ว · รอทดสอบจริง", style: "bg-amber-50 text-amber-900" },
+    "requires-credentials": { label: "รอข้อมูลเชื่อมต่อ", style: "bg-rose-50 text-rose-800" },
+    "requires-key": { label: "รอกุญแจเข้ารหัส", style: "bg-rose-50 text-rose-800" },
+    database: { label: "จัดเก็บในฐานข้อมูล", style: "bg-blue-50 text-blue-800" },
+  };
+  const cards = health ? [
+    { title: "ฐานข้อมูล", status: health.database.status, detail: `เวลาตรวจ ${health.database.milliseconds} ms` },
+    { title: "ตรวจสลิป Slip2Go", status: health.payment.status, detail: "การเติมเครดิตจากสลิป" },
+    { title: "เข้าสู่ระบบ Google", status: health.google.status, detail: "ต้องทดสอบเข้าสู่ระบบและ callback จริง" },
+    { title: "อีเมลและรีเซ็ตรหัส", status: health.email.status, detail: "ต้องทดสอบการส่งและรับอีเมลจริง" },
+    { title: "เข้ารหัสสินค้าดิจิทัล", status: health.inventory.status, detail: "ปกป้องข้อมูลส่งมอบให้ผู้ซื้อ" },
+    { title: "พื้นที่เก็บไฟล์", status: health.storage.status, detail: "ไฟล์สินค้าส่วนตัวตรวจสิทธิ์ก่อนดาวน์โหลด" },
+    { title: "งานเบื้องหลัง", status: health.queue.failed ? "warning" : "healthy", detail: `รอทำ ${health.queue.pending} · ล้มเหลวถาวร ${health.queue.failed}` },
+    { title: "งานอัตโนมัติ", status: health.scheduler.configured ? "configured" : "requires-credentials", detail: health.scheduler.schedule },
+    { title: "สำรองข้อมูล", status: health.backup.configured ? "configured" : "requires-key", detail: health.backup.everyHours ? `รอบสำรองทุก ${health.backup.everyHours} ชั่วโมง` : "ยังไม่ได้กำหนดรอบสำรอง" },
+  ] : [];
   return (
-    <div className="space-y-4">
-      <h2 className="font-medium">สถานะระบบ</h2>
-      {Object.entries(health ?? {}).map(([k, v]) => (
-        <p key={k} className="text-sm">
-          {k}: {typeof v === "object" ? JSON.stringify(v) : String(v)}
-        </p>
-      ))}
-      <Button
-        onClick={() =>
-          void runJobs().then((r) => {
-            toast.success(`ประมวลผล ${r.processed} งาน`);
-            load();
-          })
-        }
-      >
-        ประมวลผลงานพร้อมทำ
-      </Button>
-      <p className="text-sm text-muted">
-        การชำระเงินและ Google แสดงพร้อมตั้งค่าจนกว่าจะทดสอบกับผู้ให้บริการจริง
-      </p>
-    </div>
+    <section className="space-y-5" aria-label="สถานะแอป">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div><h2 className="text-lg font-semibold">สถานะแอปและบริการ</h2>
+          <p className="mt-1 text-sm text-muted">{health ? `รุ่น ${health.version} · ตรวจล่าสุด ${new Date(health.checkedAt).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })}` : "กำลังตรวจสถานะ…"}</p>
+        </div>
+        <Button variant="secondary" onClick={load}>ตรวจสถานะอีกครั้ง</Button>
+      </div>
+      {error ? <p role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-800">ตรวจสถานะไม่สำเร็จ ข้อมูลที่เห็นอาจเป็นผลตรวจครั้งก่อน</p> : null}
+      {!health && !error ? <p role="status">กำลังเชื่อมต่อระบบ…</p> : null}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {cards.map((card) => {
+          const state = statuses[card.status] ?? statuses.warning;
+          return <article key={card.title} className="min-w-0 rounded-2xl border border-border bg-surface p-5">
+            <h3 className="font-semibold">{card.title}</h3>
+            <p className={`mt-3 inline-flex rounded-full px-3 py-1 text-xs font-medium ${state.style}`}>{state.label}</p>
+            <p className="mt-3 text-sm text-muted">{card.detail}</p>
+          </article>;
+        })}
+      </div>
+      <div className="rounded-2xl border border-border bg-surface p-5 space-y-3">
+        <h3 className="font-semibold">ประวัติงานอัตโนมัติล่าสุด</h3>
+        {health && health.scheduler.recent.length === 0 ? <p className="text-sm text-muted">ยังไม่มีผลการทำงานที่บันทึกไว้</p> : null}
+        {health?.scheduler.recent.map((run, index) => <p key={`${run.started_at}-${index}`} className="text-sm break-words">{run.kind} · {run.status} · {new Date(run.started_at).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })}</p>)}
+        <Button onClick={() => void runJobs().then((r) => { toast.success(`ประมวลผล ${r.processed} งาน`); load(); }).catch(() => toast.error("ประมวลผลงานไม่สำเร็จ"))}>ประมวลผลงานพร้อมทำ</Button>
+      </div>
+      <p className="text-sm text-muted">ตั้งค่าแล้วไม่ได้หมายถึงทดสอบกับผู้ให้บริการจริงแล้ว ผลนี้เป็นสถานะจากระบบปัจจุบัน</p>
+    </section>
   );
 }
 export function BackupPanel() {
-  const [records, setRecords] = useState<Awaited<ReturnType<typeof listBackups>>>([]),
+  const [refresh, setRefresh] = useState(0),
     [busy, setBusy] = useState(false);
-  const load = () => void listBackups().then(setRecords);
-  useEffect(load, []);
+  const load = () => setRefresh((v) => v + 1);
   return (
     <section className="space-y-4">
       <p className="text-sm text-muted">
@@ -1132,52 +1325,60 @@ export function BackupPanel() {
       >
         สำรองตอนนี้
       </Button>
-      {records.map((r) => (
-        <div key={r.id} className="rounded-xl border p-4 space-y-2">
-          <p className="text-sm">
-            {r.created_at} · {r.status} · {Math.ceil(r.size / 1024)} KB
-          </p>
-          <p className="break-all text-xs text-muted">{r.checksum}</p>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              void downloadBackup({ data: { id: r.id } })
-                .then((result) => {
-                  const binary = Uint8Array.from(atob(result.encoded), (c) => c.charCodeAt(0));
-                  const url = URL.createObjectURL(
-                    new Blob([binary], { type: "application/octet-stream" }),
-                  );
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `veltshop-${r.id}.backup`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                })
-                .catch(() => toast.error("ดาวน์โหลดไม่สำเร็จ"));
-            }}
-          >
-            ดาวน์โหลดไฟล์เข้ารหัส
-          </Button>
-          <Button
-            disabled={busy}
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              setBusy(true);
-              void verifyBackup({ data: { id: r.id } })
-                .then(() => {
-                  toast.success("ทดสอบกู้คืนผ่านแล้ว");
-                  load();
-                })
-                .catch(() => toast.error("ทดสอบกู้คืนไม่ผ่าน"))
-                .finally(() => setBusy(false));
-            }}
-          >
-            ทดสอบกู้คืนในฐานข้อมูลแยก
-          </Button>
-        </div>
-      ))}
+      <OperationalBrowser kind="backups" refresh={refresh}>
+        {(records) => (
+          <div className="space-y-3">
+            {records.map((r) => (
+              <div key={String(r.id)} className="rounded-xl border p-4 space-y-2">
+                <p className="text-sm">
+                  {r.created_at} · {r.status} · {Math.ceil(Number(r.size) / 1024)} KB
+                </p>
+                <p className="break-all text-xs text-muted">{r.checksum}</p>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    void downloadBackup({ data: { id: String(r.id) } })
+                      .then((result) => {
+                        const binary = Uint8Array.from(atob(result.encoded), (c) =>
+                          c.charCodeAt(0),
+                        );
+                        const url = URL.createObjectURL(
+                          new Blob([binary], { type: "application/octet-stream" }),
+                        );
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `veltshop-${r.id}.backup`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      })
+                      .catch(() => toast.error("ดาวน์โหลดไม่สำเร็จ"));
+                  }}
+                >
+                  ดาวน์โหลดไฟล์เข้ารหัส
+                </Button>
+                <Button
+                  disabled={busy}
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setBusy(true);
+                    void verifyBackup({ data: { id: String(r.id) } })
+                      .then(() => {
+                        toast.success("ทดสอบกู้คืนผ่านแล้ว");
+                        load();
+                      })
+                      .catch(() => toast.error("ทดสอบกู้คืนไม่ผ่าน"))
+                      .finally(() => setBusy(false));
+                  }}
+                >
+                  ทดสอบกู้คืนในฐานข้อมูลแยก
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </OperationalBrowser>
     </section>
   );
 }

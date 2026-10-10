@@ -55,6 +55,20 @@ export const productInputSchema = z.object({
     .string()
     .regex(/^#[a-f\d]{6}$/i)
     .optional(),
+  borderColor: z
+    .string()
+    .regex(/^#[a-f\d]{6}$/i)
+    .optional(),
+  accentColor: z
+    .string()
+    .regex(/^#[a-f\d]{6}$/i)
+    .optional(),
+  badgeColor: z
+    .string()
+    .regex(/^#[a-f\d]{6}$/i)
+    .optional(),
+  description: z.string().trim().max(10000).optional(),
+  icon: z.string().trim().max(20).optional(),
   badge: z.string().max(80).optional(),
   sortOrder: z.number().int().min(0).max(100000).optional(),
   featured: z.boolean().optional(),

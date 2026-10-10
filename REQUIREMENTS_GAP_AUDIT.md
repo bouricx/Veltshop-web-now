@@ -1,3 +1,5 @@
+> Superseded by REQUIREMENTS_75_REVIEW.md. The original master requirements are now available in MASTER_REQUIREMENTS_TH.md; the earlier missing-source limitation below is historical.
+
 # Veltshop requirement gap audit — preliminary code-based review
 
 Date: 2026-10-10  

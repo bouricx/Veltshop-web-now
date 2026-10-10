@@ -48,6 +48,32 @@ export function ShopShell() {
   const login = useShop((s) => s.login);
   const logout = useShop((s) => s.logout);
   const { user, isPending } = useCurrentUserState();
+  const [maintenanceAccess, setMaintenanceAccess] = useState<{
+    id: string;
+    allowed: boolean;
+  } | null>(null);
+  const maintenanceUserId = user?.id;
+  const maintenanceDevFallback = user?.isDevFallback;
+  useEffect(() => {
+    if (!site.maintenance || !maintenanceUserId || maintenanceDevFallback) {
+      setMaintenanceAccess(null);
+      return;
+    }
+    let active = true;
+    void getAdminStatus()
+      .then((status) => {
+        if (active) setMaintenanceAccess({ id: maintenanceUserId, allowed: status.isAdmin });
+      })
+      .catch(() => {
+        if (active) setMaintenanceAccess(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [site.maintenance, maintenanceUserId, maintenanceDevFallback]);
+  const canPreviewMaintenance = Boolean(
+    user && maintenanceAccess?.id === user.id && maintenanceAccess.allowed,
+  );
 
   useEffect(() => {
     document.documentElement.dataset.shop = "";
@@ -93,20 +119,32 @@ export function ShopShell() {
 
   return (
     <div data-shop className="min-h-dvh bg-bg text-fg">
+      <a href="#shop-main" className="skip-link">
+        ข้ามไปเนื้อหา
+      </a>
       <ShopHeader
         loggedIn={loggedIn}
         name={name}
         balance={balance}
         onLogout={() => void handleLogout()}
       />
-      <main className="mx-auto w-full min-w-0 max-w-6xl px-4 pt-5 pb-36 sm:px-6">
-        {site.maintenance ? (
+      <main
+        id="shop-main"
+        tabIndex={-1}
+        className="mx-auto w-full min-w-0 max-w-6xl px-4 pt-5 pb-12 sm:px-6"
+      >
+        {site.maintenance && !canPreviewMaintenance ? (
           <section className="rounded-xl bg-surface p-8 text-center">
             <h1 className="text-xl font-semibold">กำลังปรับปรุงร้าน</h1>
             <p className="mt-2">กรุณาลองใหม่ภายหลัง ทีมงานยังดูแลผ่าน Discord และ Facebook</p>
           </section>
         ) : (
           <>
+            {site.maintenance ? (
+              <p role="status" className="mb-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
+                ร้านอยู่ในโหมดปรับปรุง · คุณกำลังดูในฐานะแอดมิน การซื้อและเติมเงินยังระงับอยู่
+              </p>
+            ) : null}
             <StoreContent />
             <Outlet />
           </>
@@ -130,7 +168,7 @@ function ShopHeader({
   onLogout: () => void;
 }) {
   return (
-    <header className="sticky top-0 z-40 bg-bg/90 backdrop-blur-sm">
+    <header className="sticky top-0 z-40 border-b border-border/70 bg-surface/90 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-3 sm:h-[4.5rem] sm:px-6">
         <nav className="hidden shrink-0 items-center gap-1 lg:flex">
           <NavPill to="/shop">
@@ -200,7 +238,16 @@ function ProfileMenu({ name, onLogout }: { name: string; onLogout: () => void })
   }, [open]);
 
   return (
-    <div className="relative" data-profile-menu>
+    <div
+      className="relative"
+      data-profile-menu
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          setOpen(false);
+          e.currentTarget.querySelector<HTMLButtonElement>("button")?.focus();
+        }
+      }}
+    >
       <button
         type="button"
         aria-expanded={open}
@@ -349,6 +396,15 @@ function HoverMenu({
   return (
     <div
       className="relative"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          setOpen(false);
+          e.currentTarget.querySelector<HTMLButtonElement>("button")?.focus();
+        }
+      }}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false);
+      }}
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
     >
@@ -496,7 +552,7 @@ function BottomDock() {
               key={item.to}
               to={item.to}
               className={cn(
-                "flex min-w-16 flex-col items-center gap-0.5 py-1 text-xs",
+                "flex min-w-12 flex-col items-center gap-0.5 py-1 text-xs",
                 on ? "text-accent" : "text-muted",
               )}
             >
@@ -515,7 +571,7 @@ function BottomDock() {
         <Link
           to="/shop/history"
           className={cn(
-            "flex min-w-16 flex-col items-center gap-0.5 py-1 text-xs",
+            "flex min-w-12 flex-col items-center gap-0.5 py-1 text-xs",
             path.startsWith("/shop/history") ? "text-accent" : "text-muted",
           )}
         >
@@ -525,7 +581,7 @@ function BottomDock() {
         <Link
           to="/shop/profile"
           className={cn(
-            "flex min-w-16 flex-col items-center gap-0.5 py-1 text-xs",
+            "flex min-w-12 flex-col items-center gap-0.5 py-1 text-xs",
             path === "/shop/profile" ? "text-accent" : "text-muted",
           )}
         >

@@ -1,13 +1,22 @@
+import { contrastText } from "@/lib/shop/presentation";
 import { ImageEditor } from "./image-editor";
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useState,
+  Children,
+  cloneElement,
+  isValidElement,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Input, Label, NativeSelect } from "@/components/ui/input";
+import { Input, Label, NativeSelect, Textarea } from "@/components/ui/input";
 import {
   listCategories,
   saveProduct,
-  uploadProductImage,
   type CategoryRow,
   type ProductInput,
 } from "@/lib/shop/actions";
@@ -47,34 +56,17 @@ export function ProductEditor({
   const [cats, setCats] = useState<CategoryRow[]>([]);
   const [form, setForm] = useState<ProductInput>(blank());
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-    void listCategories().then(setCats);
+    void listCategories()
+      .then(setCats)
+      .catch(() => toast.error("โหลดหมวดสินค้าไม่สำเร็จ"));
   }, []);
 
   useEffect(() => {
     if (!open) return;
     setForm(product ? fromProduct(product) : blank(cats[0]?.id));
   }, [open, product, cats]);
-
-  async function onUpload(file: File) {
-    setUploading(true);
-    try {
-      const dataUrl = await readAsDataUrl(file);
-      const res = await uploadProductImage({ data: { dataUrl, fileName: file.name } });
-      if (!res.ok) {
-        toast.error(res.message);
-        return;
-      }
-      setForm((f) => ({ ...f, image: res.url }));
-      toast.success(res.message);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "อัปโหลดไม่สำเร็จ (ต้องเป็นแอดมิน)");
-    } finally {
-      setUploading(false);
-    }
-  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -137,6 +129,14 @@ export function ProductEditor({
               onChange={(e) => setForm({ ...form, subtitle: e.target.value })}
             />
           </Field>
+          <Field label="รายละเอียดสินค้า / คำค้น">
+            <Textarea
+              maxLength={10000}
+              value={form.description ?? ""}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="สิ่งที่ได้รับ วิธีใช้งาน และเงื่อนไขสินค้า"
+            />
+          </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="หมวด">
               <NativeSelect
@@ -159,7 +159,7 @@ export function ProductEditor({
               >
                 {deliveries.map((d) => (
                   <option key={d} value={d}>
-                    {d}
+                    {deliveryLabels[d]}
                   </option>
                 ))}
               </NativeSelect>
@@ -210,44 +210,13 @@ export function ProductEditor({
                 onChange={(e) => setForm({ ...form, warrantyDays: Number(e.target.value) })}
               />
             </Field>
-            <Field label="สีสินค้า">
-              <div className="space-y-2">
-                <div className="flex min-h-11 items-center gap-3 rounded-xl border border-border bg-surface p-2">
-                  <Input
-                    type="color"
-                    aria-label="เลือกสีกรอบสินค้า"
-                    value={form.cardColor ?? "#18181b"}
-                    onChange={(e) => setForm({ ...form, cardColor: e.target.value })}
-                    className="h-9 w-12 cursor-pointer border-0 bg-transparent p-1"
-                  />
-                  <span className="font-mono text-sm uppercase">{form.cardColor ?? "#18181b"}</span>
-                  <span
-                    aria-label="ตัวอย่างสีกรอบสินค้า"
-                    className="ml-auto size-7 rounded-lg border border-border"
-                    style={{ backgroundColor: form.cardColor ?? "#18181b" }}
-                  />
-                </div>
-                <div className="flex flex-wrap gap-2" aria-label="สีที่แนะนำ">
-                  {["#18181b", "#000000", "#ffffff", "#06c755", "#0d9488", "#6366f1", "#ec4899", "#f59e0b"].map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      aria-label={`เลือกสี ${color}`}
-                      aria-pressed={(form.cardColor ?? "#18181b").toLowerCase() === color}
-                      title={color}
-                      onClick={() => setForm({ ...form, cardColor: color })}
-                      className="size-7 rounded-full border-2 border-border transition-transform hover:scale-110 focus-visible:outline-offset-2"
-                      style={{
-                        backgroundColor: color,
-                        boxShadow: (form.cardColor ?? "#18181b").toLowerCase() === color
-                          ? "0 0 0 2px var(--surface), 0 0 0 4px var(--teal)"
-                          : undefined,
-                      }}
-                    />
-                  ))}
-                </div>
-                <p className="text-xs text-muted">สีนี้ใช้กับกรอบการ์ดสินค้าเท่านั้น ลูกค้าทั่วไปแก้ไขไม่ได้</p>
-              </div>
+            <Field label="ไอคอนสินค้า (อีโมจิ)">
+              <Input
+                maxLength={20}
+                value={form.icon ?? ""}
+                onChange={(e) => setForm({ ...form, icon: e.target.value })}
+                placeholder="เช่น 🎮"
+              />
             </Field>
             <Field label="ป้ายสินค้า">
               <Input
@@ -265,52 +234,87 @@ export function ProductEditor({
               />
             </Field>
           </div>
+          <fieldset className="rounded-2xl border border-border p-4 space-y-3">
+            <legend className="px-2 text-sm font-medium">ธีมและสีประจำสินค้า</legend>
+            <div className="grid grid-cols-2 gap-3">
+              {(
+                [
+                  ["cardColor", "สีหลักสินค้า"],
+                  ["borderColor", "สีขอบ"],
+                  ["accentColor", "สีปุ่ม / จุดเน้น"],
+                  ["badgeColor", "สีป้าย"],
+                ] as const
+              ).map(([key, label]) => (
+                <Field key={key} label={label}>
+                  <Input
+                    type="color"
+                    value={form[key] ?? form.cardColor ?? "#18181b"}
+                    onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                  />
+                </Field>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2" aria-label="ชุดสีสินค้า">
+              {["#18181b", "#dc2626", "#7c3aed", "#2563eb", "#059669", "#d97706", "#db2777"].map(
+                (color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    aria-label={`ใช้ชุดสี ${color}`}
+                    className="size-9 rounded-full border-4 border-white shadow-border"
+                    style={{ background: color }}
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        cardColor: color,
+                        accentColor: color,
+                        borderColor: color,
+                        badgeColor: color,
+                      })
+                    }
+                  />
+                ),
+              )}
+            </div>
+            <div
+              className="rounded-xl border p-4"
+              style={{
+                borderColor: form.borderColor ?? form.cardColor,
+                background: `${form.cardColor ?? "#18181b"}0d`,
+              }}
+            >
+              <span className="text-xs text-muted">ตัวอย่างธีม</span>
+              <p className="mt-1 font-semibold">
+                {form.icon} {form.name || "ชื่อสินค้า"}
+              </p>
+              <span
+                className="mt-2 inline-block rounded-full px-3 py-1 text-xs"
+                style={{
+                  background: form.badgeColor ?? form.cardColor ?? "#18181b",
+                  color: contrastText(form.badgeColor ?? form.cardColor ?? "#18181b"),
+                }}
+              >
+                {form.badge || "ป้ายสินค้า"}
+              </span>
+            </div>
+          </fieldset>
           <Field label="รูปสินค้า">
             <ImageEditor
               kind="product"
               value={form.image}
               onSaved={(image) => setForm((f) => ({ ...f, image }))}
             />
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-              <div className="overflow-hidden rounded-2xl bg-bg shadow-border">
-                <img
-                  src={form.image || "/images/cat-stream.jpg"}
-                  alt=""
-                  className="h-28 w-28 bg-white object-contain p-1"
-                />
-              </div>
-              <div className="min-w-0 flex-1 space-y-2">
-                <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-full bg-accent px-4 text-sm font-medium text-accent-fg">
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/gif"
-                    className="hidden"
-                    disabled={uploading}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) void onUpload(f);
-                      e.target.value = "";
-                    }}
-                  />
-                  {uploading ? "กำลังอัปโหลด…" : "อัปโหลด / เปลี่ยนรูป"}
-                </label>
-                <NativeSelect
-                  value={form.image}
-                  onChange={(e) => setForm({ ...form, image: e.target.value })}
-                >
-                  {imageOptions.map((src) => (
-                    <option key={src} value={src}>
-                      {src.startsWith("/uploads/")
-                        ? `อัปโหลด · ${src.split("/").pop()}`
-                        : src.replace("/images/", "")}
-                    </option>
-                  ))}
-                </NativeSelect>
-                <p className="text-xs text-muted">
-                  อัปโหลดไฟล์ใหม่ หรือเลือกจากรูปเดิม · สูงสุด ~2.5MB
-                </p>
-              </div>
-            </div>
+            <NativeSelect
+              aria-label="เลือกรูปจากคลังเริ่มต้น"
+              value={form.image}
+              onChange={(e) => setForm({ ...form, image: e.target.value })}
+            >
+              {imageOptions.map((src) => (
+                <option key={src} value={src}>
+                  {src.startsWith("/images/") ? src.replace("/images/", "") : "รูปที่อัปโหลด"}
+                </option>
+              ))}
+            </NativeSelect>
           </Field>
 
           <label className="flex min-h-11 items-center gap-2 text-sm">
@@ -348,13 +352,13 @@ export function ProductEditor({
                 type="button"
                 variant="secondary"
                 className="flex-1 rounded-full"
-                disabled={saving || uploading}
+                disabled={saving}
                 onClick={() => void onSoftDelete()}
               >
                 ซ่อนสินค้า
               </Button>
             ) : null}
-            <Button type="submit" className="flex-1 rounded-full" disabled={saving || uploading}>
+            <Button type="submit" className="flex-1 rounded-full" disabled={saving}>
               {saving ? "กำลังบันทึก…" : "บันทึกสินค้า"}
             </Button>
           </div>
@@ -365,10 +369,16 @@ export function ProductEditor({
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
+  const id = useId();
+  const controls = Children.toArray(children);
   return (
     <div className="space-y-1.5">
-      <Label>{label}</Label>
-      {children}
+      <Label htmlFor={id}>{label}</Label>
+      {controls.map((child, i) =>
+        i === 0 && isValidElement<{ id?: string }>(child) && child.type !== ImageEditor
+          ? cloneElement(child, { id })
+          : child,
+      )}
     </div>
   );
 }
@@ -397,6 +407,11 @@ function fromProduct(p: Product): ProductInput {
     stock: p.stock,
     warrantyDays: p.warrantyDays,
     cardColor: p.cardColor,
+    borderColor: p.borderColor,
+    accentColor: p.accentColor,
+    badgeColor: p.badgeColor,
+    description: p.description,
+    icon: p.icon,
     badge: p.badge,
     sortOrder: p.sortOrder,
     image: p.image,
@@ -413,11 +428,15 @@ function uniqueImages(current: string, presets: string[]) {
   return list;
 }
 
-function readAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("อ่านไฟล์ไม่สำเร็จ"));
-    reader.readAsDataURL(file);
-  });
-}
+const deliveryLabels: Record<Product["delivery"], string> = {
+  account: "บัญชี",
+  code: "โค้ด",
+  otp: "OTP",
+  smm: "บริการโซเชียล",
+  topup: "เติมเกม",
+  "email-password": "อีเมล + รหัสผ่าน",
+  license: "License Key",
+  text: "ข้อความ",
+  file: "ไฟล์ดาวน์โหลด",
+  link: "ลิงก์",
+};

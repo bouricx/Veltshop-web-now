@@ -1,3 +1,7 @@
+import { ProductGrid } from "@/components/shop/product-grid";
+import { onShopChange } from "@/lib/shop/realtime-client";
+
+import { ArrowUpRight } from "lucide-react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import {
   Mail,
@@ -79,13 +83,13 @@ const tiles: {
 function ShopHome() {
   const config = useSiteConfiguration((s) => s.value);
   return (
-    <div className="space-y-5">
-      <section className="relative isolate overflow-hidden rounded-3xl bg-[#080a0d] text-white shadow-border">
+    <div className="space-y-8 page-enter">
+      <section className="storefront-hero relative isolate overflow-hidden rounded-3xl bg-[#080a0d] text-white shadow-border">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_78%_45%,rgba(83,96,116,0.42),transparent_45%),linear-gradient(110deg,#080a0d_12%,#151a21_62%,#080a0d)]" />
         <div aria-hidden="true" className="pointer-events-none absolute right-[-3rem] top-[-4rem] h-64 w-64 rounded-full border border-white/10 sm:right-12 sm:top-[-5rem] sm:h-80 sm:w-80" />
         <div aria-hidden="true" className="pointer-events-none absolute right-8 bottom-[-5rem] h-52 w-52 rotate-[-18deg] rounded-[2.5rem] border border-white/10 bg-white/[0.03] sm:right-32 sm:h-64 sm:w-64" />
         <div className="relative grid min-h-[240px] items-center gap-5 p-6 sm:min-h-[280px] sm:grid-cols-[1.2fr_0.8fr] sm:p-9 lg:min-h-[320px] lg:p-12">
-          <div className="max-w-xl">
+          <div className="min-w-0 max-w-xl">
             <p className="mb-3 inline-flex rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs tracking-wide text-white/75">VELTSHOP · DIGITAL STORE</p>
             <h1 className="text-3xl leading-tight font-bold tracking-tight sm:text-4xl lg:text-5xl">สินค้าดิจิทัลคุณภาพ<br />ครบ จบ ในที่เดียว</h1>
             <p className="mt-3 max-w-lg text-sm leading-6 text-white/70 sm:text-base">เกม · แอปพรีเมียม · บริการออนไลน์ · บัตรเติมเงิน</p>
@@ -95,7 +99,7 @@ function ShopHome() {
             </div>
           </div>
           <div aria-hidden="true" className="relative hidden min-h-44 sm:block">
-            <div className="absolute right-2 top-1/2 grid size-40 -translate-y-1/2 place-items-center rounded-[2rem] border border-white/15 bg-white/[0.06] shadow-2xl backdrop-blur-sm lg:right-8 lg:size-52">
+            <div className="hero-orbit absolute right-2 top-1/2 grid size-40 -translate-y-1/2 place-items-center rounded-[2rem] border border-white/15 bg-white/[0.06] shadow-2xl backdrop-blur-sm lg:right-8 lg:size-52">
               <div className="grid size-28 place-items-center rounded-full border border-white/20 bg-gradient-to-br from-white/20 to-white/[0.02] lg:size-36">
                 <span className="text-4xl font-black tracking-[-0.12em] lg:text-5xl">V.</span>
               </div>
@@ -121,31 +125,62 @@ function ShopHome() {
           </a>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {tiles.map((tile) => (
-            <Link
-              key={tile.label}
-              to={tile.to}
-              search={tile.search}
-              className="flex flex-col items-center gap-3 rounded-3xl bg-bg px-3 py-5 text-center transition-transform duration-150 hover:-translate-y-0.5"
-            >
-              <span className={cn("grid size-12 place-items-center rounded-2xl", tile.tint)}>
-                <tile.icon className="size-5" />
-              </span>
-              <span>
-                <span className="block text-sm font-medium">{tile.label}</span>
-                <span className="mt-0.5 block text-xs tracking-[0.12em] text-subtle uppercase">
-                  {tile.hint}
+          {tiles
+            .filter((tile) => tile.label !== "ติดต่อแอดมิน")
+            .map((tile) => (
+              <Link
+                key={tile.label}
+                to={tile.to}
+                search={tile.search}
+                className="quick-link flex flex-col items-center gap-3 rounded-2xl bg-bg px-3 py-5 text-center"
+              >
+                <span className={cn("grid size-12 place-items-center rounded-2xl", tile.tint)}>
+                  <tile.icon className="size-5" />
                 </span>
-              </span>
-            </Link>
-          ))}
+                <span>
+                  <span className="block text-sm font-medium">{tile.label}</span>
+                  <span className="mt-0.5 block text-xs tracking-[0.12em] text-subtle uppercase">
+                    {tile.hint}
+                  </span>
+                </span>
+              </Link>
+            ))}
+          <a
+            href={config.discord || shopMeta.discordInvite}
+            target="_blank"
+            rel="noreferrer"
+            className="quick-link flex flex-col items-center gap-3 rounded-2xl bg-bg px-3 py-5 text-center"
+          >
+            <span className="grid size-12 place-items-center rounded-2xl bg-indigo-100 text-indigo-600">
+              <MessageCircle className="size-5" />
+            </span>
+            <span>
+              <span className="block text-sm font-medium">ติดต่อแอดมิน</span>
+              <span className="mt-0.5 block text-xs tracking-wider text-subtle">DISCORD</span>
+            </span>
+          </a>
         </div>
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-        <LiveFeed />
-        <ShopStats />
-      </div>
+      <section>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs tracking-widest text-subtle">CURATED FOR YOU</p>
+            <h2 className="mt-1 text-xl font-semibold">สินค้าแนะนำ</h2>
+          </div>
+          <Link
+            to="/shop/catalog"
+            search={{ cat: "all" }}
+            className="inline-flex min-h-11 items-center gap-2 text-sm font-medium"
+          >
+            ดูทั้งหมด
+            <ArrowUpRight className="size-4" />
+          </Link>
+        </div>
+        <ProductGrid featuredOnly />
+      </section>
+      <ShopStats />
+      <LiveFeed />
     </div>
   );
 }
@@ -163,10 +198,12 @@ function ShopStats() {
         })
         .catch(() => {});
     load();
+    const unsubscribe = onShopChange(load);
     const timer = setInterval(load, 15000);
     return () => {
       active = false;
       clearInterval(timer);
+      unsubscribe();
     };
   }, []);
   const cards = [
@@ -196,7 +233,7 @@ function ShopStats() {
     },
   ];
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {cards.map((card) => (
         <article
           key={card.label}
