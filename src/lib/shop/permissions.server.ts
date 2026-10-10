@@ -12,6 +12,19 @@ export type PermissionId = string;
 
 const auditMetadata = (value: Record<string, unknown>) => JSON.stringify(value);
 
+/** Prevent an ordinary allowlisted admin from granting themselves or others super-admin. */
+export async function assertCanAssignRole(actorId: string, roleId: RoleId): Promise<void> {
+  if (roleId !== "super_admin") return;
+  const sql = await getSql();
+  const rows = await sql<{ allowed: boolean }>`
+    select exists (
+      select 1 from user_roles
+      where user_id = ${actorId} and role_id = 'super_admin'
+    ) as allowed
+  `;
+  if (!rows[0]?.allowed) throw new Error("Forbidden: only a super admin can assign the super_admin role");
+}
+
 export async function hasPermission(userId: string, permission: PermissionId): Promise<boolean> {
   const sql = await getSql();
   const rows = await sql<{ allowed: boolean }>`
@@ -71,6 +84,7 @@ export const assignRole = createServerFn({ method: "POST" })
       "roles.manage",
       context.bearerToken,
     );
+    await assertCanAssignRole(actor.id, data.roleId);
     const sql = await getSql();
     await sql.transaction(async (tx) => {
       const [target] = await tx.query('SELECT id FROM "user" WHERE id=$1', [data.userId]);
