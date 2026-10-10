@@ -235,3 +235,73 @@ html[data-shop][data-accent="slate"],
   transition-duration: 2.8s;
   transition-timing-function: cubic-bezier(0.12, 0.7, 0.16, 1);
 }
+
+
+/* Product polish: visible keyboard focus, forgiving touch targets, and restrained motion. */
+@layer base {
+  :where(a, button, input, select, textarea, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 3px solid color-mix(in oklab, var(--teal) 82%, white);
+    outline-offset: 3px;
+  }
+
+  :where(button, [role="button"], input, select, textarea) {
+    accent-color: var(--teal);
+  }
+
+  :where(input, select, textarea)::placeholder {
+    color: color-mix(in oklab, var(--muted) 72%, transparent);
+    opacity: 1;
+  }
+
+  :where(button, a, input, select, textarea) {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :where(img, video, canvas, svg) {
+    max-width: 100%;
+  }
+}
+
+/* Consistent storefront cards without changing admin-configured product colors. */
+[data-shop] article,
+[data-shop] [data-card],
+[data-shop] .product-card {
+  transition:
+    box-shadow 180ms ease,
+    transform 180ms ease,
+    border-color 180ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-shop] article:hover,
+  [data-shop] [data-card]:hover,
+  [data-shop] .product-card:hover {
+    box-shadow: 0 12px 28px color-mix(in oklab, var(--fg) 9%, transparent);
+  }
+}
+
+@media (max-width: 639px) {
+  [data-shop] :where(button, [role="button"]) {
+    min-height: 44px;
+  }
+
+  [data-shop] :where(input, select, textarea) {
+    min-height: 44px;
+    max-width: 100%;
+  }
+
+  [data-shop] img {
+    height: auto;
+  }
+
+  [data-shop] :where(.overflow-x-auto) {
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+}
+
+@supports (padding: max(0px)) {
+  [data-shop] {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}

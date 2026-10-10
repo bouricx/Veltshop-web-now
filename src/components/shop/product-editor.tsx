@@ -211,11 +211,43 @@ export function ProductEditor({
               />
             </Field>
             <Field label="สีสินค้า">
-              <Input
-                type="color"
-                value={form.cardColor ?? "#18181b"}
-                onChange={(e) => setForm({ ...form, cardColor: e.target.value })}
-              />
+              <div className="space-y-2">
+                <div className="flex min-h-11 items-center gap-3 rounded-xl border border-border bg-surface p-2">
+                  <Input
+                    type="color"
+                    aria-label="เลือกสีกรอบสินค้า"
+                    value={form.cardColor ?? "#18181b"}
+                    onChange={(e) => setForm({ ...form, cardColor: e.target.value })}
+                    className="h-9 w-12 cursor-pointer border-0 bg-transparent p-1"
+                  />
+                  <span className="font-mono text-sm uppercase">{form.cardColor ?? "#18181b"}</span>
+                  <span
+                    aria-label="ตัวอย่างสีกรอบสินค้า"
+                    className="ml-auto size-7 rounded-lg border border-border"
+                    style={{ backgroundColor: form.cardColor ?? "#18181b" }}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2" aria-label="สีที่แนะนำ">
+                  {["#18181b", "#000000", "#ffffff", "#06c755", "#0d9488", "#6366f1", "#ec4899", "#f59e0b"].map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      aria-label={`เลือกสี ${color}`}
+                      aria-pressed={(form.cardColor ?? "#18181b").toLowerCase() === color}
+                      title={color}
+                      onClick={() => setForm({ ...form, cardColor: color })}
+                      className="size-7 rounded-full border-2 border-border transition-transform hover:scale-110 focus-visible:outline-offset-2"
+                      style={{
+                        backgroundColor: color,
+                        boxShadow: (form.cardColor ?? "#18181b").toLowerCase() === color
+                          ? "0 0 0 2px var(--surface), 0 0 0 4px var(--teal)"
+                          : undefined,
+                      }}
+                    />
+                  ))}
+                </div>
+                <p className="text-xs text-muted">สีนี้ใช้กับกรอบการ์ดสินค้าเท่านั้น ลูกค้าทั่วไปแก้ไขไม่ได้</p>
+              </div>
             </Field>
             <Field label="ป้ายสินค้า">
               <Input
