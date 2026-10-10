@@ -26,11 +26,11 @@ export function LiveFeed() {
       <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold">ประวัติสั่งซื้อล่าสุด</p>
-          <p className="text-xs text-muted">อัปเดตแบบ Real-time</p>
+          <p className="text-xs text-muted">รายการซื้อที่สำเร็จล่าสุด</p>
         </div>
         <span className="inline-flex items-center gap-1 rounded-full bg-ok/12 px-2.5 py-1 text-xs font-medium text-ok">
           <span className="size-1.5 rounded-full bg-ok" />
-          Live
+          อัปเดตสด
         </span>
       </div>
       {!live.length ? <p className="py-6 text-sm text-muted">ยังไม่มีรายการซื้อสำเร็จ</p> : null}

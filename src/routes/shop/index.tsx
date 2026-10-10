@@ -90,7 +90,7 @@ function ShopHome() {
         <div aria-hidden="true" className="pointer-events-none absolute right-8 bottom-[-5rem] h-52 w-52 rotate-[-18deg] rounded-[2.5rem] border border-white/10 bg-white/[0.03] sm:right-32 sm:h-64 sm:w-64" />
         <div className="relative grid min-h-[240px] items-center gap-5 p-6 sm:min-h-[280px] sm:grid-cols-[1.2fr_0.8fr] sm:p-9 lg:min-h-[320px] lg:p-12">
           <div className="min-w-0 max-w-xl">
-            <p className="mb-3 inline-flex rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs tracking-wide text-white/75">VELTSHOP · DIGITAL STORE</p>
+            <p className="mb-3 inline-flex rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs tracking-wide text-white/75">VELTSHOP · สินค้าดิจิทัล</p>
             <h1 className="text-3xl leading-tight font-bold tracking-tight sm:text-4xl lg:text-5xl">สินค้าดิจิทัลคุณภาพ<br />ครบ จบ ในที่เดียว</h1>
             <p className="mt-3 max-w-lg text-sm leading-6 text-white/70 sm:text-base">เกม · แอปพรีเมียม · บริการออนไลน์ · บัตรเติมเงิน</p>
             <div className="mt-6 flex flex-wrap gap-3">
@@ -104,7 +104,7 @@ function ShopHome() {
                 <span className="text-4xl font-black tracking-[-0.12em] lg:text-5xl">V.</span>
               </div>
             </div>
-            <div className="absolute right-36 bottom-2 rounded-2xl border border-white/15 bg-black/50 px-4 py-3 text-xs text-white/75 backdrop-blur-sm lg:right-48">DIGITAL GOODS<br /><span className="font-semibold text-white">FAST · SIMPLE · SECURE</span></div>
+            <div className="absolute right-36 bottom-2 rounded-2xl border border-white/15 bg-black/50 px-4 py-3 text-xs text-white/75 backdrop-blur-sm lg:right-48">สินค้าดิจิทัล<br /><span className="font-semibold text-white">เลือกง่าย · ซื้อสะดวก</span></div>
           </div>
         </div>
       </section>
@@ -112,7 +112,7 @@ function ShopHome() {
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold">เมนูแนะนำ</p>
-            <p className="text-xs tracking-[0.14em] text-muted uppercase">Recommend menu</p>
+            <p className="text-xs tracking-[0.14em] text-muted uppercase">เลือกบริการที่ต้องการ</p>
           </div>
           <a
             href={config.discord || shopMeta.discordInvite}
@@ -132,7 +132,7 @@ function ShopHome() {
                 key={tile.label}
                 to={tile.to}
                 search={tile.search}
-                className="quick-link flex flex-col items-center gap-3 rounded-2xl bg-bg px-3 py-5 text-center"
+                className="quick-link flex flex-col items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/50 px-3 py-5 text-center"
               >
                 <span className={cn("grid size-12 place-items-center rounded-2xl", tile.tint)}>
                   <tile.icon className="size-5" />
@@ -149,7 +149,7 @@ function ShopHome() {
             href={config.discord || shopMeta.discordInvite}
             target="_blank"
             rel="noreferrer"
-            className="quick-link flex flex-col items-center gap-3 rounded-2xl bg-bg px-3 py-5 text-center"
+            className="quick-link flex flex-col items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/50 px-3 py-5 text-center"
           >
             <span className="grid size-12 place-items-center rounded-2xl bg-indigo-100 text-indigo-600">
               <MessageCircle className="size-5" />
@@ -165,7 +165,7 @@ function ShopHome() {
       <section>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-xs tracking-widest text-subtle">CURATED FOR YOU</p>
+            <p className="text-xs tracking-widest text-subtle">เลือกสินค้าที่เหมาะกับคุณ</p>
             <h2 className="mt-1 text-xl font-semibold">สินค้าแนะนำ</h2>
           </div>
           <Link
@@ -245,7 +245,7 @@ function ShopStats() {
               <p className="tabular mt-1 text-2xl font-semibold tracking-tight">
                 {card.value?.toLocaleString("th-TH") ?? "—"}
               </p>
-              <p className="mt-1 text-xs text-ok">อัปเดตจากรายการจริง</p>
+              <p className="mt-1 text-xs text-ok">ข้อมูลล่าสุด</p>
             </div>
             <span className={cn("grid size-9 place-items-center rounded-xl", card.color)}>
               <card.icon className="size-4" />

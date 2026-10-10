@@ -412,7 +412,7 @@ function ProductCard({
             ) : null}
             {product.flash ? (
               <Badge tone="amber" className="gap-1 font-semibold shadow-xs">
-                <Flame className="size-3 fill-amber-500 text-amber-500" /> Flash Sale
+                <Flame className="size-3 fill-amber-500 text-amber-500" /> โปรโมชัน
               </Badge>
             ) : null}
             {product.compareAt && product.compareAt > product.price ? (

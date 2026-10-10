@@ -66,6 +66,14 @@ const tabs = [
   ["backups", "สำรองข้อมูล", "system.manage"],
   ["campaigns", "กงล้อ / กล่อง", "promotions.manage"],
 ] as const;
+const groupColors: Record<string, string> = {
+  "ภาพรวม": "border-sky-200 bg-sky-50 text-sky-900",
+  "สินค้าและสื่อ": "border-violet-200 bg-violet-50 text-violet-900",
+  "การขายและการเงิน": "border-emerald-200 bg-emerald-50 text-emerald-900",
+  "สมาชิกและความปลอดภัย": "border-indigo-200 bg-indigo-50 text-indigo-900",
+  "การตลาด": "border-orange-200 bg-orange-50 text-orange-900",
+  "ระบบและการตั้งค่า": "border-slate-200 bg-slate-50 text-slate-900",
+};
 const menuGroups = [
   { label: "ภาพรวม", ids: ["dashboard", "notifications"] },
   { label: "สินค้าและสื่อ", ids: ["products", "stock", "media"] },
@@ -130,8 +138,8 @@ function AdminPage() {
           {menuGroups.map((group) => {
             const entries = allowed.filter(([id]) => group.ids.includes(id));
             return entries.length ? (
-              <section key={group.label} className="min-w-0 py-2">
-                <h2 className="mb-2 px-3 text-xs font-semibold text-muted">{group.label}</h2>
+              <section key={group.label} className={`min-w-0 rounded-xl border p-2 ${groupColors[group.label]}`}>
+                <h2 className="mb-2 px-2 text-xs font-semibold">{group.label}</h2>
                 <div className="grid gap-1">
                   {entries.map(([id, label]) => (
                     <Button key={id} variant={active === id ? "primary" : "ghost"}
@@ -168,7 +176,7 @@ function AdminPage() {
               })}
             </NativeSelect>
           </div>
-          <p className="mb-1 text-xs tracking-widest text-subtle">WORKSPACE / VELTSHOP</p>
+          <p className="mb-1 text-xs tracking-widest text-subtle">จัดการร้าน Veltshop</p>
           <h1 className="mb-6 text-2xl font-semibold">
             {allowed.find((t) => t[0] === active)?.[1]}
           </h1>
@@ -230,8 +238,8 @@ function ProductsAdmin() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="font-medium">ฐานข้อมูลสินค้า</h2>
-          <p className="text-sm text-muted">แก้ไขแล้วติดหน้าร้านทันที · สต๊อกตัดตอนซื้อพร้อมกัน</p>
+          <h2 className="font-medium">จัดการสินค้า</h2>
+          <p className="text-sm text-muted">จัดการรายละเอียดสินค้าและจำนวนพร้อมขาย</p>
         </div>
         <Button className="rounded-full" onClick={() => setCreating(true)}>
           <Plus className="size-4" />
