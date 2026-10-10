@@ -46,7 +46,7 @@ export function StoreContent() {
                 <img
                   src={banner.image}
                   alt={banner.title}
-                  className="storefront-banner-image h-[120px] w-full object-cover sm:h-auto sm:aspect-[16/5]"
+                  className="storefront-banner-image h-[120px] w-full object-cover md:h-auto md:aspect-[16/5]"
                 />
               ) : (
                 <p className="p-6 font-medium">{banner.title}</p>
@@ -56,7 +56,7 @@ export function StoreContent() {
             <img
               src={banner.image}
               alt={banner.title}
-              className="storefront-banner-image h-[120px] w-full object-cover sm:h-auto sm:aspect-[16/5]"
+              className="storefront-banner-image h-[120px] w-full object-cover md:h-auto md:aspect-[16/5]"
             />
           ) : (
             <p className="p-6 font-medium">{banner.title}</p>
