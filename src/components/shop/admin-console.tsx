@@ -69,6 +69,8 @@ const labels: Record<string, string> = {
   subtotal: "ยอดก่อนส่วนลด",
   product_name: "สินค้า",
   product_id: "รหัสสินค้า",
+  category_name: "หมวดหมู่",
+  sold_at: "ขายเมื่อ",
   amount: "ยอดเงิน",
   fee: "ค่าธรรมเนียม",
   credit: "เครดิตสุทธิ",
@@ -148,6 +150,19 @@ function memberCell(key: string, row: Row) {
   if (key === "disabled") return <span className={`inline-flex rounded-full px-3 py-1 font-medium ${row.disabled ? "bg-rose-50 text-rose-800" : "bg-emerald-50 text-emerald-800"}`}>{row.disabled ? "ระงับบัญชี" : "ใช้งานได้"}</span>;
   if (key === "balance" || key === "spending") return <span className="tabular whitespace-nowrap font-medium">{formatBaht(Number(row[key] || 0))}</span>;
   if (key === "created_at" || key === "last_login") return <span className="text-muted">{key === "last_login" && !row[key] ? "ยังไม่เคยเข้าสู่ระบบ" : readableDate(row[key])}</span>;
+  return String(row[key] ?? "—");
+}
+function stockCell(key: string, row: Row) {
+  if (key === "name") return <div className="space-y-1"><p className="font-semibold text-fg">{String(row.name || "ไม่ระบุชื่อสินค้า")}</p><p className="break-all text-xs text-muted">รหัสสต็อก: {String(row.id)}</p></div>;
+  if (key === "category_name") return <span className="inline-flex rounded-full bg-violet-50 px-3 py-1 text-violet-900">{String(row.category_name || "ไม่ระบุหมวดหมู่")}</span>;
+  if (key === "status") {
+    const states: Record<string, [string, string]> = { available: ["พร้อมขาย", "bg-emerald-50 text-emerald-800"], sold: ["ขายแล้ว", "bg-sky-50 text-sky-800"], disabled: ["ปิดใช้งาน", "bg-rose-50 text-rose-800"], reserved: ["กำลังดำเนินการ", "bg-amber-50 text-amber-800"] };
+    const [label, color] = states[String(row.status)] ?? ["รอตรวจสอบ", "bg-amber-50 text-amber-800"];
+    return <span className={`inline-flex whitespace-nowrap rounded-full px-3 py-1 font-medium ${color}`}>{label}</span>;
+  }
+  if (key === "created_at") return readableDate(row[key]);
+  if (key === "sold_at") return row[key] ? readableDate(row[key]) : "ยังไม่ได้ขาย";
+  if (key === "order_id") return row[key] ? <span className="break-all text-xs">{String(row[key])}</span> : "ยังไม่มีออเดอร์";
   return String(row[key] ?? "—");
 }
 export function AdminRecords({
@@ -480,6 +495,7 @@ export function AdminRecords({
             : null;
   const visibleKeys = kind === "users"
     ? ["name", "rank", "disabled", "balance", "spending", "orders", "created_at", "last_login"]
+    : kind === "stock" ? ["name", "category_name", "status", "order_id", "created_at", "sold_at"]
     : Object.keys(rows[0] ?? {}).filter((k) => !["total_rows", "metadata", "image", "body", "message", "reply", "customer_input", "user_agent"].includes(k));
   const columnLabel = (key: string) => kind === "users" && key === "name" ? "สมาชิก" : kind === "users" && key === "disabled" ? "สถานะบัญชี" : kind === "users" && key === "created_at" ? "สมัครเมื่อ" : labels[key] ?? key;
   return (
@@ -495,7 +511,7 @@ export function AdminRecords({
           }}
           placeholder="ค้นหาชื่อ / รหัส / สถานะ"
         />
-        <Input
+        {kind === "stock" ? <select className="min-h-11 rounded-xl border border-border bg-surface px-3 text-sm sm:w-44" aria-label="กรองสถานะ" value={status} onChange={(e) => { setStatus(e.target.value); setPage(0); }}><option value="">ทุกสถานะ</option><option value="available">พร้อมขาย</option><option value="sold">ขายแล้ว</option><option value="disabled">ปิดใช้งาน</option></select> : <Input
           className="sm:w-44"
           aria-label="กรองสถานะ"
           value={status}
@@ -504,7 +520,7 @@ export function AdminRecords({
             setPage(0);
           }}
           placeholder="กรองสถานะ"
-        />
+        />}
         <Input
           aria-label="วันที่เริ่ม"
           type="date"
@@ -543,7 +559,7 @@ export function AdminRecords({
       ) : null}
       <p className="text-xs text-muted">{total} รายการ · อัปเดตทุก 15 วินาที</p>
       <div className="overflow-auto rounded-2xl border border-border bg-surface">
-        <table className={`w-full text-sm ${kind === "users" ? "member-table" : ""}`}>
+        <table className={`w-full text-sm ${kind === "users" || kind === "stock" ? "member-table" : ""}`}>
           <thead>
             <tr>
               {visibleKeys.map((key) => <th key={key} className="whitespace-nowrap p-3 text-left text-xs text-muted">{columnLabel(key)}</th>)}
@@ -555,7 +571,7 @@ export function AdminRecords({
               <tr key={String(row.id)} className="border-t border-border">
                 {visibleKeys.map((key) => (
                   <td key={key} data-label={columnLabel(key)} className={`p-3 align-top ${kind === "users" ? "min-w-28 max-w-64" : "max-w-56 break-words"}`}>
-                    {kind === "users" ? memberCell(key, row) : typeof row[key] === "boolean" ? row[key] ? "ใช่" : "ไม่" : String(row[key] ?? "—")}
+                    {kind === "users" ? memberCell(key, row) : kind === "stock" ? stockCell(key, row) : typeof row[key] === "boolean" ? row[key] ? "ใช่" : "ไม่" : String(row[key] ?? "—")}
                   </td>
                 ))}
                 <td data-label="จัดการ" className="min-w-40 p-3 align-top">
