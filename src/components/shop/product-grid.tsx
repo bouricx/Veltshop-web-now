@@ -271,11 +271,13 @@ function ProductCard({
             {product.badge}
           </span>
         ) : null}
-        <div className="relative overflow-hidden">
+        <div className="relative aspect-[4/3] w-full overflow-hidden bg-white sm:aspect-[5/4]">
           <img
             src={product.image}
-            alt=""
-            className="h-44 w-full object-cover transition-transform duration-300 hover:scale-105"
+            alt={product.name}
+            loading="lazy"
+            decoding="async"
+            className="h-full w-full object-contain p-2 transition-transform duration-300 hover:scale-[1.03]"
           />
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
             {product.flash ? (
