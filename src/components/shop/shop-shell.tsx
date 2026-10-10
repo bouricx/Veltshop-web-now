@@ -488,7 +488,7 @@ function BottomDock() {
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-      <div className="pointer-events-auto mx-auto flex w-[min(92vw,36rem)] items-end justify-between rounded-[2rem] bg-surface px-4 pt-2 pb-2 shadow-border">
+      <div className="bottom-dock pointer-events-auto mx-auto flex w-[min(92vw,36rem)] items-end justify-between rounded-[2rem] bg-surface px-4 pt-2 pb-2 shadow-border">
         {items.map((item) => {
           const on = path.startsWith(item.to);
           return (
