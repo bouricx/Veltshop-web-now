@@ -16,9 +16,9 @@ export const setUserRole = createServerFn({ method: "POST" })
       "roles.manage",
       context.bearerToken,
     );
-    await assertCanAssignRole(actor.id, data.roleId);
     const sql = await getSql();
     await sql.transaction(async (tx) => {
+      await assertCanAssignRole(tx, actor.id, data.roleId);
       const [target] = await tx.query('SELECT id FROM "user" WHERE id=$1', [data.userId]);
       if (!target) throw new Error("User not found");
       await tx.query(
