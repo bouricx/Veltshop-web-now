@@ -270,7 +270,7 @@ export function ProductGrid({
           ) : null}
         </div>
       ) : (
-        <div className="stagger-in mt-6 grid min-w-0 grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+        <div className="stagger-in mt-6 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
           {displayed.map((p) => (
             <ProductCard
               key={p.id}

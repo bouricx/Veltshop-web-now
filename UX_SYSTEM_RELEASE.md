@@ -4,7 +4,7 @@ Reviewed on 2026-10-10 against main `b80f08f`. The original 75-section brief is 
 
 ## Changes
 
-- Clean storefront, product-specific colors with readable contrast, description, icon, image containment, search/filter/sort/pagination, reduced-motion support and responsive admin navigation.
+- Reference-matched charcoal gradient hero on a light storefront, product-specific colors with readable contrast, description, icon, image containment, search/filter/sort/pagination, reduced-motion support and responsive admin navigation.
 - Real dashboard date ranges in Thailand time, recent records, category-targeted gift redemption and editable gift metadata.
 - Persistent per-admin notification inbox for orders, top-ups, low stock, registrations, rank eligibility and failed jobs. Notifications contain event IDs rather than private payloads. Restore does not replay historical events.
 - Shared image editor and configurable dimensions, formats, quality, resize/crop and thumbnails. Media, privacy requests and backup lists use authenticated SQL filtering and pagination.
@@ -23,3 +23,9 @@ https://veltshop-website.vercel.app/shop and its catalog were opened in the brow
 The Vercel connector returned HTTP 403 for deployment inspection under team `team_4yTmStuBr7KMKmJk91iJ2q0K`, and no authenticated Vercel CLI is available. Consequently this branch has not been deployed, and migrations 0013/0014 have not been confirmed in production. A successful build with the production DATABASE_URL applies additive migrations through the existing migration runner; deploy only this reviewed commit and verify them afterward. Do not invent provider credentials or replace encryption keys.
 
 Google login, transactional email/password reset delivery and Slip2Go live validation require provider credentials and live end-to-end checks. PostgreSQL multi-connection concurrency, production disaster recovery, staging data isolation and other remaining verification boundaries are documented in REQUIREMENTS_75_REVIEW.md.
+
+## Follow-up: reference tone and mobile layout
+
+The supplied image was successfully opened. The hero now follows its black/charcoal gradient, white typography and V. emblem. Catalog cards use a single column below 640px to avoid cramped controls. Checkbox/radio widths are separated from full-width text inputs, mobile input text uses 16px to prevent iOS focus zoom, and the bottom navigation flexes without fixed minimum item widths.
+
+The production build, TypeScript and isolated browser flows passed after these changes. Home screenshots were checked at widths 320, 360, 375, 390, 414, 430, 540, 640, 768 and 1024px; catalog card bounds and overflow were checked at 320, 360, 390, 430, 640 and 768px. Desktop and mobile admin views and reduced-motion behavior passed. These are viewport checks, not a claim of testing every physical device. The owner account was confirmed to retain super_admin; no password or role was changed.

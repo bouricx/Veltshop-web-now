@@ -339,7 +339,7 @@ a {
     min-height: 44px;
   }
 
-  [data-shop] :where(input, select, textarea) {
+  [data-shop] :where(input:not([type="checkbox"]):not([type="radio"]):not([type="color"]), select, textarea) {
     min-height: 44px;
     max-width: 100%;
   }
@@ -459,7 +459,7 @@ body,
   overflow-wrap: anywhere;
 }
 
-[data-shop] :where(input, select, textarea) {
+[data-shop] :where(input:not([type="checkbox"]):not([type="radio"]):not([type="color"]), select, textarea) {
   width: 100%;
   min-width: 0;
 }
@@ -543,4 +543,22 @@ body,
     padding-inline: 0.5rem;
     font-size: 0.8125rem;
   }
+}
+
+/* Keep controls and content usable without relying on clipped overflow. */
+[data-shop] input[type="checkbox"],
+[data-shop] input[type="radio"] {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+[data-shop] .storefront-hero h1 { overflow-wrap: normal; }
+[data-shop] .bottom-dock { max-width: calc(100% - 1rem); }
+[data-shop] .bottom-dock a { flex: 1 1 0; min-width: 0; }
+@media (max-width: 639px) {
+  [data-shop] :where(input, select, textarea) { font-size: 16px; }
+  [data-shop] .storefront-hero h1 { font-size: clamp(1.5rem, 7vw, 1.875rem); line-height: 1.35; }
+  [data-shop] .storefront-hero { border-radius: 1.5rem; }
+  [data-shop] .bottom-dock a { min-height: 44px; }
+  [data-shop] main { padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px)); }
 }
