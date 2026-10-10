@@ -2,28 +2,22 @@ import { useCart } from "@/lib/shop/cart-store";
 import { contrastText, selectProducts, type CatalogSort } from "@/lib/shop/presentation";
 import { useSiteConfiguration } from "@/lib/shop/site-state";
 import { onShopChange } from "@/lib/shop/realtime-client";
-import { getMyDelivery } from "@/lib/shop/inventory";
 import { useEffect, useMemo, useState, useId, type CSSProperties, type ReactNode } from "react";
 import {
-  CheckCircle2,
   Flame,
   Pencil,
   Search,
   ShoppingBag,
-  Wallet,
   ArrowRight,
   RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
-import { LoginDialog } from "@/components/login-dialog";
 import { CategoryEditor } from "@/components/shop/category-editor";
 import { ProductEditor } from "@/components/shop/product-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input, Label, NativeSelect } from "@/components/ui/input";
 import {
-  checkoutProduct,
   listCategories,
   listProducts,
   type CategoryRow,
@@ -278,7 +272,6 @@ export function ProductGrid({
               product={p}
               canEdit={isAdmin}
               onEdit={() => setEditing(p)}
-              onBought={() => void reload()}
             />
           ))}
         </div>
@@ -356,19 +349,15 @@ function ProductCard({
   product,
   canEdit,
   onEdit,
-  onBought,
 }: {
   product: Product;
   canEdit: boolean;
   onEdit: () => void;
-  onBought: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const lowStock = useSiteConfiguration((s) => s.value.lowStock);
   const theme = product.cardColor ?? "#18181b";
   const accent = product.accentColor ?? theme;
   const badge = product.badgeColor ?? accent;
-  const { user } = useCurrentUserState();
 
   return (
     <>
@@ -451,7 +440,7 @@ function ProductCard({
                 </span>
               ) : (
                 <span className="product-stock inline-flex items-center gap-1.5 text-xs font-medium text-rose-500">
-                  <span className="size-1.5 rounded-full bg-rose-400" /> สินค้าหมด
+                  <span className="size-1.5 rounded-full bg-rose-400" /> รอร้านตรวจสอบความพร้อม
                 </span>
               )}
             </div>
@@ -462,252 +451,16 @@ function ProductCard({
               product.stock > 0 ? "hover:opacity-90" : "",
             )}
             style={{ background: accent, color: contrastText(accent) }}
-            onClick={() => { if(useCart.getState().add(product))toast.success("เพิ่มลงตะกร้าแล้ว · ยังไม่ต้องชำระเงิน");else toast.error("เพิ่มไม่ได้ จำนวนถึงสต็อกหรือขีดจำกัดตะกร้าแล้ว"); }}
-            disabled={product.stock <= 0}
+            onClick={() => { if(useCart.getState().add(product))toast.success("เพิ่มลงตะกร้าแล้ว · ยังไม่ต้องชำระเงิน");else toast.error("เพิ่มไม่ได้ จำนวนถึงขีดจำกัดตะกร้าแล้ว"); }}
           >
             <ShoppingBag className="size-4" />
-            {product.stock <= 0 ? "สินค้าหมดชั่วคราว" : "เพิ่มลงตะกร้า"}
+            เพิ่มลงตะกร้า
             <ArrowRight className="ml-auto size-4" />
           </Button>
-          <Button variant="outline" className="mt-2 min-h-11 w-full rounded-full" disabled={product.stock<=0} onClick={()=>setOpen(true)}>ซื้อด้วยเครดิตทันที</Button>
+
         </div>
       </article>
-      <BuyDialog
-        key={user?.id ?? "signed-out"}
-        product={product}
-        open={open}
-        onOpenChange={setOpen}
-        onBought={onBought}
-      />
+
     </>
-  );
-}
-
-function BuyDialog({
-  product,
-  open,
-  onOpenChange,
-  onBought,
-}: {
-  product: Product;
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  onBought: () => void;
-}) {
-  const loggedIn = useShop((s) => s.loggedIn);
-  const balance = useShop((s) => s.balance);
-  const [requestKey, setRequestKey] = useState<string | null>(null);
-  const [uid, setUid] = useState("");
-  const [coupon, setCoupon] = useState("");
-  const [delivered, setDelivered] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      setRequestKey(null);
-      setResult(null);
-      setDelivered(false);
-      setUid("");
-      setCoupon("");
-    }
-  }, [open, product.id]);
-
-  async function purchase() {
-    if (!coupon.trim() && balance < product.price) {
-      toast.error("ยอดเงินไม่พอ เติมเงินก่อนได้ที่เมนูเติมเงิน");
-      return;
-    }
-    setBusy(true);
-    const key = requestKey ?? crypto.randomUUID();
-    setRequestKey(key);
-    try {
-      const res = await checkoutProduct({
-        data: {
-          id: product.id,
-          idempotencyKey: key,
-          coupon: coupon || undefined,
-          customerInput: uid,
-        },
-      });
-      if (!res.ok) {
-        toast.error(res.message);
-        return;
-      }
-      useShop.setState({ balance: res.balance });
-      setResult(`${res.message}\nหมายเลขคำสั่งซื้อ: ${res.orderId}`);
-      if (res.status === "completed") {
-        const delivery = await getMyDelivery({ data: { orderId: res.orderId } });
-        if (delivery.ok) {
-          setResult(delivery.payload);
-          setDelivered(true);
-        } else
-          setResult(
-            `คำสั่งซื้อสำเร็จแล้ว โปรดเปิดสินค้าจากประวัติการซื้อ\nหมายเลขคำสั่งซื้อ: ${res.orderId}`,
-          );
-      }
-      toast.success(res.message);
-      onBought();
-    } catch {
-      toast.error("ตรวจสอบคำสั่งซื้อไม่สำเร็จ กรุณาลองอีกครั้ง");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const remaining = balance - product.price;
-  const canAfford = remaining >= 0 || Boolean(coupon.trim());
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(value) => {
-        if (!busy) onOpenChange(value);
-      }}
-    >
-      <DialogContent title={product.name} className="max-h-[90dvh] overflow-y-auto">
-        {result ? (
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-center">
-              <div className="mx-auto grid size-10 place-items-center rounded-full bg-emerald-500 text-white">
-                <CheckCircle2 className="size-6" />
-              </div>
-              <p className="mt-2 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-                {delivered ? "จัดส่งสินค้าสำเร็จแล้ว" : "รับคำสั่งซื้อแล้ว · รอจัดส่ง"}
-              </p>
-              <p className="text-xs text-subtle mt-0.5">บันทึกลงในประวัติการสั่งซื้อของคุณแล้ว</p>
-            </div>
-            <div>
-              <Label className="text-xs text-subtle mb-1 block">รายละเอียดคำสั่งซื้อ:</Label>
-              <div className="rounded-xl border border-border/60 bg-surface-2 p-3 text-xs select-all break-all flex items-start justify-between gap-2">
-                <span className="whitespace-pre-wrap">{result}</span>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 px-2 text-xs shrink-0"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(result);
-                    toast.success("คัดลอกข้อมูลแล้ว");
-                  }}
-                >
-                  คัดลอก
-                </Button>
-              </div>
-            </div>
-            {/^\/api\/files\/[a-f\d-]{36}$/i.test(result) ? (
-              <Button asChild>
-                <a href={result}>ดาวน์โหลดไฟล์สินค้า</a>
-              </Button>
-            ) : null}
-            <Button className="w-full rounded-full" onClick={() => onOpenChange(false)}>
-              ปิดหน้าต่าง
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <img
-                src={product.image}
-                alt=""
-                className="size-16 shrink-0 rounded-xl border border-border/40 bg-white object-contain p-1"
-              />
-              <div>
-                <p className="font-semibold text-base">{product.name}</p>
-                <p className="text-xs text-muted line-clamp-1">{product.subtitle}</p>
-                <p className="mt-1 tabular text-lg font-bold text-fg">
-                  {formatBaht(product.price)}
-                </p>
-              </div>
-            </div>
-
-            {product.description ? (
-              <p className="whitespace-pre-wrap break-words rounded-xl bg-bg p-4 text-sm text-muted">
-                {product.description}
-              </p>
-            ) : null}
-            {product.warrantyDays ? (
-              <p className="text-xs text-muted">
-                รับประกัน {product.warrantyDays} วัน ตามเงื่อนไขสินค้า
-              </p>
-            ) : null}
-            <p className="text-xs text-muted">
-              {product.stockMode === "individual"
-                ? "เมื่อชำระสำเร็จ ระบบจะส่งสินค้าจากสต็อกให้ทันที และเปิดดูซ้ำได้ในประวัติการซื้อ"
-                : "สินค้านี้รอแอดมินจัดส่งหลังชำระเงิน ตรวจสอบสถานะได้ในประวัติการซื้อ"}
-            </p>
-
-            <div className="space-y-1">
-              <Label htmlFor="coupon">โค้ดส่วนลด (ถ้ามี)</Label>
-              <Input
-                id="coupon"
-                value={coupon}
-                onChange={(e) => setCoupon(e.target.value)}
-                maxLength={40}
-              />
-              <p className="text-xs text-muted">
-                ส่วนลดจะตรวจและคำนวณจากเซิร์ฟเวอร์เมื่อยืนยันซื้อ
-              </p>
-            </div>
-
-            {/* Financial summary breakdown */}
-            {loggedIn ? (
-              <div className="rounded-2xl border border-border/60 bg-surface-2/40 p-3.5 space-y-2 text-xs">
-                <div className="flex items-center justify-between text-muted">
-                  <span className="flex items-center gap-1.5">
-                    <Wallet className="size-3.5 text-emerald-600" /> เครดิตในกระเป๋าของคุณ
-                  </span>
-                  <span className="tabular font-medium text-fg">{formatBaht(balance)}</span>
-                </div>
-                <div className="flex items-center justify-between text-muted">
-                  <span>ราคาสินค้า</span>
-                  <span className="tabular font-medium text-fg">-{formatBaht(product.price)}</span>
-                </div>
-                <div className="border-t border-border/40 pt-1.5 flex items-center justify-between font-semibold">
-                  <span>{coupon.trim() ? "คงเหลือก่อนคำนวณส่วนลด" : "คงเหลือหลังสั่งซื้อ"}</span>
-                  <span className={cn("tabular", canAfford ? "text-emerald-600" : "text-rose-600")}>
-                    {formatBaht(remaining)}
-                  </span>
-                </div>
-                {!canAfford ? (
-                  <p className="text-[11px] text-rose-500 pt-1">
-                    * เครดิตไม่เพียงพอ กรุณาเติมเงินก่อนทำรายการสั่งซื้อ
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-
-            {product.delivery === "topup" ? (
-              <div className="space-y-1.5">
-                <Label htmlFor="uid">UID / เซิร์ฟเวอร์ผู้รับ</Label>
-                <Input
-                  id="uid"
-                  value={uid}
-                  onChange={(e) => setUid(e.target.value)}
-                  placeholder="เช่น 123456789"
-                />
-              </div>
-            ) : null}
-
-            {loggedIn ? (
-              <Button
-                className="w-full rounded-full gap-2 font-medium"
-                onClick={() => void purchase()}
-                disabled={product.stock <= 0 || busy || !canAfford}
-              >
-                {busy
-                  ? "กำลังตัดสต๊อก…"
-                  : canAfford
-                    ? "ยืนยันการสั่งซื้อ"
-                    : "เครดิตไม่เพียงพอ (ไปเติมเงิน)"}
-              </Button>
-            ) : (
-              <LoginDialog>
-                <Button className="w-full rounded-full">เข้าสู่ระบบเพื่อสั่งซื้อ</Button>
-              </LoginDialog>
-            )}
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
   );
 }

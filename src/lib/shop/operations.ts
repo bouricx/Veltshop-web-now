@@ -1,3 +1,4 @@
+import { LIST_ONLY_STORE, listOnlyMessage } from "./store-mode";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
@@ -202,6 +203,7 @@ export const redeemGiftCode = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ data, context }) =>
     safe(async () => {
+      if (LIST_ONLY_STORE) throw new CommerceError(listOnlyMessage);
       const sql = await getSql();
       await limit(sql, `gift:${context.userId}`, 5);
       return redeemGift(sql, String(context.userId), data.code, data.key, data.productId);
@@ -511,6 +513,7 @@ export const submitTrueMoneyGift = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ data, context }) =>
     safe(async () => {
+      if (LIST_ONLY_STORE) throw new CommerceError(listOnlyMessage);
       const { paymentProviders } = await import("./payment-providers.server");
       await paymentProviders.trueMoneyGift.verify({
         amount: data.amount,

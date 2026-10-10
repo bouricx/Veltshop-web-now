@@ -67,13 +67,24 @@ test("cart requests use server prices, replay once, and never debit or deliver s
     await db.close();
   }
 });
+test("active products can be listed without stock, including multiple quantities", async () => {
+  const { db, sql } = await setup();
+  try {
+    await sql.query("UPDATE products SET stock=0");
+    const result = await createCartRequest(sql, "buyer", {
+      ...input,
+      items: [{ productId: "product", quantity: 4 }],
+    });
+    assert.equal(result.total, 240);
+    assert.equal((await sql.query("SELECT stock FROM products"))[0].stock, 0);
+    assert.equal((await sql.query("SELECT balance FROM wallet_accounts"))[0].balance, 100);
+  } finally {
+    await db.close();
+  }
+});
 test("unavailable, disabled and maintenance requests do not create records", async () => {
   const { db, sql } = await setup();
   try {
-    await assert.rejects(
-      createCartRequest(sql, "buyer", { ...input, items: [{ productId: "product", quantity: 4 }] }),
-      /มีไม่พอ/,
-    );
     await sql.query("UPDATE products SET active=false WHERE id='product'");
     await assert.rejects(createCartRequest(sql, "buyer", input), /ไม่ได้เปิดขาย/);
     await sql.query("UPDATE products SET active=true");

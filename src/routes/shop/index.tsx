@@ -12,7 +12,7 @@ import {
   Shield,
   Store,
   Users,
-  Wallet,
+  ShoppingCart,
 } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { LiveFeed } from "@/components/shop/live-feed";
@@ -27,17 +27,17 @@ export const Route = createFileRoute("/shop/")({ component: ShopHome });
 const tiles: {
   label: string;
   hint: string;
-  to: "/shop/topup" | "/shop/catalog" | "/shop/alerts";
+  to: "/shop/cart" | "/shop/catalog" | "/shop/alerts";
   search?: { cat: string };
   tint: string;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
 }[] = [
   {
-    label: "เติมเงิน",
-    hint: "TOP UP",
-    to: "/shop/topup",
+    label: "ตะกร้าสินค้า",
+    hint: "รายการที่เลือก",
+    to: "/shop/cart",
     tint: "bg-cat-wallet/12 text-cat-wallet",
-    icon: Wallet,
+    icon: ShoppingCart,
   },
   {
     label: "แอพพรีเมียม",
@@ -92,7 +92,7 @@ function ShopHome() {
           <div className="min-w-0 max-w-xl">
             <p className="mb-3 inline-flex rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs tracking-wide text-white/75">VELTSHOP · สินค้าดิจิทัล</p>
             <h1 className="text-3xl leading-tight font-bold tracking-tight sm:text-4xl lg:text-5xl">สินค้าดิจิทัลคุณภาพ<br />ครบ จบ ในที่เดียว</h1>
-            <p className="mt-3 max-w-lg text-sm leading-6 text-white/70 sm:text-base">เกม · แอปพรีเมียม · บริการออนไลน์ · บัตรเติมเงิน</p>
+            <p className="mt-3 max-w-lg text-sm leading-6 text-white/70 sm:text-base">เลือกสินค้า · รวมรายการในตะกร้า · ส่งให้ร้านดูแล</p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link to="/shop/catalog" search={{ cat: "all" }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-black transition hover:bg-white/90">ดูสินค้าทั้งหมด <span aria-hidden="true">→</span></Link>
               <a href={config.discord || shopMeta.discordInvite} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/25 px-5 text-sm font-medium text-white transition hover:bg-white/10">ติดต่อแอดมิน</a>
@@ -220,12 +220,6 @@ function ShopStats() {
       color: "text-cat-stock bg-cat-stock/12",
     },
     {
-      label: "รายการเติมเงินสำเร็จ",
-      value: stats?.topups,
-      icon: Wallet,
-      color: "text-ok bg-ok/12",
-    },
-    {
       label: "สินค้าพร้อมส่ง",
       value: stats?.ready,
       icon: Store,
@@ -233,7 +227,7 @@ function ShopStats() {
     },
   ];
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
       {cards.map((card) => (
         <article
           key={card.label}

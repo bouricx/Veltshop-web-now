@@ -1,3 +1,4 @@
+import { LIST_ONLY_STORE, listOnlyMessage } from "./store-mode";
 import { configuration, limit, audit } from "./operations-service.server";
 import { paymentProviders } from "./payment-providers.server";
 import { z } from "zod";
@@ -337,6 +338,7 @@ export const checkoutProduct = createServerFn({ method: "POST" })
   )
   .middleware([authMiddleware])
   .handler(async ({ data, context }) => {
+    if (LIST_ONLY_STORE) return { ok: false as const, message: listOnlyMessage };
     try {
       await limit(await getSql(), `checkout:${context.userId}`, 20);
       const result = await purchase(
@@ -477,6 +479,7 @@ export const processPayment = createServerFn({ method: "POST" })
   )
   .middleware([authMiddleware])
   .handler(async ({ data, context }) => {
+    if (LIST_ONLY_STORE) return { ok: false as const, message: listOnlyMessage };
     const config = await configuration(await getSql());
     if (data.method === "truewallet" ? !config.trueMoney : !config.slip2go)
       return { ok: false as const, message: "ช่องทางนี้ปิดชั่วคราว" };
@@ -553,6 +556,7 @@ export const topupWithSlip = createServerFn({ method: "POST" })
   )
   .middleware([authMiddleware])
   .handler(async ({ data, context }) => {
+    if (LIST_ONLY_STORE) return { ok: false as const, message: listOnlyMessage };
     const config = await configuration(await getSql());
     if (data.method === "truewallet" ? !config.trueMoney : !config.slip2go)
       return { ok: false as const, message: "ช่องทางนี้ปิดชั่วคราว" };

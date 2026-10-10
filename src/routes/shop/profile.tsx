@@ -5,10 +5,8 @@ import { toast } from "sonner";
 import { EmptyGate } from "@/components/shop/shop-shell";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { authClient, signOut } from "@/lib/auth/client";
-import { myAccountData, redeemGiftCode } from "@/lib/shop/operations";
-import { getMyWallet, listProducts } from "@/lib/shop/actions";
-import { useShop } from "@/lib/shop/store";
-import { Input, Label, NativeSelect } from "@/components/ui/input";
+import { myAccountData } from "@/lib/shop/operations";
+import { Input, Label } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/shop/profile")({ component: ProfilePage });
 function ProfilePage() {
@@ -24,21 +22,10 @@ function ProfilePage() {
 }
 function ProfileBody() {
   const [data, setData] = useState<Awaited<ReturnType<typeof myAccountData>> | null>(null),
-    [code, setCode] = useState(""),
-    [key, setKey] = useState(() => crypto.randomUUID()),
-    [busy, setBusy] = useState(false),
     [name, setName] = useState(""),
     [currentPassword, setCurrentPassword] = useState(""),
     [newPassword, setNewPassword] = useState(""),
     [error, setError] = useState("");
-  const [giftProducts, setGiftProducts] = useState<Awaited<ReturnType<typeof listProducts>>>([]);
-  const [giftProductId, setGiftProductId] = useState("");
-  useEffect(() => {
-    void listProducts()
-      .then(setGiftProducts)
-      .catch(() => {});
-  }, []);
-  const balance = useShop((s) => s.balance);
   const load = () =>
     void myAccountData()
       .then((d) => {
@@ -47,11 +34,6 @@ function ProfileBody() {
       })
       .catch(() => setError("โหลดบัญชีไม่สำเร็จ"));
   useEffect(load, []);
-  async function updateBalance() {
-    const wallet = await getMyWallet();
-    useShop.setState({ balance: wallet.balance });
-    load();
-  }
   return (
     <div className="mt-6 space-y-6">
       {error ? <p role="alert">{error}</p> : null}
@@ -72,10 +54,6 @@ function ProfileBody() {
             </div>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-            <p>เครดิต {balance} บาท</p>
-            <p>ยอดซื้อสำเร็จ {data.profile.spending} บาท</p>
-            <p>ออเดอร์ {data.profile.orders} รายการ</p>
-            <p>เครดิตเติมสะสม {data.profile.topups} บาท</p>
             <p className="col-span-2">
               สมัครเมื่อ{" "}
               {new Date(data.profile.created_at).toLocaleString("th-TH", {
@@ -92,62 +70,10 @@ function ProfileBody() {
               : "ยังไม่มีบันทึก"}
           </p>
           <Button asChild className="mt-4" variant="secondary">
-            <Link to="/shop/history">ออเดอร์ / สินค้าที่ได้รับ</Link>
+            <Link to="/shop/cart">รายการสินค้าที่ส่งให้ร้าน</Link>
           </Button>
         </section>
       ) : null}
-      <form
-        className="space-y-3 rounded-xl border p-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setBusy(true);
-          void redeemGiftCode({ data: { code, key, productId: giftProductId || undefined } })
-            .then((r) => {
-              if (r.ok) {
-                toast.success("รับของขวัญแล้ว");
-                setCode("");
-                setKey(crypto.randomUUID());
-                void updateBalance();
-              } else toast.error(r.message);
-            })
-            .catch(() => toast.error("กรุณาลองคำขอเดิมอีกครั้ง"))
-            .finally(() => setBusy(false));
-        }}
-      >
-        <Label htmlFor="gift-code">โค้ดของขวัญ</Label>
-        <Input
-          id="gift-code"
-          value={code}
-          onChange={(e) => {
-            setCode(e.target.value);
-            setKey(crypto.randomUUID());
-          }}
-          minLength={6}
-          maxLength={128}
-          required
-        />
-        <Label htmlFor="gift-product">เลือกสินค้า (เฉพาะโค้ดที่ให้เลือกสินค้าในหมวด)</Label>
-        <NativeSelect
-          id="gift-product"
-          value={giftProductId}
-          onChange={(e) => {
-            setGiftProductId(e.target.value);
-            setKey(crypto.randomUUID());
-          }}
-        >
-          <option value="">ใช้รางวัลที่ระบุในโค้ด</option>
-          {giftProducts
-            .filter((p) => p.stock > 0)
-            .map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-        </NativeSelect>
-        <Button type="submit" disabled={busy}>
-          {busy ? "กำลังตรวจ…" : "ใช้โค้ด"}
-        </Button>
-      </form>
       <form
         className="space-y-3 rounded-xl border p-4"
         onSubmit={(e) => {
@@ -237,14 +163,7 @@ function ProfileBody() {
       >
         ออกจากระบบทุกอุปกรณ์
       </Button>
-      <section className="space-y-2">
-        <h2 className="font-medium">รายการเครดิต</h2>
-        {data?.ledger.map((l) => (
-          <p key={l.id} className="text-sm">
-            {l.reason} · {l.amount} บาท · คงเหลือ {l.balance_after} บาท
-          </p>
-        ))}
-      </section>
+
     </div>
   );
 }

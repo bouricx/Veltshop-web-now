@@ -118,7 +118,7 @@ export function CartPage() {
           ตะกร้าสินค้า
         </h1>
         <p className="mt-2 text-sm text-muted">
-          ส่งรายการให้ร้านโดยไม่ต้องชำระเงิน ไม่หักเครดิต และยังไม่จองสต็อกหรือจัดส่งสินค้า
+          ส่งรายการให้ร้านโดยไม่ต้องชำระเงิน ไม่หักเครดิต และร้านจะตรวจสอบความพร้อมของสินค้าก่อนยืนยัน
         </p>
       </div>
       {success ? (
@@ -216,7 +216,7 @@ export function CartPage() {
               <span className="font-semibold">{formatBaht(total)}</span>
             </div>
             <p className="text-xs text-muted">
-              ร้านจะยืนยันราคาและสต็อกอีกครั้ง ยอดนี้ยังไม่ใช่การชำระเงิน
+              ร้านจะยืนยันราคาและความพร้อมอีกครั้ง ยอดนี้ยังไม่ใช่การชำระเงิน
             </p>
             <div>
               <Label htmlFor="cart-contact">ช่องทางให้ร้านติดต่อกลับ</Label>

@@ -1,3 +1,4 @@
+import { LIST_ONLY_STORE, listOnlyMessage } from "./store-mode";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
@@ -48,6 +49,7 @@ export const playCampaign = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ data, context }) => {
     try {
+      if (LIST_ONLY_STORE) throw new CommerceError(listOnlyMessage);
       const sql = await getSql();
       await limit(sql, `reward:${context.userId}`, 5);
       return {

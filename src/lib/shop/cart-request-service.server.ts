@@ -56,8 +56,6 @@ export async function createCartRequest(sql: Sql, user: string, data: CartReques
     const items: RequestItem[] = data.items.map((i) => {
       const p = products.find((p) => p.id === i.productId);
       if (!p || !p.active) throw new CommerceError("มีสินค้าที่ไม่ได้เปิดขาย กรุณานำออกจากตะกร้า");
-      if (p.stock < i.quantity)
-        throw new CommerceError(`${p.name} มีไม่พอตามจำนวนที่เลือก กรุณาลดจำนวน`);
       return {
         productId: p.id,
         name: p.name,

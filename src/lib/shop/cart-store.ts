@@ -15,12 +15,7 @@ export const useCart = create<{
       add: (p) => {
         const items = get().items,
           existing = items.find((i) => i.productId === p.id);
-        if (
-          p.stock <= 0 ||
-          (existing?.quantity ?? 0) >= Math.min(p.stock, 99) ||
-          (!existing && items.length >= 30)
-        )
-          return false;
+        if ((existing?.quantity ?? 0) >= 99 || (!existing && items.length >= 30)) return false;
         set({
           items: existing
             ? items.map((i) => (i.productId === p.id ? { ...i, quantity: i.quantity + 1 } : i))
