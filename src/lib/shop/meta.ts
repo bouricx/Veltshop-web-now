@@ -4,11 +4,11 @@ export const shopMeta = {
   lineId: "@veltshop",
   email: "support@veltshop.com",
   facebook: "VELTSHOP",
-  facebookUrl: "https://www.facebook.com/profile.php?id=100087883835866",
-  discordInvite: "https://discord.gg/ufdhU3saWE",
-  hoursWeek: "จ–ศ: 15:00 – 03:00",
-  hoursWeekend: "ส–อา: 10:00 – 00:00",
-  note: "นอกเวลานอกจากตอบช้าเกินไป",
+  facebookUrl: "https://www.facebook.com/Veltshop/",
+  discordInvite: "https://discord.gg/bjakzMKXK",
+  hoursWeek: "ซื้อขายได้ตลอด 24 ชั่วโมง",
+  hoursWeekend: "",
+  note: "หากพบปัญหา กรุณาติดต่อทีมงานผ่านช่องทางด้านล่าง",
 };
 
 export const dayShort = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];

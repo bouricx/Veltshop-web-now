@@ -1,3 +1,4 @@
+import { ImageEditor } from "./image-editor";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,18 @@ import {
 } from "@/lib/shop/actions";
 import type { Product } from "@/lib/shop/catalog";
 
-const deliveries: Product["delivery"][] = ["account", "code", "otp", "smm", "topup"];
+const deliveries: Product["delivery"][] = [
+  "account",
+  "code",
+  "otp",
+  "smm",
+  "topup",
+  "email-password",
+  "license",
+  "text",
+  "file",
+  "link",
+];
 const presetImages = [
   "/images/cat-stream.jpg",
   "/images/cat-music.jpg",
@@ -84,7 +96,7 @@ export function ProductEditor({
   }
 
   async function onSoftDelete() {
-    if (!product?.id) return;
+    if (!product?.id || !window.confirm("ยืนยันซ่อนสินค้านี้? ประวัติการซื้อจะยังอยู่")) return;
     setSaving(true);
     try {
       const { archiveProduct } = await import("@/lib/shop/actions");
@@ -107,13 +119,23 @@ export function ProductEditor({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={product ? "แก้ไขสินค้า" : "เพิ่มสินค้า"} className="max-h-[85dvh] overflow-y-auto">
+      <DialogContent
+        title={product ? "แก้ไขสินค้า" : "เพิ่มสินค้า"}
+        className="max-h-[85dvh] overflow-y-auto"
+      >
         <form className="space-y-3" onSubmit={(e) => void onSubmit(e)}>
           <Field label="ชื่อสินค้า">
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+            <Input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
           </Field>
           <Field label="รายละเอียดสั้น">
-            <Input value={form.subtitle} onChange={(e) => setForm({ ...form, subtitle: e.target.value })} />
+            <Input
+              value={form.subtitle}
+              onChange={(e) => setForm({ ...form, subtitle: e.target.value })}
+            />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="หมวด">
@@ -131,7 +153,9 @@ export function ProductEditor({
             <Field label="ส่งของ">
               <NativeSelect
                 value={form.delivery}
-                onChange={(e) => setForm({ ...form, delivery: e.target.value as Product["delivery"] })}
+                onChange={(e) =>
+                  setForm({ ...form, delivery: e.target.value as Product["delivery"] })
+                }
               >
                 {deliveries.map((d) => (
                   <option key={d} value={d}>
@@ -143,25 +167,85 @@ export function ProductEditor({
           </div>
           <div className="grid grid-cols-3 gap-3">
             <Field label="ราคา">
-              <Input type="number" min={0} value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} />
+              <Input
+                type="number"
+                min={0}
+                value={form.price}
+                onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
+              />
             </Field>
             <Field label="ราคาเดิม">
               <Input
                 type="number"
                 min={0}
                 value={form.compareAt ?? ""}
-                onChange={(e) => setForm({ ...form, compareAt: e.target.value ? Number(e.target.value) : null })}
+                onChange={(e) =>
+                  setForm({ ...form, compareAt: e.target.value ? Number(e.target.value) : null })
+                }
               />
             </Field>
             <Field label="สต๊อก">
-              <Input type="number" min={0} value={form.stock} onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })} />
+              <Input
+                type="number"
+                min={0}
+                disabled={product?.stockMode === "individual"}
+                value={form.stock}
+                onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })}
+              />
+              {product?.stockMode === "individual" ? (
+                <p className="text-xs text-muted">
+                  จำนวนคงเหลือคำนวณจากสต็อกจริง เพิ่มสินค้าได้ที่ปุ่มสต็อกจริง
+                </p>
+              ) : null}
             </Field>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="รับประกัน (วัน) 0 = ไม่มี">
+              <Input
+                type="number"
+                min={0}
+                max={3650}
+                value={form.warrantyDays ?? 0}
+                onChange={(e) => setForm({ ...form, warrantyDays: Number(e.target.value) })}
+              />
+            </Field>
+            <Field label="สีสินค้า">
+              <Input
+                type="color"
+                value={form.cardColor ?? "#18181b"}
+                onChange={(e) => setForm({ ...form, cardColor: e.target.value })}
+              />
+            </Field>
+            <Field label="ป้ายสินค้า">
+              <Input
+                maxLength={80}
+                value={form.badge ?? ""}
+                onChange={(e) => setForm({ ...form, badge: e.target.value })}
+              />
+            </Field>
+            <Field label="ลำดับ">
+              <Input
+                type="number"
+                min={0}
+                value={form.sortOrder ?? 0}
+                onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) })}
+              />
+            </Field>
+          </div>
           <Field label="รูปสินค้า">
+            <ImageEditor
+              kind="product"
+              value={form.image}
+              onSaved={(image) => setForm((f) => ({ ...f, image }))}
+            />
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
               <div className="overflow-hidden rounded-2xl bg-bg shadow-border">
-                <img src={form.image || "/images/cat-stream.jpg"} alt="" className="h-28 w-28 object-cover" />
+                <img
+                  src={form.image || "/images/cat-stream.jpg"}
+                  alt=""
+                  className="h-28 w-28 object-cover"
+                />
               </div>
               <div className="min-w-0 flex-1 space-y-2">
                 <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-full bg-accent px-4 text-sm font-medium text-accent-fg">
@@ -178,14 +262,21 @@ export function ProductEditor({
                   />
                   {uploading ? "กำลังอัปโหลด…" : "อัปโหลด / เปลี่ยนรูป"}
                 </label>
-                <NativeSelect value={form.image} onChange={(e) => setForm({ ...form, image: e.target.value })}>
+                <NativeSelect
+                  value={form.image}
+                  onChange={(e) => setForm({ ...form, image: e.target.value })}
+                >
                   {imageOptions.map((src) => (
                     <option key={src} value={src}>
-                      {src.startsWith("/uploads/") ? `อัปโหลด · ${src.split("/").pop()}` : src.replace("/images/", "")}
+                      {src.startsWith("/uploads/")
+                        ? `อัปโหลด · ${src.split("/").pop()}`
+                        : src.replace("/images/", "")}
                     </option>
                   ))}
                 </NativeSelect>
-                <p className="text-xs text-muted">อัปโหลดไฟล์ใหม่ หรือเลือกจากรูปเดิม · สูงสุด ~2.5MB</p>
+                <p className="text-xs text-muted">
+                  อัปโหลดไฟล์ใหม่ หรือเลือกจากรูปเดิม · สูงสุด ~2.5MB
+                </p>
               </div>
             </div>
           </Field>
@@ -256,7 +347,7 @@ function blank(category = "stream"): ProductInput {
     subtitle: "",
     category,
     price: 99,
-    stock: 10,
+    stock: 0,
     image: "/images/cat-stream.jpg",
     delivery: "code",
     active: true,
@@ -272,6 +363,10 @@ function fromProduct(p: Product): ProductInput {
     price: p.price,
     compareAt: p.compareAt,
     stock: p.stock,
+    warrantyDays: p.warrantyDays,
+    cardColor: p.cardColor,
+    badge: p.badge,
+    sortOrder: p.sortOrder,
     image: p.image,
     delivery: p.delivery,
     featured: p.featured,

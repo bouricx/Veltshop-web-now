@@ -4,6 +4,7 @@ import { TriangleAlert } from "lucide-react";
 const FALLBACK_MESSAGE = "เกิดข้อผิดพลาด ลองรีโหลดหน้าอีกครั้ง";
 
 function errorMessage(error: unknown): string {
+  if (import.meta.env.PROD) return FALLBACK_MESSAGE;
   if (error instanceof Error && error.message) return error.message;
   if (typeof error === "string" && error) return error;
   return FALLBACK_MESSAGE;

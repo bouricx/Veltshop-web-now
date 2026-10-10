@@ -1,3 +1,5 @@
+import { onShopChange } from "@/lib/shop/realtime-client";
+import { getMyDelivery } from "@/lib/shop/inventory";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { CheckCircle2, Flame, Pencil, ShoppingBag, Wallet } from "lucide-react";
 import { toast } from "sonner";
@@ -8,14 +10,25 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input, Label } from "@/components/ui/input";
-import { checkoutProduct, listCategories, listProducts, type CategoryRow } from "@/lib/shop/actions";
+import {
+  checkoutProduct,
+  listCategories,
+  listProducts,
+  type CategoryRow,
+} from "@/lib/shop/actions";
 import { getAdminStatus } from "@/lib/shop/admin-gate";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import type { Product } from "@/lib/shop/catalog";
 import { useShop } from "@/lib/shop/store";
 import { cn, formatBaht } from "@/lib/utils";
 
-export function ProductGrid({ initialCat = "all" }: { initialCat?: string }) {
+export function ProductGrid({
+  initialCat = "all",
+  onlyProductId,
+}: {
+  initialCat?: string;
+  onlyProductId?: string;
+}) {
   const flags = useShop((s) => s.navFlags);
   const [cat, setCat] = useState<string>(initialCat);
   const [items, setItems] = useState<Product[]>([]);
@@ -44,7 +57,6 @@ export function ProductGrid({ initialCat = "all" }: { initialCat?: string }) {
   }, [user, isPending]);
 
   async function reload() {
-    setLoading(true);
     const [p, c] = await Promise.all([listProducts(), listCategories()]);
     setItems(p);
     setCats(c);
@@ -53,6 +65,21 @@ export function ProductGrid({ initialCat = "all" }: { initialCat?: string }) {
 
   useEffect(() => {
     void reload();
+    const unsubscribe = onShopChange(() => {
+      void reload().catch(() => {});
+    });
+    const timer = setInterval(
+      () =>
+        void Promise.all([listProducts(), listCategories()]).then(([p, c]) => {
+          setItems(p);
+          setCats(c);
+        }),
+      15000,
+    );
+    return () => {
+      clearInterval(timer);
+      unsubscribe();
+    };
   }, []);
 
   const list = useMemo(() => {
@@ -66,6 +93,7 @@ export function ProductGrid({ initialCat = "all" }: { initialCat?: string }) {
     return {
       visible,
       items: items.filter((p) => {
+        if (onlyProductId && p.id !== onlyProductId) return false;
         const categoryIsVisible = visible.some((c) => c.id === p.category);
         const inCategory = categoryIsVisible && (cat === "all" || p.category === cat);
         if (!inCategory) return false;
@@ -74,13 +102,15 @@ export function ProductGrid({ initialCat = "all" }: { initialCat?: string }) {
         return haystack.includes(q);
       }),
     };
-  }, [cat, flags, items, cats, search]);
+  }, [cat, flags, items, cats, search, onlyProductId]);
 
   return (
     <div className="min-w-0">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex-1">
-          <label className="block text-xs font-medium uppercase tracking-[0.14em] text-subtle">ค้นหาสินค้า</label>
+          <label className="block text-xs font-medium uppercase tracking-[0.14em] text-subtle">
+            ค้นหาสินค้า
+          </label>
           <div className="mt-1 rounded-full border border-border bg-surface px-3 shadow-border">
             <Input
               value={search}
@@ -90,9 +120,7 @@ export function ProductGrid({ initialCat = "all" }: { initialCat?: string }) {
             />
           </div>
         </div>
-        <div className="text-xs text-muted">
-          {list.items.length} รายการ
-        </div>
+        <div className="text-xs text-muted">{list.items.length} รายการ</div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <div className="max-w-full flex-1 overflow-x-auto pb-2">
@@ -102,14 +130,26 @@ export function ProductGrid({ initialCat = "all" }: { initialCat?: string }) {
             </CatChip>
             {list.visible.map((c) => (
               <CatChip key={c.id} active={cat === c.id} onClick={() => setCat(c.id)}>
-                {c.label}
+                <span style={{ color: c.color }}>
+                  {c.image ? (
+                    <img src={c.image} alt="" className="inline size-5 rounded object-cover mr-1" />
+                  ) : c.icon ? (
+                    <span className="mr-1">{c.icon}</span>
+                  ) : null}
+                  {c.label}
+                </span>
               </CatChip>
             ))}
           </div>
         </div>
         {isAdmin ? (
           <div className="flex shrink-0 flex-wrap gap-2">
-            <Button size="sm" variant="secondary" className="rounded-full" onClick={() => setEditingCats(true)}>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="rounded-full"
+              onClick={() => setEditingCats(true)}
+            >
               แก้หมวด
             </Button>
             <Button size="sm" className="rounded-full" onClick={() => setCreating(true)}>
@@ -208,10 +248,14 @@ function ProductCard({
   onBought: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const { user } = useCurrentUserState();
 
   return (
     <>
-      <article className="relative flex flex-col overflow-hidden rounded-3xl bg-surface shadow-border">
+      <article
+        style={{ borderColor: product.cardColor }}
+        className="relative flex flex-col overflow-hidden rounded-3xl border bg-surface shadow-border"
+      >
         {canEdit ? (
           <button
             type="button"
@@ -222,8 +266,17 @@ function ProductCard({
             <Pencil className="size-4" />
           </button>
         ) : null}
+        {product.badge ? (
+          <span className="absolute top-3 left-3 z-10 rounded-full bg-surface px-3 py-1 text-xs">
+            {product.badge}
+          </span>
+        ) : null}
         <div className="relative overflow-hidden">
-          <img src={product.image} alt="" className="h-44 w-full object-cover transition-transform duration-300 hover:scale-105" />
+          <img
+            src={product.image}
+            alt=""
+            className="h-44 w-full object-cover transition-transform duration-300 hover:scale-105"
+          />
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
             {product.flash ? (
               <Badge tone="amber" className="gap-1 font-semibold shadow-xs">
@@ -242,15 +295,20 @@ function ProductCard({
           <p className="mt-1 text-sm text-muted line-clamp-1">{product.subtitle}</p>
           <div className="mt-4 flex items-end justify-between border-t border-border/40 pt-3">
             <div>
-              <p className="tabular text-xl font-bold tracking-tight text-fg">{formatBaht(product.price)}</p>
+              <p className="tabular text-xl font-bold tracking-tight text-fg">
+                {formatBaht(product.price)}
+              </p>
               {product.compareAt ? (
-                <p className="tabular text-xs text-subtle line-through">{formatBaht(product.compareAt)}</p>
+                <p className="tabular text-xs text-subtle line-through">
+                  {formatBaht(product.compareAt)}
+                </p>
               ) : null}
             </div>
             <div>
               {product.stock > 5 ? (
                 <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600">
-                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> มีของ ({product.stock})
+                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> มีของ (
+                  {product.stock})
                 </span>
               ) : product.stock > 0 ? (
                 <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600">
@@ -276,7 +334,13 @@ function ProductCard({
           </Button>
         </div>
       </article>
-      <BuyDialog product={product} open={open} onOpenChange={setOpen} onBought={onBought} />
+      <BuyDialog
+        key={user?.id ?? "signed-out"}
+        product={product}
+        open={open}
+        onOpenChange={setOpen}
+        onBought={onBought}
+      />
     </>
   );
 }
@@ -294,41 +358,74 @@ function BuyDialog({
 }) {
   const loggedIn = useShop((s) => s.loggedIn);
   const balance = useShop((s) => s.balance);
-  const buy = useShop((s) => s.buy);
+  const [requestKey, setRequestKey] = useState<string | null>(null);
   const [uid, setUid] = useState("");
+  const [coupon, setCoupon] = useState("");
+  const [delivered, setDelivered] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    if (open) {
+      setRequestKey(null);
+      setResult(null);
+      setDelivered(false);
+      setUid("");
+    }
+  }, [open, product.id]);
+
   async function purchase() {
-    if (balance < product.price) {
+    if (!coupon.trim() && balance < product.price) {
       toast.error("ยอดเงินไม่พอ เติมเงินก่อนได้ที่เมนูเติมเงิน");
       return;
     }
     setBusy(true);
-    const stock = await checkoutProduct({ data: { id: product.id } });
-    if (!stock.ok) {
-      setBusy(false);
-      toast.error(stock.message);
+    const key = requestKey ?? crypto.randomUUID();
+    setRequestKey(key);
+    try {
+      const res = await checkoutProduct({
+        data: {
+          id: product.id,
+          idempotencyKey: key,
+          coupon: coupon || undefined,
+          customerInput: uid,
+        },
+      });
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+      useShop.setState({ balance: res.balance });
+      setResult(`${res.message}\nหมายเลขคำสั่งซื้อ: ${res.orderId}`);
+      if (res.status === "completed") {
+        const delivery = await getMyDelivery({ data: { orderId: res.orderId } });
+        if (delivery.ok) {
+          setResult(delivery.payload);
+          setDelivered(true);
+        } else
+          setResult(
+            `คำสั่งซื้อสำเร็จแล้ว โปรดเปิดสินค้าจากประวัติการซื้อ\nหมายเลขคำสั่งซื้อ: ${res.orderId}`,
+          );
+      }
+      toast.success(res.message);
       onBought();
-      return;
+    } catch {
+      toast.error("ตรวจสอบคำสั่งซื้อไม่สำเร็จ กรุณาลองอีกครั้ง");
+    } finally {
+      setBusy(false);
     }
-    const extra = product.delivery === "topup" && uid ? `UID: ${uid}` : undefined;
-    const res = buy({ ...product, price: stock.product.price }, extra, true);
-    setBusy(false);
-    if (!res.ok) {
-      toast.error(res.message);
-      return;
-    }
-    setResult(res.order?.payload ?? res.message);
-    toast.success(res.message);
-    onBought();
   }
 
   const remaining = balance - product.price;
-  const canAfford = remaining >= 0;
+  const canAfford = remaining >= 0 || Boolean(coupon.trim());
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(value) => {
+        if (!busy) onOpenChange(value);
+      }}
+    >
       <DialogContent title={product.name}>
         {result ? (
           <div className="space-y-4">
@@ -337,14 +434,14 @@ function BuyDialog({
                 <CheckCircle2 className="size-6" />
               </div>
               <p className="mt-2 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-                จัดส่งสินค้าดิจิทัลเรียบร้อยแล้ว
+                {delivered ? "จัดส่งสินค้าสำเร็จแล้ว" : "รับคำสั่งซื้อแล้ว · รอจัดส่ง"}
               </p>
               <p className="text-xs text-subtle mt-0.5">บันทึกลงในประวัติการสั่งซื้อของคุณแล้ว</p>
             </div>
             <div>
-              <Label className="text-xs text-subtle mb-1 block">ข้อมูลบัญชี / รหัสที่ได้รับ:</Label>
-              <div className="rounded-xl border border-border/60 bg-surface-2 p-3 font-mono text-xs select-all break-all flex items-start justify-between gap-2">
-                <span>{result}</span>
+              <Label className="text-xs text-subtle mb-1 block">รายละเอียดคำสั่งซื้อ:</Label>
+              <div className="rounded-xl border border-border/60 bg-surface-2 p-3 text-xs select-all break-all flex items-start justify-between gap-2">
+                <span className="whitespace-pre-wrap">{result}</span>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -358,6 +455,11 @@ function BuyDialog({
                 </Button>
               </div>
             </div>
+            {/^\/api\/files\/[a-f\d-]{36}$/i.test(result) ? (
+              <Button asChild>
+                <a href={result}>ดาวน์โหลดไฟล์สินค้า</a>
+              </Button>
+            ) : null}
             <Button className="w-full rounded-full" onClick={() => onOpenChange(false)}>
               ปิดหน้าต่าง
             </Button>
@@ -365,12 +467,37 @@ function BuyDialog({
         ) : (
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <img src={product.image} alt="" className="size-16 rounded-xl object-cover shrink-0 border border-border/40" />
+              <img
+                src={product.image}
+                alt=""
+                className="size-16 rounded-xl object-cover shrink-0 border border-border/40"
+              />
               <div>
                 <p className="font-semibold text-base">{product.name}</p>
                 <p className="text-xs text-muted line-clamp-1">{product.subtitle}</p>
-                <p className="mt-1 tabular text-lg font-bold text-fg">{formatBaht(product.price)}</p>
+                <p className="mt-1 tabular text-lg font-bold text-fg">
+                  {formatBaht(product.price)}
+                </p>
               </div>
+            </div>
+
+            <p className="text-xs text-muted">
+              {product.stockMode === "individual"
+                ? "เมื่อชำระสำเร็จ ระบบจะส่งสินค้าจากสต็อกให้ทันที และเปิดดูซ้ำได้ในประวัติการซื้อ"
+                : "สินค้านี้รอแอดมินจัดส่งหลังชำระเงิน ตรวจสอบสถานะได้ในประวัติการซื้อ"}
+            </p>
+
+            <div className="space-y-1">
+              <Label htmlFor="coupon">โค้ดส่วนลด (ถ้ามี)</Label>
+              <Input
+                id="coupon"
+                value={coupon}
+                onChange={(e) => setCoupon(e.target.value)}
+                maxLength={40}
+              />
+              <p className="text-xs text-muted">
+                ส่วนลดจะตรวจและคำนวณจากเซิร์ฟเวอร์เมื่อยืนยันซื้อ
+              </p>
             </div>
 
             {/* Financial summary breakdown */}
@@ -403,7 +530,12 @@ function BuyDialog({
             {product.delivery === "topup" ? (
               <div className="space-y-1.5">
                 <Label htmlFor="uid">UID / เซิร์ฟเวอร์ผู้รับ</Label>
-                <Input id="uid" value={uid} onChange={(e) => setUid(e.target.value)} placeholder="เช่น 123456789" />
+                <Input
+                  id="uid"
+                  value={uid}
+                  onChange={(e) => setUid(e.target.value)}
+                  placeholder="เช่น 123456789"
+                />
               </div>
             ) : null}
 
@@ -413,7 +545,11 @@ function BuyDialog({
                 onClick={() => void purchase()}
                 disabled={product.stock <= 0 || busy || !canAfford}
               >
-                {busy ? "กำลังตัดสต๊อก…" : canAfford ? "ยืนยันการสั่งซื้อ" : "เครดิตไม่เพียงพอ (ไปเติมเงิน)"}
+                {busy
+                  ? "กำลังตัดสต๊อก…"
+                  : canAfford
+                    ? "ยืนยันการสั่งซื้อ"
+                    : "เครดิตไม่เพียงพอ (ไปเติมเงิน)"}
               </Button>
             ) : (
               <LoginDialog>

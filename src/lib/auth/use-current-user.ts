@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { authClient, authEnabled } from "./client";
 
 /** Normalized user shape used across the app, auth on or off. */
@@ -55,22 +56,24 @@ export type CurrentUserState = {
  * call keeps a stable hook order across every render of a given component.
  */
 export function useCurrentUserState(): CurrentUserState {
-  if (!authEnabled) return { user: DEV_USER, isPending: false };
-  // eslint-disable-next-line react-hooks/rules-of-hooks -- authEnabled is constant for the app's lifetime
-  const { data, isPending } = authClient.useSession();
-  const user = data?.user;
-  return {
-    user: user
-      ? {
-          id: user.id,
-          displayName: user.name ?? null,
-          primaryEmail: user.email ?? null,
-          profileImageUrl: user.image ?? null,
-          isDevFallback: false,
-        }
-      : null,
-    isPending,
-  };
+  const session = authEnabled ? authClient.useSession() : { data: null, isPending: false };
+  const rawUser = session.data?.user;
+  const user = useMemo(
+    () =>
+      rawUser
+        ? {
+            id: rawUser.id,
+            displayName: rawUser.name ?? null,
+            primaryEmail: rawUser.email ?? null,
+            profileImageUrl: rawUser.image ?? null,
+            isDevFallback: false,
+          }
+        : null,
+    [rawUser],
+  );
+  return authEnabled
+    ? { user, isPending: session.isPending }
+    : { user: DEV_USER, isPending: false };
 }
 
 /**

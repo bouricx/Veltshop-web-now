@@ -37,8 +37,7 @@ export function buildPromptPayPayload(account: string, amount?: number): string 
     throw new Error("หมายเลขพร้อมเพย์ไม่ถูกต้อง");
   }
   const merchantInfo = tlv("00", "A000000677010111") + tlv("01", target);
-  const amountStr =
-    amount != null && amount > 0 ? Number(amount).toFixed(2) : "";
+  const amountStr = amount != null && amount > 0 ? Number(amount).toFixed(2) : "";
   let payload =
     tlv("00", "01") +
     tlv("01", amountStr ? "12" : "11") +

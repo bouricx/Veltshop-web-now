@@ -1,8 +1,9 @@
+import { useSiteConfiguration } from "@/lib/shop/site-state";
 import { Link } from "@tanstack/react-router";
 import { BrandMark } from "@/components/brand-mark";
-import { shopMeta } from "@/lib/shop/meta";
 
 export function SiteFooter() {
+  const { value: site } = useSiteConfiguration();
   return (
     <footer className="border-t border-border">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-12 sm:px-6 lg:flex-row lg:justify-between">
@@ -40,7 +41,7 @@ export function SiteFooter() {
           <div className="space-y-2">
             <p className="font-medium text-fg">ติดต่อ</p>
             <a
-              href={shopMeta.discordInvite}
+              href={site.discord}
               target="_blank"
               rel="noreferrer"
               className="block text-muted hover:text-fg"
@@ -48,14 +49,14 @@ export function SiteFooter() {
               Discord
             </a>
             <a
-              href={shopMeta.facebookUrl}
+              href={site.facebook}
               target="_blank"
               rel="noreferrer"
               className="block text-muted hover:text-fg"
             >
               Facebook
             </a>
-            <p className="text-muted">LINE {shopMeta.lineId}</p>
+
             <p className="text-muted">ทุกวัน 09:00–24:00</p>
           </div>
         </div>

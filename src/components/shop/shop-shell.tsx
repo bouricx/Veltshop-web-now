@@ -1,3 +1,6 @@
+import { onShopChange } from "@/lib/shop/realtime-client";
+import { useSiteConfiguration } from "@/lib/shop/site-state";
+import { StoreContent } from "./store-content";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import {
   Bell,
@@ -19,6 +22,7 @@ import {
 import { useEffect, useState, type ReactNode } from "react";
 import { signOut } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
+import { getMyWallet } from "@/lib/shop/actions";
 import { getAdminStatus } from "@/lib/shop/admin-gate";
 import { Button } from "@/components/ui/button";
 import { categories, type CategoryId } from "@/lib/shop/catalog";
@@ -37,6 +41,7 @@ const catIcon: Record<CategoryId, typeof MonitorPlay> = {
 };
 
 export function ShopShell() {
+  const { value: site } = useSiteConfiguration();
   const loggedIn = useShop((s) => s.loggedIn);
   const name = useShop((s) => s.displayName);
   const balance = useShop((s) => s.balance);
@@ -54,6 +59,23 @@ export function ShopShell() {
     if (isPending) return;
     if (user && !user.isDevFallback) {
       login(user.displayName || user.primaryEmail || "สมาชิก");
+      let active = true;
+      const refresh = () =>
+        void getMyWallet()
+          .then((wallet) => {
+            if (active) useShop.setState({ balance: wallet.balance });
+          })
+          .catch(() => {
+            if (active) useShop.setState({ balance: 0 });
+          });
+      refresh();
+      const unsubscribe = onShopChange(refresh);
+      const timer = setInterval(refresh, 15000);
+      return () => {
+        active = false;
+        clearInterval(timer);
+        unsubscribe();
+      };
     } else if (!user || user.isDevFallback) {
       logout();
     }
@@ -71,9 +93,24 @@ export function ShopShell() {
 
   return (
     <div data-shop className="min-h-dvh bg-bg text-fg">
-      <ShopHeader loggedIn={loggedIn} name={name} balance={balance} onLogout={() => void handleLogout()} />
+      <ShopHeader
+        loggedIn={loggedIn}
+        name={name}
+        balance={balance}
+        onLogout={() => void handleLogout()}
+      />
       <main className="mx-auto w-full min-w-0 max-w-6xl px-4 pt-5 pb-36 sm:px-6">
-        <Outlet />
+        {site.maintenance ? (
+          <section className="rounded-xl bg-surface p-8 text-center">
+            <h1 className="text-xl font-semibold">กำลังปรับปรุงร้าน</h1>
+            <p className="mt-2">กรุณาลองใหม่ภายหลัง ทีมงานยังดูแลผ่าน Discord และ Facebook</p>
+          </section>
+        ) : (
+          <>
+            <StoreContent />
+            <Outlet />
+          </>
+        )}
       </main>
       <ShopFooter />
       <BottomDock />
@@ -173,14 +210,13 @@ function ProfileMenu({ name, onLogout }: { name: string; onLogout: () => void })
       >
         <UserRound className="size-4" />
         <span className="hidden max-w-24 truncate sm:inline">{name}</span>
-        <ChevronDown className={cn("size-3.5 text-muted transition-transform", open && "rotate-180")} />
+        <ChevronDown
+          className={cn("size-3.5 text-muted transition-transform", open && "rotate-180")}
+        />
       </button>
       {open ? (
         <div className="absolute top-full right-0 z-50 pt-2">
-          <div
-            role="menu"
-            className="min-w-52 rounded-2xl bg-surface p-2 shadow-border"
-          >
+          <div role="menu" className="min-w-52 rounded-2xl bg-surface p-2 shadow-border">
             <p className="truncate px-3 py-1.5 text-xs text-muted">{name}</p>
             <Link
               to="/shop/profile"
@@ -239,13 +275,7 @@ function ProfileMenu({ name, onLogout }: { name: string; onLogout: () => void })
   );
 }
 
-function NavPill({
-  to,
-  children,
-}: {
-  to: "/shop";
-  children: ReactNode;
-}) {
+function NavPill({ to, children }: { to: "/shop"; children: ReactNode }) {
   return (
     <Link
       to={to}
@@ -290,7 +320,11 @@ function ToolsMenu() {
       label="เครื่องมือ"
       icon={<Wrench className="size-3.5" />}
       items={[
-        { to: "/shop/claims" as const, label: "เคลมสินค้า", icon: <Bell className="size-4 text-accent" /> },
+        {
+          to: "/shop/claims" as const,
+          label: "เคลมสินค้า",
+          icon: <Bell className="size-4 text-accent" />,
+        },
       ]}
     />
   );
@@ -377,6 +411,7 @@ function LiveClock() {
 }
 
 function ShopFooter() {
+  const { value: site } = useSiteConfiguration();
   return (
     <footer className="mx-auto w-full max-w-6xl px-4 pb-36 sm:px-6">
       <div className="grid gap-4 lg:grid-cols-3">
@@ -386,11 +421,13 @@ function ShopFooter() {
             เกี่ยวกับเรา
           </p>
           <h2 className="mt-3 text-base font-semibold">
-            {shopMeta.name} — {shopMeta.tagline}
+            {site.name} — {site.description}
           </h2>
           <div className="mt-4 flex flex-wrap gap-2">
             <span className="rounded-full bg-soft px-3 py-1 text-xs text-accent">ระบบปลอดภัย</span>
-            <span className="rounded-full bg-soft px-3 py-1 text-xs text-accent">บริการรวดเร็ว</span>
+            <span className="rounded-full bg-soft px-3 py-1 text-xs text-accent">
+              บริการรวดเร็ว
+            </span>
           </div>
         </article>
         <article className="rounded-3xl bg-surface p-5 shadow-border">
@@ -402,7 +439,7 @@ function ShopFooter() {
             <li>
               Discord:{" "}
               <a
-                href={shopMeta.discordInvite}
+                href={site.discord}
                 target="_blank"
                 rel="noreferrer"
                 className="text-fg underline-offset-2 hover:underline"
@@ -413,7 +450,7 @@ function ShopFooter() {
             <li>
               Facebook:{" "}
               <a
-                href={shopMeta.facebookUrl}
+                href={site.facebook}
                 target="_blank"
                 rel="noreferrer"
                 className="text-fg underline-offset-2 hover:underline"
@@ -421,8 +458,6 @@ function ShopFooter() {
                 {shopMeta.facebook}
               </a>
             </li>
-            <li>Line ID: {shopMeta.lineId}</li>
-            <li>Email: {shopMeta.email}</li>
           </ul>
         </article>
         <article className="rounded-3xl bg-surface p-5 shadow-border">
@@ -438,7 +473,7 @@ function ShopFooter() {
         </article>
       </div>
       <p className="mt-6 text-center text-xs text-subtle">
-        © {new Date().getFullYear()} {shopMeta.name}. สงวนลิขสิทธิ์.
+        © {new Date().getFullYear()} {site.name}. สงวนลิขสิทธิ์.
       </p>
     </footer>
   );
@@ -508,7 +543,7 @@ export function EmptyGate({ children }: { children: ReactNode }) {
   return (
     <div className="rounded-3xl bg-surface px-6 py-12 text-center shadow-border">
       <p className="font-medium">เข้าสู่ระบบเพื่อใช้งานส่วนนี้</p>
-      <p className="mt-2 text-sm text-muted">รับเครดิตทดลอง ฿500 สำหรับซื้อและเติมเงิน</p>
+      <p className="mt-2 text-sm text-muted">ดูเครดิตและประวัติรายการของคุณ</p>
       <Button asChild className="mt-5 rounded-full">
         <Link to="/login">เข้าสู่ระบบ</Link>
       </Button>

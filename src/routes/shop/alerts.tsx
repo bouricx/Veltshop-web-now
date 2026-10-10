@@ -1,38 +1,58 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Bell } from "lucide-react";
-import { shopMeta } from "@/lib/shop/meta";
-
+import { useEffect, useState } from "react";
+import { myAccountData } from "@/lib/shop/operations";
+import { EmptyGate } from "@/components/shop/shop-shell";
+import { useCurrentUserState } from "@/lib/auth/use-current-user";
 export const Route = createFileRoute("/shop/alerts")({ component: AlertsPage });
-
 function AlertsPage() {
+  const { user } = useCurrentUserState();
   return (
-    <div className="mx-auto max-w-lg rounded-3xl bg-surface px-6 py-12 text-center shadow-border">
-      <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-soft text-accent">
-        <Bell className="size-5" />
-      </span>
-      <h1 className="mt-4 text-xl font-semibold">ยังไม่มีแจ้งเตือน</h1>
-      <p className="mt-2 text-sm text-muted">
-        ออเดอร์ เติมเงิน และข้อความจากแอดมินจะขึ้นที่นี่ ติดต่อร้านได้ด้านล่าง
-      </p>
-      <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-sm">
-        <a
-          href={shopMeta.discordInvite}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex min-h-10 items-center rounded-full bg-accent px-4 font-medium text-accent-fg"
-        >
-          Discord
-        </a>
-        <a
-          href={shopMeta.facebookUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex min-h-10 items-center rounded-full bg-surface px-4 font-medium text-fg shadow-border"
-        >
-          Facebook
-        </a>
-      </div>
-      <p className="mt-3 text-xs text-subtle">LINE {shopMeta.lineId}</p>
+    <section className="mx-auto max-w-2xl">
+      <h1 className="text-2xl font-semibold">แจ้งเตือน</h1>
+      <EmptyGate>
+        <Notifications key={user?.id ?? "out"} />
+      </EmptyGate>
+    </section>
+  );
+}
+function Notifications() {
+  const [items, setItems] = useState<Awaited<ReturnType<typeof myAccountData>>["notifications"]>(
+      [],
+    ),
+    [error, setError] = useState("");
+  useEffect(() => {
+    let active = true;
+    const load = () =>
+      void myAccountData()
+        .then((d) => {
+          if (active) setItems(d.notifications);
+        })
+        .catch(() => {
+          if (active) setError("โหลดแจ้งเตือนไม่สำเร็จ");
+        });
+    load();
+    const timer = setInterval(load, 15000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, []);
+  return (
+    <div className="mt-5 space-y-3">
+      {error ? <p>{error}</p> : null}
+      {items.length === 0 ? (
+        <p className="text-sm text-muted">ยังไม่มีแจ้งเตือน</p>
+      ) : (
+        items.map((n) => (
+          <article key={n.id} className="rounded-xl border p-4">
+            <h2 className="font-medium">{n.title}</h2>
+            <p className="mt-2 text-sm">{n.body}</p>
+            <p className="mt-2 text-xs text-muted">
+              {new Date(n.created_at).toLocaleString("th-TH")}
+            </p>
+          </article>
+        ))
+      )}
     </div>
   );
 }

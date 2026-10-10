@@ -20,7 +20,10 @@ test("actions.ts never reads client slipVerified / verifiedAmount", () => {
   assert.equal(/data\.slipVerified/.test(src), false, "must not read data.slipVerified");
   assert.equal(/data\.verifiedAmount/.test(src), false, "must not read data.verifiedAmount");
   assert.match(src, /export const topupWithSlip/);
-  assert.match(src, /verifySlipWithSharedApi/);
+  assert.match(src, /paymentProviders\.promptpay\.verify/);
+  const providers = readFileSync(join(here, "payment-providers.server.ts"), "utf8");
+  assert.match(providers, /return verifySlip2Go\(input\.file/);
+  assert.match(providers, /promptpay:.*verify: slipVerify/);
   // Public processPayment validator must not list those fields
   const validatorBlock = src.slice(
     src.indexOf("export const processPayment"),
@@ -33,8 +36,8 @@ test("actions.ts never reads client slipVerified / verifiedAmount", () => {
 test("True Wallet slips are stored for manual review and cannot reach auto-credit", () => {
   const src = readFileSync(join(here, "actions.ts"), "utf8");
   const walletStart = src.indexOf('if (method === "truewallet")');
-  const firstId = src.indexOf("const id = uid(\"pay\")", walletStart);
-  const walletEnd = src.indexOf("const id = uid(\"pay\")", firstId + 1);
+  const firstId = src.indexOf('const id = uid("pay")', walletStart);
+  const walletEnd = src.indexOf('const id = uid("pay")', firstId + 1);
   assert.ok(walletStart >= 0 && walletEnd > walletStart);
   const walletBranch = src.slice(walletStart, walletEnd);
   assert.match(walletBranch, /status,?\s*provider/);
@@ -47,7 +50,7 @@ test("True Wallet slips are stored for manual review and cannot reach auto-credi
 test("PromptPay credit requires verified destination and exact amount", () => {
   const src = readFileSync(join(here, "actions.ts"), "utf8");
   assert.match(src, /!verify\.promptpayMatched/);
-  assert.match(src, /Math\.round\(verify\.amountFound\) === amount/);
+  assert.match(src, /verify\.amountFound === amount/);
 });
 
 test("admin cannot change the QR destination without changing the fixed verifier target", () => {

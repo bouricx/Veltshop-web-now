@@ -1,13 +1,10 @@
+import { ImageEditor } from "./image-editor";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input, Label } from "@/components/ui/input";
-import {
-  listAllCategories,
-  saveCategory,
-  type CategoryRow,
-} from "@/lib/shop/actions";
+import { listAllCategories, saveCategory, type CategoryRow } from "@/lib/shop/actions";
 
 export function CategoryEditor({
   open,
@@ -45,6 +42,9 @@ export function CategoryEditor({
           hint: row.hint,
           sort_order: Number(row.sort_order) || 0,
           visible: Boolean(row.visible),
+          image: row.image ?? "",
+          icon: row.icon ?? "",
+          color: row.color ?? "#18181b",
         },
       });
       if (!res.ok) {
@@ -71,6 +71,9 @@ export function CategoryEditor({
             hint: row.hint,
             sort_order: Number(row.sort_order) || 0,
             visible: Boolean(row.visible),
+            image: row.image ?? "",
+            icon: row.icon ?? "",
+            color: row.color ?? "#18181b",
           },
         });
         if (!res.ok) {
@@ -133,6 +136,25 @@ export function CategoryEditor({
                       onChange={(e) => patch(row.id, { hint: e.target.value })}
                     />
                   </div>
+                  <ImageEditor
+                    kind="category"
+                    value={row.image}
+                    onSaved={(image) => patch(row.id, { image })}
+                  />
+                  <Label htmlFor={`icon-${row.id}`}>ไอคอน / อีโมจิ</Label>
+                  <Input
+                    id={`icon-${row.id}`}
+                    maxLength={20}
+                    value={row.icon ?? ""}
+                    onChange={(e) => patch(row.id, { icon: e.target.value })}
+                  />
+                  <Label htmlFor={`color-${row.id}`}>สีหมวด</Label>
+                  <Input
+                    id={`color-${row.id}`}
+                    type="color"
+                    value={row.color ?? "#18181b"}
+                    onChange={(e) => patch(row.id, { color: e.target.value })}
+                  />
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="space-y-1">
                       <Label htmlFor={`sort-${row.id}`}>ลำดับ</Label>
@@ -141,9 +163,7 @@ export function CategoryEditor({
                         className="w-24"
                         type="number"
                         value={row.sort_order}
-                        onChange={(e) =>
-                          patch(row.id, { sort_order: Number(e.target.value) || 0 })
-                        }
+                        onChange={(e) => patch(row.id, { sort_order: Number(e.target.value) || 0 })}
                       />
                     </div>
                     <label className="mt-5 inline-flex items-center gap-2 text-sm">
@@ -171,10 +191,20 @@ export function CategoryEditor({
           </div>
         )}
         <div className="mt-5 flex flex-wrap gap-2">
-          <Button type="button" variant="secondary" className="rounded-full" disabled={busy || loading} onClick={addCategory}>
+          <Button
+            type="button"
+            variant="secondary"
+            className="rounded-full"
+            disabled={busy || loading}
+            onClick={addCategory}
+          >
             + เพิ่มหมวด
           </Button>
-          <Button className="rounded-full" disabled={busy || loading} onClick={() => void saveAll()}>
+          <Button
+            className="rounded-full"
+            disabled={busy || loading}
+            onClick={() => void saveAll()}
+          >
             บันทึกทั้งหมด
           </Button>
           <Button

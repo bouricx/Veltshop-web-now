@@ -12,9 +12,11 @@ import {
 } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { LiveFeed } from "@/components/shop/live-feed";
-import { useShop } from "@/lib/shop/store";
+import { useEffect, useState } from "react";
+import { storefrontSummary } from "@/lib/shop/storefront";
+import { useSiteConfiguration } from "@/lib/shop/site-state";
 import { shopMeta } from "@/lib/shop/meta";
-import { cn, formatBaht } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/shop/")({ component: ShopHome });
 
@@ -26,7 +28,13 @@ const tiles: {
   tint: string;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
 }[] = [
-  { label: "เติมเงิน", hint: "TOP UP", to: "/shop/topup", tint: "bg-cat-wallet/12 text-cat-wallet", icon: Wallet },
+  {
+    label: "เติมเงิน",
+    hint: "TOP UP",
+    to: "/shop/topup",
+    tint: "bg-cat-wallet/12 text-cat-wallet",
+    icon: Wallet,
+  },
   {
     label: "แอพพรีเมียม",
     hint: "PREMIUM",
@@ -69,6 +77,7 @@ const tiles: {
 ];
 
 function ShopHome() {
+  const config = useSiteConfiguration((s) => s.value);
   return (
     <div className="space-y-5">
       <section className="rounded-3xl bg-surface p-5 shadow-border sm:p-6">
@@ -78,7 +87,7 @@ function ShopHome() {
             <p className="text-xs tracking-[0.14em] text-muted uppercase">Recommend menu</p>
           </div>
           <a
-            href={shopMeta.discordInvite}
+            href={config.discord || shopMeta.discordInvite}
             target="_blank"
             rel="noreferrer"
             className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-accent px-3 text-xs font-medium text-accent-fg"
@@ -118,47 +127,50 @@ function ShopHome() {
 }
 
 function ShopStats() {
-  const stock = useShop((s) => s.stock);
-  const orders = useShop((s) => s.orders);
-  const stockSum = Object.values(stock).reduce((a, b) => a + b, 0);
-  const ready = Object.values(stock).filter((n) => n > 0).length;
-  const topups = 92484 + orders.filter((o) => o.kind === "topup").length;
-
+  const [stats, setStats] = useState<Awaited<ReturnType<typeof storefrontSummary>>["stats"] | null>(
+    null,
+  );
+  useEffect(() => {
+    let active = true;
+    const load = () =>
+      void storefrontSummary()
+        .then((value) => {
+          if (active) setStats(value.stats);
+        })
+        .catch(() => {});
+    load();
+    const timer = setInterval(load, 15000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, []);
   const cards = [
     {
       label: "สมาชิกทั้งหมด",
-      value: 24064,
-      delta: "เติบโตต่อเนื่อง",
-      color: "text-cat-wallet bg-cat-wallet/12",
-      points: [12, 18, 14, 22, 28, 21, 34],
+      value: stats?.members,
       icon: Users,
+      color: "text-cat-wallet bg-cat-wallet/12",
     },
     {
       label: "สต๊อกรวมระบบ",
-      value: 120201 + stockSum,
-      delta: "+247 วันนี้",
-      color: "text-cat-stock bg-cat-stock/12",
-      points: [8, 12, 20, 18, 26, 24, 30],
+      value: stats?.stock,
       icon: Package,
+      color: "text-cat-stock bg-cat-stock/12",
     },
     {
-      label: "รายการเติมเงิน",
-      value: topups,
-      delta: "+189 วันนี้",
-      color: "text-ok bg-ok/12",
-      points: [20, 16, 18, 14, 12, 10, 8],
+      label: "รายการเติมเงินสำเร็จ",
+      value: stats?.topups,
       icon: Wallet,
+      color: "text-ok bg-ok/12",
     },
     {
       label: "สินค้าพร้อมส่ง",
-      value: 274 + ready,
-      delta: "สต๊อกพร้อมส่ง",
-      color: "text-cat-ready bg-cat-ready/12",
-      points: [10, 14, 12, 16, 18, 17, 22],
+      value: stats?.ready,
       icon: Store,
+      color: "text-cat-ready bg-cat-ready/12",
     },
   ];
-
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
       {cards.map((card) => (
@@ -170,43 +182,16 @@ function ShopStats() {
             <div className="min-w-0">
               <p className="text-xs text-muted">{card.label}</p>
               <p className="tabular mt-1 text-2xl font-semibold tracking-tight">
-                {card.value.toLocaleString("th-TH")}
+                {card.value?.toLocaleString("th-TH") ?? "—"}
               </p>
-              <p className="mt-1 text-xs text-ok">{card.delta}</p>
+              <p className="mt-1 text-xs text-ok">อัปเดตจากรายการจริง</p>
             </div>
             <span className={cn("grid size-9 place-items-center rounded-xl", card.color)}>
               <card.icon className="size-4" />
             </span>
           </div>
-          <Spark points={card.points} className={card.color.split(" ")[0]} />
         </article>
       ))}
     </div>
-  );
-}
-
-function Spark({ points, className }: { points: number[]; className: string }) {
-  const max = Math.max(...points);
-  const min = Math.min(...points);
-  const coords = points.map((p, i) => {
-    const x = (i / (points.length - 1)) * 100;
-    const y = 26 - ((p - min) / (max - min || 1)) * 20;
-    return `${x},${y}`;
-  });
-  const line = coords.join(" ");
-  const fill = `0,32 ${line} 100,32`;
-
-  return (
-    <svg viewBox="0 0 100 32" className={cn("mt-2 h-10 w-full", className)} aria-hidden>
-      <polyline points={fill} fill="currentColor" opacity="0.12" stroke="none" />
-      <polyline
-        points={line}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-    </svg>
   );
 }

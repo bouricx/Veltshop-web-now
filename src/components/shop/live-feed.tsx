@@ -1,52 +1,26 @@
+import { onShopChange } from "@/lib/shop/realtime-client";
 import { useEffect, useState } from "react";
-import { fakeBuyers, products } from "@/lib/shop/catalog";
-import { useShop } from "@/lib/shop/store";
+import { storefrontSummary } from "@/lib/shop/storefront";
 import { relativeTime } from "@/lib/utils";
-
-type FeedItem = { id: string; name: string; product: string; at: number };
-
-function mask(name: string) {
-  const clean = name.replace(/\s/g, "");
-  if (clean.length <= 2) return `${clean[0]}**`;
-  return `${clean.slice(0, 2)}***${clean.slice(-2)}`;
-}
-
-function seed(): FeedItem[] {
-  return Array.from({ length: 7 }, (_, i) => {
-    const product = products[i % products.length];
-    return {
-      id: `seed-${i}`,
-      name: fakeBuyers[i % fakeBuyers.length],
-      product: product.name,
-      at: Date.now() - (i + 1) * 38000,
-    };
-  });
-}
-
 export function LiveFeed() {
-  const orders = useShop((s) => s.orders);
-  const [fake, setFake] = useState<FeedItem[]>([]);
-
+  const [live, setLive] = useState<Awaited<ReturnType<typeof storefrontSummary>>["latest"]>([]);
   useEffect(() => {
-    setFake(seed());
-    const id = setInterval(() => {
-      const product = products[Math.floor(Math.random() * products.length)];
-      const name = fakeBuyers[Math.floor(Math.random() * fakeBuyers.length)];
-      setFake((prev) =>
-        [{ id: `${Date.now()}`, name, product: product.name, at: Date.now() }, ...prev].slice(0, 8),
-      );
-    }, 7000);
-    return () => clearInterval(id);
+    let active = true;
+    const load = () =>
+      void storefrontSummary()
+        .then((value) => {
+          if (active) setLive(value.latest);
+        })
+        .catch(() => {});
+    load();
+    const unsubscribe = onShopChange(load);
+    const timer = setInterval(load, 15000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+      unsubscribe();
+    };
   }, []);
-
-  const live = [
-    ...orders
-      .filter((o) => o.kind === "product")
-      .slice(0, 3)
-      .map((o) => ({ id: o.id, name: "คุณ", product: o.name, at: o.at })),
-    ...fake,
-  ].slice(0, 7);
-
   return (
     <aside className="rounded-3xl bg-surface p-5 shadow-border">
       <div className="mb-4 flex items-center justify-between">
@@ -59,6 +33,7 @@ export function LiveFeed() {
           Live
         </span>
       </div>
+      {!live.length ? <p className="py-6 text-sm text-muted">ยังไม่มีรายการซื้อสำเร็จ</p> : null}
       <ul className="divide-y divide-border">
         {live.map((item) => (
           <li key={item.id} className="flex items-center gap-3 py-3 first:pt-0">
@@ -67,9 +42,11 @@ export function LiveFeed() {
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{item.product}</p>
-              <p className="truncate text-xs text-muted">{mask(item.name)}</p>
+              <p className="truncate text-xs text-muted">ซื้อสำเร็จ</p>
             </div>
-            <p className="shrink-0 text-xs text-subtle">{relativeTime(item.at)}</p>
+            <p className="shrink-0 text-xs text-subtle">
+              {relativeTime(new Date(item.created_at).getTime())}
+            </p>
           </li>
         ))}
       </ul>

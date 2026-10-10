@@ -1,100 +1,118 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { EmptyGate } from "@/components/shop/shop-shell";
-import { Badge } from "@/components/ui/badge";
+import { useCurrentUserState } from "@/lib/auth/use-current-user";
+import { fileClaim, myAccountData } from "@/lib/shop/operations";
+import { listMyOrders } from "@/lib/shop/actions";
+import { Input, Label, Textarea, NativeSelect } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Input, Label, Textarea } from "@/components/ui/input";
-import { useShop } from "@/lib/shop/store";
-import { formatTime } from "@/lib/utils";
-
 export const Route = createFileRoute("/shop/claims")({ component: ClaimsPage });
-
 function ClaimsPage() {
+  const { user } = useCurrentUserState();
   return (
     <div className="mx-auto max-w-3xl">
-      <p className="text-xs font-medium tracking-[0.16em] text-muted uppercase">หลังการขาย</p>
-      <h1 className="mt-1 text-3xl font-semibold tracking-tight">แจ้งเคลมสินค้า</h1>
-      <p className="mt-2 text-sm text-muted">
-        เลือกออเดอร์ที่ต้องการให้แอดมินตรวจสอบ แล้วไปตอบกลับได้ที่หน้าแอดมินของเดโมนี้
-      </p>
-      <div className="mt-8">
-        <EmptyGate>
-          <ClaimsBody />
-        </EmptyGate>
-      </div>
+      <h1 className="text-3xl font-semibold">แจ้งปัญหา / ขอคืนเครดิต</h1>
+      <p className="mt-2 text-sm text-muted">เลือกออเดอร์ของคุณ ทีมงานจะตรวจสอบประกันและตอบกลับ</p>
+      <EmptyGate>
+        <ClaimsBody key={user?.id ?? "out"} />
+      </EmptyGate>
     </div>
   );
 }
-
 function ClaimsBody() {
-  const orders = useShop((s) => s.orders.filter((o) => o.kind === "product"));
-  const claims = useShop((s) => s.claims);
-  const fileClaim = useShop((s) => s.fileClaim);
-  const [orderId, setOrderId] = useState(orders[0]?.id ?? "");
-  const [title, setTitle] = useState("");
-  const [message, setMessage] = useState("");
-
+  const [orders, setOrders] = useState<Awaited<ReturnType<typeof listMyOrders>>>([]),
+    [claims, setClaims] = useState<Awaited<ReturnType<typeof myAccountData>>["claims"]>([]),
+    [orderId, setOrderId] = useState(""),
+    [title, setTitle] = useState(""),
+    [message, setMessage] = useState(""),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  const load = () => {
+    void listMyOrders()
+      .then(setOrders)
+      .catch(() => setError("โหลดออเดอร์ไม่สำเร็จ"));
+    void myAccountData()
+      .then((d) => setClaims(d.claims))
+      .catch(() => setError("โหลดเคลมไม่สำเร็จ"));
+  };
+  useEffect(() => {
+    load();
+    const timer = setInterval(load, 15000);
+    return () => clearInterval(timer);
+  }, []);
   return (
-    <div className="grid gap-8 lg:grid-cols-2">
+    <div className="mt-6 grid gap-6 md:grid-cols-2">
       <form
-        className="space-y-3 rounded-xl bg-surface p-5 shadow-border"
+        className="space-y-3 rounded-xl bg-surface p-5"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!orderId) {
-            toast.error("ยังไม่มีออเดอร์ให้เคลม");
-            return;
-          }
-          fileClaim(orderId, title, message);
-          toast.success("ส่งเคลมแล้ว");
-          setTitle("");
-          setMessage("");
+          setBusy(true);
+          void fileClaim({ data: { orderId, title, message } })
+            .then((r) => {
+              if (r.ok) {
+                toast.success("ส่งปัญหาแล้ว");
+                setTitle("");
+                setMessage("");
+                load();
+              } else toast.error(r.message);
+            })
+            .catch(() => toast.error("ส่งไม่สำเร็จ"))
+            .finally(() => setBusy(false));
         }}
       >
-        <div className="space-y-1.5">
-          <Label htmlFor="oid">ออเดอร์</Label>
-          <select
-            id="oid"
-            className="h-11 w-full rounded-md bg-bg px-3 text-sm shadow-border"
-            value={orderId}
-            onChange={(e) => setOrderId(e.target.value)}
-          >
-            {orders.length === 0 ? <option value="">ยังไม่มีออเดอร์</option> : null}
-            {orders.map((o) => (
+        <Label htmlFor="claim-order">ออเดอร์</Label>
+        <NativeSelect
+          id="claim-order"
+          value={orderId}
+          onChange={(e) => setOrderId(e.target.value)}
+          required
+        >
+          <option value="">เลือกออเดอร์</option>
+          {orders
+            .filter((o) => ["processing", "completed"].includes(o.status))
+            .map((o) => (
               <option key={o.id} value={o.id}>
-                {o.name}
+                {o.name} · {o.id.slice(0, 8)}
               </option>
             ))}
-          </select>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="ct">หัวข้อ</Label>
-          <Input id="ct" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="ไอดีเข้าไม่ได้" />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="cm">รายละเอียด</Label>
-          <Textarea id="cm" value={message} onChange={(e) => setMessage(e.target.value)} required />
-        </div>
-        <Button type="submit" className="w-full">
-          ส่งเคลม
+        </NativeSelect>
+        <Label htmlFor="claim-title">หัวข้อ</Label>
+        <Input
+          id="claim-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+          maxLength={200}
+        />
+        <Label htmlFor="claim-message">รายละเอียด / เหตุผลขอคืนเครดิต</Label>
+        <Textarea
+          id="claim-message"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          required
+          minLength={3}
+          maxLength={2000}
+        />
+        <Button disabled={busy || !orderId} type="submit">
+          {busy ? "กำลังส่ง…" : "ยืนยันส่งเรื่อง"}
         </Button>
+        {error ? <p role="alert">{error}</p> : null}
       </form>
-      <ul className="space-y-3">
+      <div className="space-y-3">
         {claims.length === 0 ? <p className="text-sm text-muted">ยังไม่มีเคลม</p> : null}
         {claims.map((c) => (
-          <li key={c.id} className="rounded-xl bg-surface p-4 shadow-border">
-            <div className="flex items-center justify-between gap-2">
-              <p className="font-medium">{c.title}</p>
-              <Badge tone={c.status === "replied" ? "ok" : "warn"}>
-                {c.status === "replied" ? "ตอบแล้ว" : "รอแอดมิน"}
-              </Badge>
-            </div>
-            <p className="mt-1 text-sm text-muted">{c.message}</p>
-            <p className="mt-1 text-xs text-subtle">{formatTime(c.at)}</p>
-            {c.reply ? <p className="mt-3 rounded-md bg-bg p-3 text-sm">แอดมิน: {c.reply}</p> : null}
-          </li>
+          <article key={c.id} className="rounded-xl border border-border p-4">
+            <p className="font-medium">
+              {c.title} · {c.status}
+            </p>
+            <p className="mt-2 whitespace-pre-wrap text-sm">{c.message}</p>
+            {c.reply ? (
+              <p className="mt-3 rounded-lg bg-surface-2 p-3 text-sm">ทีมงาน: {c.reply}</p>
+            ) : null}
+          </article>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }

@@ -1,0 +1,33 @@
+import { createFileRoute, notFound, Link } from "@tanstack/react-router";
+import { getPublicProduct } from "@/lib/shop/actions";
+import { ProductGrid } from "@/components/shop/product-grid";
+export const Route = createFileRoute("/shop/product/$id")({
+  loader: async ({ params }) => {
+    const product = await getPublicProduct({ data: { id: params.id } });
+    if (!product) throw notFound();
+    return product;
+  },
+  head: ({ loaderData }) => ({
+    meta: [
+      { title: loaderData ? loaderData.name + " — Veltshop" : "สินค้า — Veltshop" },
+      { name: "description", content: loaderData?.subtitle ?? "สินค้าดิจิทัล" },
+      { property: "og:title", content: loaderData?.name ?? "Veltshop" },
+    ],
+  }),
+  component: ProductPage,
+});
+function ProductPage() {
+  const product = Route.useLoaderData();
+  return (
+    <div>
+      <Link to="/shop/catalog" search={{ cat: undefined }} className="text-sm text-muted">
+        ← สินค้าทั้งหมด
+      </Link>
+      <h1 className="mt-4 text-3xl font-semibold">{product.name}</h1>
+      <p className="mt-2 text-muted">{product.subtitle}</p>
+      <div className="mt-6">
+        <ProductGrid onlyProductId={product.id} />
+      </div>
+    </div>
+  );
+}
