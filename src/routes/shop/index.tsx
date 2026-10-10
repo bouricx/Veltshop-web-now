@@ -1,4 +1,5 @@
 import { ProductGrid } from "@/components/shop/product-grid";
+import { AdminContactPicker } from "@/components/shop/admin-contact-picker";
 import { onShopChange } from "@/lib/shop/realtime-client";
 
 import { ArrowUpRight } from "lucide-react";
@@ -18,7 +19,6 @@ import { LiveFeed } from "@/components/shop/live-feed";
 import { useEffect, useState } from "react";
 import { storefrontSummary } from "@/lib/shop/storefront";
 import { useSiteConfiguration } from "@/lib/shop/site-state";
-import { shopMeta } from "@/lib/shop/meta";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/shop/")({ component: ShopHome });
@@ -86,7 +86,14 @@ function ShopHome() {
             <p className="mt-3 max-w-lg text-sm leading-6 text-white/70 sm:text-base">เลือกสินค้า · รวมรายการในตะกร้า · ส่งให้ร้านดูแล</p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link to="/shop/catalog" search={{ cat: "all" }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-black transition hover:bg-white/90">ดูสินค้าทั้งหมด <span aria-hidden="true">→</span></Link>
-              <a href={config.discord || shopMeta.discordInvite} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/25 px-5 text-sm font-medium text-white transition hover:bg-white/10">ติดต่อแอดมิน</a>
+              <AdminContactPicker
+                facebookUrl={config.facebook}
+                discordUrl={config.discord}
+                description="เลือก Facebook Page หรือ Discord เพื่อคุยกับแอดมินร้าน"
+                className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/25 px-5 text-sm font-medium text-white transition hover:bg-white/10"
+              >
+                ติดต่อแอดมิน
+              </AdminContactPicker>
             </div>
           </div>
           <div aria-hidden="true" className="relative hidden min-h-44 sm:block">
@@ -105,15 +112,14 @@ function ShopHome() {
             <p className="text-sm font-semibold">เมนูแนะนำ</p>
             <p className="text-xs tracking-[0.14em] text-muted uppercase">เลือกบริการที่ต้องการ</p>
           </div>
-          <a
-            href={config.discord || shopMeta.discordInvite}
-            target="_blank"
-            rel="noreferrer"
+          <AdminContactPicker
+            facebookUrl={config.facebook}
+            discordUrl={config.discord}
             className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-accent px-3 text-xs font-medium text-accent-fg"
           >
-            <MessageCircle className="size-3.5" />
-            Discord
-          </a>
+            <MessageCircle className="size-3.5" aria-hidden="true" />
+            ติดต่อแอดมิน
+          </AdminContactPicker>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {tiles
@@ -136,20 +142,20 @@ function ShopHome() {
                 </span>
               </Link>
             ))}
-          <a
-            href={config.discord || shopMeta.discordInvite}
-            target="_blank"
-            rel="noreferrer"
-            className="quick-link flex flex-col items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/50 px-3 py-3 sm:py-5 text-center"
+          <AdminContactPicker
+            facebookUrl={config.facebook}
+            discordUrl={config.discord}
+            description="หลังส่งรายการสินค้าแล้ว แคปหน้าจอหน้านี้และส่งให้แอดมินทางช่องทางที่เลือก เพื่อรับรายละเอียดการชำระเงิน"
+            className="quick-link flex flex-col items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/50 px-3 py-3 text-center transition hover:border-accent sm:py-5"
           >
-            <span className="grid size-10 place-items-center rounded-2xl sm:size-12 bg-indigo-100 text-indigo-600">
-              <MessageCircle className="size-5" />
+            <span className="grid size-10 place-items-center rounded-2xl bg-indigo-100 text-indigo-600 sm:size-12">
+              <MessageCircle className="size-5" aria-hidden="true" />
             </span>
             <span>
               <span className="block text-sm font-medium">ติดต่อแอดมิน</span>
-              <span className="mt-0.5 block text-xs tracking-wider text-subtle">DISCORD</span>
+              <span className="mt-0.5 block text-xs tracking-wider text-subtle">FACEBOOK · DISCORD</span>
             </span>
-          </a>
+          </AdminContactPicker>
         </div>
       </section>
 
