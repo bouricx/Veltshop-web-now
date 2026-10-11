@@ -28,6 +28,16 @@ function LoginPage() {
     });
   }, []);
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const error = new URLSearchParams(window.location.search).get("error");
+    if (!error) return;
+    const messages: Record<string, string> = {
+      account_not_linked: "อีเมลนี้มีบัญชีเดิมอยู่แล้ว กรุณาเข้าสู่ระบบบัญชีเดิมก่อนเชื่อม Google",
+      state_mismatch: "การยืนยัน Google หมดอายุหรือ session ไม่ตรง กรุณาเริ่มใหม่",
+      unable_to_create_user: "บันทึกบัญชี Google ไม่สำเร็จ กรุณาติดต่อผู้ดูแล",
+    };
+    toast.error(messages[error] || "เข้าสู่ระบบ Google ไม่สำเร็จ กรุณาลองใหม่หรือติดต่อผู้ดูแล");
+  }, []);
 
   useEffect(() => {
     if (isPending || !user || user.isDevFallback) return;
@@ -109,9 +119,23 @@ function LoginPage() {
             {google ? (
               <Button
                 className="w-full"
-                onClick={() =>
-                  void authClient.signIn.social({ provider: "google", callbackURL: "/shop" })
-                }
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const result = await authClient.signIn.social({
+                      provider: "google",
+                      callbackURL: "/shop",
+                      errorCallbackURL: "/login",
+                    });
+                    if (result.error)
+                      toast.error(result.error.message || "เข้าสู่ระบบ Google ไม่สำเร็จ");
+                  } catch {
+                    toast.error("ติดต่อระบบเข้าสู่ระบบไม่ได้ กรุณาลองใหม่");
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
               >
                 เข้าสู่ระบบด้วย Google
               </Button>

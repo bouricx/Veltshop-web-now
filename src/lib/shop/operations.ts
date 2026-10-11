@@ -22,7 +22,11 @@ import { isAdminEmail } from "./admin";
 import { randomUUID } from "node:crypto";
 import { CommerceError } from "./commerce.server";
 const id = z.string().trim().min(1).max(200);
-const reason = z.string().trim().min(3, "กรุณาระบุเหตุผลอย่างน้อย 3 ตัวอักษร").max(2000, "เหตุผลต้องไม่เกิน 2,000 ตัวอักษร");
+const reason = z
+  .string()
+  .trim()
+  .min(3, "กรุณาระบุเหตุผลอย่างน้อย 3 ตัวอักษร")
+  .max(2000, "เหตุผลต้องไม่เกิน 2,000 ตัวอักษร");
 async function safe<T>(work: () => Promise<T>) {
   try {
     return { ok: true as const, result: await work() };
@@ -448,7 +452,17 @@ export const myAccountData = createServerFn({ method: "GET" })
       "SELECT id,amount,balance_after,reason,created_at::text FROM wallet_ledger WHERE user_id=$1 ORDER BY created_at DESC LIMIT 100",
       [user],
     );
-    return { profile, claims, notifications, ledger };
+    const linkedAccounts = await sql.query<{ provider: string }>(
+      'SELECT DISTINCT "providerId" AS provider FROM "account" WHERE "userId"=$1',
+      [user],
+    );
+    return {
+      profile,
+      claims,
+      notifications,
+      ledger,
+      loginProviders: linkedAccounts.map((account) => account.provider),
+    };
   });
 export const setMember = createServerFn({ method: "POST" })
   .validator((v: unknown) =>

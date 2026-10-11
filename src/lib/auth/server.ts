@@ -1,3 +1,4 @@
+import { sessionCookieOptions } from "./session-options";
 import { randomUUID } from "node:crypto";
 import { isAdminEmail } from "../shop/admin";
 import { sendAuthEmail } from "./email.server";
@@ -323,16 +324,7 @@ export const auth = betterAuth({
   // Domain), so we drop its auto prefix (`useSecureCookies: false`) and set
   // Secure + the names ourselves. (Browsers allow Secure cookies on
   // `http://localhost`, so local dev still works.)
-  advanced: {
-    useSecureCookies: false,
-    defaultCookieAttributes: { secure: true, sameSite: "lax", path: "/" },
-    cookies: {
-      session_token: { name: SESSION_TOKEN_COOKIE },
-      session_data: { name: "__Host-grok-auth.session_data" },
-      account_data: { name: "__Host-grok-auth.account_data" },
-      dont_remember: { name: "__Host-grok-auth.dont_remember" },
-    },
-  },
+  advanced: sessionCookieOptions,
 
   plugins: [
     gateIdentitySessions(),

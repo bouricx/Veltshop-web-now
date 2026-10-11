@@ -56,8 +56,6 @@ export function ShopShell() {
     }
   }, []);
   const { value: site } = useSiteConfiguration();
-  const loggedIn = useShop((s) => s.loggedIn);
-  const name = useShop((s) => s.displayName);
   const login = useShop((s) => s.login);
   const logout = useShop((s) => s.logout);
   const { user, isPending } = useCurrentUserState();
@@ -119,8 +117,9 @@ export function ShopShell() {
         ข้ามไปเนื้อหา
       </a>
       <ShopHeader
-        loggedIn={loggedIn}
-        name={name}
+        pending={isPending}
+        loggedIn={Boolean(user && !user.isDevFallback)}
+        name={user?.displayName || user?.primaryEmail || "สมาชิก"}
         onLogout={() => void handleLogout()}
         theme={shopTheme}
         onThemeChange={(theme) => {
@@ -183,12 +182,14 @@ export function ShopShell() {
 }
 
 function ShopHeader({
+  pending,
   loggedIn,
   name,
   onLogout,
   theme,
   onThemeChange,
 }: {
+  pending: boolean;
   loggedIn: boolean;
   name: string;
   onLogout: () => void;
@@ -210,7 +211,11 @@ function ShopHeader({
         <div className="ml-auto flex items-center gap-2">
           <ShopThemePicker value={theme} onChange={onThemeChange} />
           <LiveClock />
-          {loggedIn ? (
+          {pending ? (
+            <span role="status" className="text-sm text-muted">
+              กำลังตรวจสอบสมาชิก…
+            </span>
+          ) : loggedIn ? (
             <>
               <ProfileMenu name={name} onLogout={onLogout} />
             </>

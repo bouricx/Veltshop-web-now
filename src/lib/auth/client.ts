@@ -19,6 +19,7 @@ import { GROK_PROVIDERS } from "./providers";
  * the visitor stays signed in.
  */
 export const authClient = createAuthClient({
+  baseURL: typeof window !== "undefined" ? window.location.origin : undefined,
   plugins: [genericOAuthClient()],
   fetchOptions: {
     onRequest(ctx) {
