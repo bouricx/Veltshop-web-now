@@ -1,6 +1,1 @@
-Yªηx-®ιάjΧΆλiΊΪ+§j[h‘ιάΆινΧ|N‹Z–‹­¦λew¬Τ΄΄5…Ρ Ρ΅”…•‰½½¬Α…”ΜΥΙΙ•ΉΠµ½ΉΡ΅±δΑΙ¥•Μ…Ή…‘Ρ΅”ΡέΌµ¥ΝΝ¥Ή(΄΄ΝΡΙ•…µ¥ΉΑΙ½‘ΥΡΜΈα¥ΝΡ¥ΉΝΡ½¬ΕΥ…ΉΡ¥Ρ¥•ΜΙ•µ…¥Έ…‘µ¥Έµ½έΉ•Ω…±Υ•Ο]ύςΪ$z{-®ιάjΧlor,
-  accent_color=EXCLUDED.accent_color,
-  badge_color=EXCLUDED.badge_color,
-  flash=EXCLUDED.flash,
-  active=EXCLUDED.active,
-  updated_at=now();
+Yªηx-®ιάjΧΆλiΊΪ+§j[h‘ιάΆινΧzN‹Z–‹­¦λew¬Τ΄΄5…Ρ Ρ΅”‡^xκΪ$z{-®ιάjΧted_at=now();
