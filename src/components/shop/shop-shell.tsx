@@ -1,3 +1,4 @@
+import { resolveSignInGateState } from "@/lib/auth/sign-in-gate";
 import { useCart } from "@/lib/shop/cart-store";
 import { useSiteConfiguration } from "@/lib/shop/site-state";
 import { StoreContent } from "./store-content";
@@ -622,8 +623,18 @@ function BottomDock() {
 }
 
 export function EmptyGate({ children }: { children: ReactNode }) {
-  const loggedIn = useShop((s) => s.loggedIn);
-  if (loggedIn) return <>{children}</>;
+  const { user, isPending } = useCurrentUserState();
+  const state = resolveSignInGateState({
+    isPending,
+    hasUser: Boolean(user && !user.isDevFallback),
+  });
+  if (state === "pending")
+    return (
+      <p role="status" className="p-6 text-center text-muted">
+        กำลังตรวจสอบสมาชิก…
+      </p>
+    );
+  if (state === "signed_in") return <>{children}</>;
   return (
     <div className="rounded-3xl bg-surface px-6 py-12 text-center shadow-border">
       <p className="font-medium">เข้าสู่ระบบเพื่อใช้งานส่วนนี้</p>
