@@ -20,6 +20,7 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [resetEnabled, setResetEnabled] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
   const [google, setGoogle] = useState(false);
   useEffect(() => {
     void authCapabilities().then((r) => {
@@ -90,21 +91,44 @@ function LoginPage() {
           <p className="text-sm text-muted">ระบบสมาชิกปิดอยู่</p>
         ) : (
           <>
-            {resetEnabled ? (
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  if (!email.trim()) {
-                    toast.error("ใส่อีเมลก่อน");
-                    return;
-                  }
-                  void authClient
-                    .requestPasswordReset({ email: email.trim(), redirectTo: "/reset-password" })
-                    .then(() => toast.success("หากพบบัญชี ระบบจะส่งลิงก์ไปยังอีเมล"));
-                }}
-              >
-                ลืมรหัสผ่าน
-              </Button>
+            {mode === "signin" ? (
+              <div className="space-y-1 text-right">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={resetBusy}
+                  onClick={async () => {
+                    if (!resetEnabled) {
+                      toast.error("ระบบส่งอีเมลรีเซ็ตรหัสผ่านยังไม่พร้อม กรุณาติดต่อผู้ดูแลเว็บเพื่อตั้งค่าอีเมล");
+                      return;
+                    }
+                    if (!email.trim()) {
+                      toast.error("กรุณากรอกอีเมลที่ใช้สมัครบัญชีก่อน");
+                      return;
+                    }
+                    setResetBusy(true);
+                    try {
+                      const { error } = await authClient.requestPasswordReset({
+                        email: email.trim(),
+                        redirectTo: "/reset-password",
+                      });
+                      if (error) throw new Error("ไม่สามารถส่งคำขอได้ กรุณาลองใหม่");
+                      toast.success("หากมีบัญชีที่ใช้อีเมลนี้ ระบบจะส่งลิงก์ตั้งรหัสผ่านใหม่");
+                    } catch {
+                      toast.error("ไม่สามารถส่งคำขอได้ กรุณาลองใหม่หรือติดต่อผู้ดูแลเว็บ");
+                    } finally {
+                      setResetBusy(false);
+                    }
+                  }}
+                >
+                  {resetBusy ? "กำลังส่งคำขอ…" : "ลืมรหัสผ่าน?"}
+                </Button>
+                {!resetEnabled ? (
+                  <p className="text-xs text-muted">
+                    ระบบส่งอีเมลกู้รหัสผ่านยังไม่พร้อมใช้งาน โปรดติดต่อผู้ดูแลเว็บ
+                  </p>
+                ) : null}
+              </div>
             ) : null}
             {google ? (
               <Button
