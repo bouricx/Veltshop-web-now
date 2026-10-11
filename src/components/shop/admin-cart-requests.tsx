@@ -5,6 +5,7 @@ import { NativeSelect } from "@/components/ui/input";
 import { listAdminCartRequests, updateCartRequest } from "@/lib/shop/cart-requests";
 import { RequestSummary } from "./request-summary";
 import { requestStatuses } from "@/lib/shop/cart-presentation";
+import { AdminManualCartPayment } from "./admin-manual-cart-payment";
 export function AdminCartRequests() {
   const [status, setStatus] = useState(""),
     [page, setPage] = useState(0),
@@ -97,6 +98,7 @@ export function AdminCartRequests() {
       <div className="space-y-4">
         {data?.rows.map((r) => (
           <RequestSummary key={r.id} request={r}>
+            {r.payment_status === "manual_review" ? <AdminManualCartPayment id={r.id} /> : null}
             {["pending", "received"].includes(r.status) ? (
               <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
                 {r.status === "pending" ? (
