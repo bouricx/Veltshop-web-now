@@ -443,6 +443,7 @@ function ProductCard({
             </div>
           </div>
           <Button
+            disabled={product.stock < 1}
             className={cn(
               "product-action mt-4 w-full justify-between rounded-2xl gap-2 font-semibold transition-all",
               inCartQuantity > 0 ? "ring-2 ring-accent/20" : "",
@@ -453,9 +454,11 @@ function ProductCard({
               else toast.error("เพิ่มไม่ได้ จำนวนถึงขีดจำกัดตะกร้าแล้ว");
             }}
             aria-label={
-              inCartQuantity > 0
-                ? `เพิ่ม ${product.name} อีกชิ้น ปัจจุบันอยู่ในตะกร้า ${inCartQuantity} ชิ้น`
-                : `เพิ่ม ${product.name} ลงตะกร้า`
+              product.stock < 1
+                ? `${product.name} รอร้านยืนยันสต็อกก่อนสั่งซื้อ`
+                : inCartQuantity > 0
+                  ? `เพิ่ม ${product.name} อีกชิ้น ปัจจุบันอยู่ในตะกร้า ${inCartQuantity} ชิ้น`
+                  : `เพิ่ม ${product.name} ลงตะกร้า`
             }
           >
             <span className="inline-flex items-center gap-2">
@@ -464,9 +467,9 @@ function ProductCard({
               ) : (
                 <ShoppingBag className="size-4" aria-hidden="true" />
               )}
-              {inCartQuantity > 0 ? "เพิ่มอีกชิ้น" : "เพิ่มลงตะกร้า"}
+              {product.stock < 1 ? "รอตรวจสอบสต็อก" : inCartQuantity > 0 ? "เพิ่มอีกชิ้น" : "เพิ่มลงตะกร้า"}
             </span>
-            {inCartQuantity > 0 ? (
+            {inCartQuantity > 0 && product.stock > 0 ? (
               <span
                 className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-xs"
                 aria-live="polite"
