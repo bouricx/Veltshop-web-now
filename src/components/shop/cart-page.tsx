@@ -13,6 +13,7 @@ import { ProductMark } from "./product-mark";
 import { CartPaymentPanel } from "./cart-payment-panel";
 import { AdminContactPicker } from "./admin-contact-picker";
 import { useSiteConfiguration } from "@/lib/shop/site-state";
+import { CheckoutGuide } from "./checkout-guide";
 
 export function CartPage() {
   const { user, isPending } = useCurrentUserState();
@@ -144,17 +145,24 @@ export function CartPage() {
           </span>
         </h1>
         <p className="mt-2 text-sm text-muted">
-เลือกสินค้าแล้วชำระด้วย QR พร้อมเพย์ แนบสลิปเพื่อให้ระบบตรวจสอบก่อนยืนยันรายการ
+          ตรวจรายการให้ครบ ชำระด้วยพร้อมเพย์ แล้วแนบสลิปเพื่อรอยืนยันยอดเงิน
         </p>
       </div>
+      <CheckoutGuide />
       {success ? (
-        <div role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950">
+        <div
+          role="status"
+          className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950"
+        >
           <CheckCircle2 className="mb-2 size-6" />
           <h2 className="font-semibold">สร้างรายการสั่งซื้อแล้ว</h2>
           <p className="mt-2 break-all text-sm">เลขรายการ: {success.id}</p>
           <p className="mt-1 text-sm">ยอดชำระ {formatBaht(success.total)}</p>
-          <p className="mt-2 text-sm">สแกน QR แล้วแนบสลิป ระบบจะตรวจยอดและบัญชีผู้รับก่อนยืนยัน</p>
-          <CartPaymentPanel id={success.id} paymentStatus="unpaid" />
+          <p className="mt-2 text-sm">ชำระภายใน 5 นาที แล้วแนบสลิปในช่องด้านล่างเพื่อตรวจสอบ</p>
+          <CartPaymentPanel
+            id={success.id}
+            paymentStatus={requests.find((r) => r.id === success.id)?.payment_status ?? "unpaid"}
+          />
           <AdminContactPicker
             facebookUrl={site.facebook}
             discordUrl={site.discord}
@@ -185,9 +193,7 @@ export function CartPage() {
                   />
                   <div className="min-w-0 flex-1">
                     <h2 className="break-words font-semibold">{i.name}</h2>
-                    <p className="mt-1 text-sm text-muted">
-                      ราคาโดยประมาณ {formatBaht(i.price)} / ชิ้น
-                    </p>
+                    <p className="mt-1 text-sm text-muted">ราคา {formatBaht(i.price)} / ชิ้น</p>
                   </div>
                 </div>
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -274,7 +280,7 @@ export function CartPage() {
             </div>
             <p className="flex gap-2 text-xs leading-relaxed text-muted">
               <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-ระบบคำนวณยอดจากราคาปัจจุบัน แล้วจะแสดง QR สำหรับชำระเงินหลังสร้างรายการ
+              ระบบคำนวณยอดจากราคาปัจจุบัน แล้วจะแสดง QR สำหรับชำระเงินหลังสร้างรายการ
             </p>
             <div>
               <Label htmlFor="cart-contact">ช่องทางให้ร้านติดต่อกลับ</Label>
@@ -323,7 +329,7 @@ export function CartPage() {
             )}
           </div>
         </form>
-      ) : (
+      ) : !success ? (
         <div className="rounded-2xl border border-border bg-surface p-8 text-center">
           <ShoppingCart className="mx-auto size-9 text-muted" />
           <p className="mt-3 font-medium">ยังไม่มีสินค้าในตะกร้า</p>
@@ -333,18 +339,23 @@ export function CartPage() {
             </Link>
           </Button>
         </div>
-      )}
+      ) : null}
       {userId ? (
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">รายการสั่งซื้อของฉัน</h2>
+          <p className="text-xs text-muted">
+            สถานะอัปเดตอัตโนมัติทุก 15 วินาที · ไม่ต้องส่งสลิปซ้ำ
+          </p>
           {historyError ? (
             <p role="alert" className="text-sm text-danger">
               {historyError}
             </p>
           ) : null}
-          {requests.filter((r) => r.id !== success?.id).map((r) => (
-            <RequestSummary key={r.id} request={r} showPayment />
-          ))}
+          {requests
+            .filter((r) => r.id !== success?.id)
+            .map((r) => (
+              <RequestSummary key={r.id} request={r} showPayment />
+            ))}
           {!requests.length && !historyError ? (
             <p className="text-sm text-muted">ยังไม่มีรายการที่ส่ง</p>
           ) : null}

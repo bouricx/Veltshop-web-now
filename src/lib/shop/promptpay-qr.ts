@@ -2,6 +2,7 @@
  * Build EMVCo PromptPay QR payload (Thai mobile / national ID) and render a PNG data URL.
  */
 import QRCode from "qrcode";
+import { promptPayAccount } from "./payment-policy.ts";
 
 function tlv(id: string, value: string): string {
   const len = value.length.toString().padStart(2, "0");
@@ -22,21 +23,17 @@ function crc16(payload: string): string {
 
 /** Normalize PromptPay target: 0XXXXXXXXX → 0066XXXXXXXXX; 13-digit tax ID as-is. */
 export function formatPromptPayTarget(raw: string): string {
-  const d = (raw || "").replace(/\D/g, "");
-  if (d.length === 13) return d;
-  if (d.length === 10 && d.startsWith("0")) return `0066${d.slice(1)}`;
-  if (d.length === 11 && d.startsWith("66")) return `00${d}`;
-  if (d.length === 13 && d.startsWith("0066")) return d;
-  if (d.startsWith("0066")) return d;
-  return d;
+  const account = promptPayAccount(raw || "");
+  if (!account) throw new Error("หมายเลขพร้อมเพย์ไม่ถูกต้อง");
+  return account.target;
 }
 
 export function buildPromptPayPayload(account: string, amount?: number): string {
-  const target = formatPromptPayTarget(account);
-  if (target.length < 11) {
-    throw new Error("หมายเลขพร้อมเพย์ไม่ถูกต้อง");
-  }
-  const merchantInfo = tlv("00", "A000000677010111") + tlv("01", target);
+  const proxy = promptPayAccount(account);
+  if (!proxy) throw new Error("หมายเลขพร้อมเพย์ไม่ถูกต้อง");
+  if (amount != null && (!Number.isFinite(amount) || amount <= 0))
+    throw new Error("ยอดชำระไม่ถูกต้อง");
+  const merchantInfo = tlv("00", "A000000677010111") + tlv(proxy.tag, proxy.target);
   const amountStr = amount != null && amount > 0 ? Number(amount).toFixed(2) : "";
   let payload =
     tlv("00", "01") +

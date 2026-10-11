@@ -2,6 +2,7 @@ import type { Sql } from "../db";
 import { audit, configuration, notify } from "./operations-service.server.ts";
 import { CommerceError } from "./commerce.server.ts";
 import { createHash, randomUUID } from "node:crypto";
+import { checkoutReadiness } from "./checkout-service.server.ts";
 export type RequestItem = {
   productId: string;
   name: string;
@@ -37,6 +38,8 @@ export async function createCartRequest(sql: Sql, user: string, data: CartReques
     }
     if ((await configuration(tx)).maintenance)
       throw new CommerceError("ร้านกำลังปรับปรุง กรุณาลองใหม่ภายหลัง");
+    const readiness = await checkoutReadiness(tx);
+    if (!readiness.available) throw new CommerceError(readiness.message);
     const [member] = await tx.query<{ disabled: boolean }>(
       "SELECT disabled FROM member_profiles WHERE user_id=$1",
       [user],
@@ -49,16 +52,34 @@ export async function createCartRequest(sql: Sql, user: string, data: CartReques
       price: number;
       stock: number;
       active: boolean;
+      stock_mode: string;
     }>(
-      "SELECT p.id,p.name,c.label AS category,p.price,p.stock,p.active FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=ANY($1::text[])",
+      "SELECT p.id,p.name,c.label AS category,p.price,p.stock,p.active,p.stock_mode FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=ANY($1::text[]) ORDER BY p.id FOR UPDATE OF p",
+      [data.items.map((i) => i.productId)],
+    );
+    const reserved = await tx.query<{ product_id: string; quantity: number }>(
+      `SELECT item->>'productId' AS product_id,sum((item->>'quantity')::int)::int AS quantity
+       FROM cart_requests r JOIN cart_request_payments p ON p.cart_request_id=r.id
+       CROSS JOIN LATERAL jsonb_array_elements(r.items) item
+       WHERE r.status IN ('pending','received') AND
+         (p.status IN ('paid','verifying','manual_review') OR (p.status IN ('unpaid','rejected') AND p.expires_at>now()))
+       AND item->>'productId'=ANY($1::text[]) GROUP BY item->>'productId'`,
       [data.items.map((i) => i.productId)],
     );
     const items: RequestItem[] = data.items.map((i) => {
       const p = products.find((p) => p.id === i.productId);
       if (!p || !p.active) throw new CommerceError("มีสินค้าที่ไม่ได้เปิดขาย กรุณานำออกจากตะกร้า");
-      if (p.stock < i.quantity)
+      if (p.stock_mode !== "quantity")
         throw new CommerceError(
-          `${p.name} มีสต็อกยืนยันแล้ว ${p.stock} ชิ้น กรุณาลดจำนวนหรือติดต่อร้านก่อนชำระเงิน`,
+          `${p.name} ต้องให้ร้านยืนยันช่องทางจัดส่งก่อนชำระ กรุณาติดต่อแอดมิน`,
+        );
+      const available = Math.max(
+        0,
+        p.stock - (reserved.find((r) => r.product_id === p.id)?.quantity ?? 0),
+      );
+      if (available < i.quantity)
+        throw new CommerceError(
+          `${p.name} มีสต็อกยืนยันแล้ว ${available} ชิ้น กรุณาลดจำนวนหรือติดต่อร้านก่อนชำระเงิน`,
         );
       return {
         productId: p.id,
@@ -78,7 +99,8 @@ export async function createCartRequest(sql: Sql, user: string, data: CartReques
       [id, user, data.key, fingerprint, data.contact, data.note, JSON.stringify(items), total],
     );
     await tx.query(
-      "INSERT INTO cart_request_payments(cart_request_id,user_id,amount) VALUES($1,$2,$3)",
+      `INSERT INTO cart_request_payments(cart_request_id,user_id,amount,receive_account,receive_name)
+       SELECT $1,$2,$3,receive_account,receive_name FROM shop_settings WHERE id=1`,
       [id, user, total],
     );
     await audit(tx, user, "cart.requested", "cart_request", id, { lines: items.length, total });
@@ -86,7 +108,7 @@ export async function createCartRequest(sql: Sql, user: string, data: CartReques
       tx,
       user,
       "สร้างรายการสั่งซื้อแล้ว",
-      `เลขรายการ ${id} · ยอดชำระ ${total} บาท · สแกน QR และแนบสลิปเพื่อให้ระบบตรวจ`,
+      `เลขรายการ ${id} · ยอดชำระ ${total} บาท · ชำระภายใน 5 นาที แล้วแนบสลิปเพื่อตรวจสอบ`,
     );
     return { ok: true as const, id, total };
   });
