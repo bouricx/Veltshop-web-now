@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ProductGrid } from "@/components/shop/product-grid";
 import { categories } from "@/lib/shop/catalog";
 import { ShoppingBag } from "lucide-react";
+import { CheckoutGuide } from "@/components/shop/checkout-guide";
 
 export const Route = createFileRoute("/shop/catalog")({
   validateSearch: (raw: Record<string, unknown>) => ({
@@ -27,10 +28,13 @@ function CatalogPage() {
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">{label}</h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
-            ดูราคาและสถานะสินค้า แล้วเพิ่มลงตะกร้าเพื่อส่งรายการให้ร้านตรวจสอบ
-            หลังส่งให้แคปหน้าจอทักแอดมินทาง Facebook Page หรือ Discord เพื่อรับรายละเอียดการชำระเงิน
+            เลือกสินค้าที่ต้องการ เพิ่มลงตะกร้า แล้วชำระด้วย QR พร้อมเพย์
+            แนบสลิปและติดตามสถานะการสั่งซื้อได้ในเว็บ
           </p>
         </div>
+      </div>
+      <div className="mt-6">
+        <CheckoutGuide />
       </div>
       <div className="mt-6">
         <ProductGrid initialCat={current} />

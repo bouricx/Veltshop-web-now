@@ -6,6 +6,7 @@ import { getSql } from "@/lib/db";
 import { requirePermission } from "./permissions.server";
 import { configuration, audit, limit } from "./operations-service.server";
 import { CommerceError } from "./commerce.server";
+import { slip2GoConfigured } from "./slip2go.server";
 const recordKinds = [
   "users",
   "orders",
@@ -267,10 +268,7 @@ export const systemHealth = createServerFn({ method: "GET" })
         milliseconds: Date.now() - started,
       },
       payment: {
-        status:
-          process.env.SLIP2GO_API_SECRET && process.env.SLIP2GO_VERIFY_URL
-            ? "configured-unverified"
-            : "requires-credentials",
+        status: slip2GoConfigured() ? "configured-unverified" : "requires-credentials",
       },
       google: {
         status:

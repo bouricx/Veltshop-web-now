@@ -10,6 +10,8 @@ export function AdminManualCartPayment({ id }: { id: string }) {
   const [reason, setReason] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showEvidence, setShowEvidence] = useState(false);
+  const [bankChecked, setBankChecked] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -26,7 +28,7 @@ export function AdminManualCartPayment({ id }: { id: string }) {
   }, [id]);
 
   async function resolve(decision: "approve" | "reject") {
-    if (busy) return;
+    if (busy || (decision === "approve" && !bankChecked)) return;
     setBusy(true);
     setMessage("");
     try {
@@ -47,12 +49,26 @@ export function AdminManualCartPayment({ id }: { id: string }) {
         ตรวจยอด ผู้รับเงิน และรายการโอนจริงในบัญชีธนาคารก่อนอนุมัติ
       </p>
       {evidence ? (
-        <a href={evidence} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-medium underline">
+        <Button
+          type="button"
+          variant="outline"
+          aria-expanded={showEvidence}
+          onClick={() => setShowEvidence((value) => !value)}
+        >
           <Eye className="size-4" aria-hidden="true" /> ดูภาพสลิป
-        </a>
+        </Button>
+      ) : null}
+      {showEvidence && evidence ? (
+        <img
+          src={evidence}
+          alt="หลักฐานการโอนสำหรับแอดมินตรวจสอบ"
+          className="max-h-[36rem] w-full max-w-lg rounded-xl border border-amber-200 bg-white object-contain"
+        />
       ) : null}
       <div>
-        <label htmlFor={`manual-reference-${id}`} className="text-sm font-medium">เลขอ้างอิงจากรายการธนาคาร</label>
+        <label htmlFor={`manual-reference-${id}`} className="text-sm font-medium">
+          เลขอ้างอิงจากรายการธนาคาร
+        </label>
         <Input
           id={`manual-reference-${id}`}
           className="mt-1"
@@ -64,7 +80,9 @@ export function AdminManualCartPayment({ id }: { id: string }) {
         />
       </div>
       <div>
-        <label htmlFor={`manual-reason-${id}`} className="text-sm font-medium">เหตุผลเมื่อปฏิเสธ (ไม่บังคับ)</label>
+        <label htmlFor={`manual-reason-${id}`} className="text-sm font-medium">
+          เหตุผลเมื่อปฏิเสธ (ไม่บังคับ)
+        </label>
         <Input
           id={`manual-reason-${id}`}
           className="mt-1"
@@ -75,9 +93,26 @@ export function AdminManualCartPayment({ id }: { id: string }) {
           placeholder="เช่น ยอดไม่ตรง หรือปลายทางไม่ถูกต้อง"
         />
       </div>
-      {message ? <p role="status" className="text-sm">{message}</p> : null}
+      {message ? (
+        <p role="status" className="text-sm">
+          {message}
+        </p>
+      ) : null}
+      <label className="flex min-h-11 items-start gap-2 text-sm text-amber-950">
+        <input
+          type="checkbox"
+          className="mt-1 size-4 shrink-0"
+          checked={bankChecked}
+          disabled={busy}
+          onChange={(event) => setBankChecked(event.currentTarget.checked)}
+        />
+        <span>ตรวจยอดเงินเข้า บัญชีผู้รับ และเลขอ้างอิงจากรายการธนาคารจริงแล้ว</span>
+      </label>
       <div className="flex flex-wrap gap-2">
-        <Button disabled={busy || reference.trim().length < 4} onClick={() => void resolve("approve")}>
+        <Button
+          disabled={busy || !bankChecked || reference.trim().length < 4}
+          onClick={() => void resolve("approve")}
+        >
           <CheckCircle2 className="size-4" aria-hidden="true" /> ยืนยันว่าได้รับเงินแล้ว
         </Button>
         <Button variant="outline" disabled={busy} onClick={() => void resolve("reject")}>

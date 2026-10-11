@@ -62,8 +62,9 @@ export function AdminCartRequests() {
   return (
     <section className="space-y-4">
       <p className="text-sm text-muted">
-        ระบบแสดงสถานะตรวจสลิปแยกจากสถานะจัดการรายการ ปุ่มรับเรื่องและจัดการรายการจะใช้ได้เมื่อสลิปผ่านการตรวจสอบแล้ว
-        การจัดการรายการยังไม่ตัดสต็อกหรือส่งข้อมูลสินค้าอัตโนมัติ
+        ระบบแสดงสถานะตรวจสลิปแยกจากสถานะจัดการรายการ
+        ปุ่มรับเรื่องและจัดการรายการจะใช้ได้เมื่อสลิปผ่านการตรวจสอบแล้ว หลังส่งสินค้าให้ลูกค้าแล้ว
+        กดยืนยันจัดส่ง ระบบจะตัดสต็อกและแจ้งลูกค้า
       </p>
       <div className="flex flex-wrap gap-3">
         <NativeSelect
@@ -103,22 +104,25 @@ export function AdminCartRequests() {
               <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
                 {r.status === "pending" ? (
                   <Button
-                    disabled={Boolean(busy)}
+                    disabled={Boolean(busy) || r.payment_status !== "paid"}
                     onClick={() => void update(r.id, r.status, "received")}
                   >
                     รับเรื่อง
                   </Button>
                 ) : (
                   <Button
-                    disabled={Boolean(busy)}
+                    disabled={Boolean(busy) || r.payment_status !== "paid"}
                     onClick={() => void update(r.id, r.status, "done")}
                   >
-                    จัดการเรียบร้อยแล้ว
+                    ยืนยันจัดส่งแล้ว
                   </Button>
                 )}
                 <Button
                   variant="outline"
-                  disabled={Boolean(busy)}
+                  disabled={
+                    Boolean(busy) ||
+                    ["paid", "verifying", "manual_review"].includes(r.payment_status)
+                  }
                   onClick={() => void update(r.id, r.status, "cancelled")}
                 >
                   ยกเลิกรายการ

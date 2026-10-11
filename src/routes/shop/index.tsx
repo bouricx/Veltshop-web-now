@@ -1,5 +1,6 @@
 import { ProductGrid } from "@/components/shop/product-grid";
 import { AdminContactPicker } from "@/components/shop/admin-contact-picker";
+import { CheckoutGuide } from "@/components/shop/checkout-guide";
 import { onShopChange } from "@/lib/shop/realtime-client";
 
 import { ArrowUpRight } from "lucide-react";
@@ -76,16 +77,39 @@ function ShopHome() {
   return (
     <div className="space-y-8 page-enter">
       <section className="storefront-hero relative isolate overflow-hidden rounded-3xl bg-[#080a0d] text-white shadow-border">
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_78%_45%,rgba(83,96,116,0.42),transparent_45%),linear-gradient(110deg,#080a0d_12%,#151a21_62%,#080a0d)]" />
-        <div aria-hidden="true" className="pointer-events-none absolute right-[-3rem] top-[-4rem] h-64 w-64 rounded-full border border-white/10 sm:right-12 sm:top-[-5rem] sm:h-80 sm:w-80" />
-        <div aria-hidden="true" className="pointer-events-none absolute right-8 bottom-[-5rem] h-52 w-52 rotate-[-18deg] rounded-[2.5rem] border border-white/10 bg-white/[0.03] sm:right-32 sm:h-64 sm:w-64" />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_78%_45%,rgba(83,96,116,0.42),transparent_45%),linear-gradient(110deg,#080a0d_12%,#151a21_62%,#080a0d)]"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute right-[-3rem] top-[-4rem] h-64 w-64 rounded-full border border-white/10 sm:right-12 sm:top-[-5rem] sm:h-80 sm:w-80"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute right-8 bottom-[-5rem] h-52 w-52 rotate-[-18deg] rounded-[2.5rem] border border-white/10 bg-white/[0.03] sm:right-32 sm:h-64 sm:w-64"
+        />
         <div className="relative grid min-h-[240px] items-center gap-5 p-6 sm:min-h-[280px] sm:grid-cols-[1.2fr_0.8fr] sm:p-9 lg:min-h-[320px] lg:p-12">
           <div className="min-w-0 max-w-xl">
-            <p className="mb-3 inline-flex rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs tracking-wide text-white/75">VELTSHOP · สินค้าดิจิทัล</p>
-            <h1 className="text-3xl leading-tight font-bold tracking-tight sm:text-4xl lg:text-5xl">สินค้าดิจิทัลคุณภาพ<br />ครบ จบ ในที่เดียว</h1>
-            <p className="mt-3 max-w-lg text-sm leading-6 text-white/70 sm:text-base">เลือกสินค้า · รวมรายการในตะกร้า · ส่งให้ร้านดูแล</p>
+            <p className="mb-3 inline-flex rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs tracking-wide text-white/75">
+              VELTSHOP · สินค้าดิจิทัล
+            </p>
+            <h1 className="text-3xl leading-tight font-bold tracking-tight sm:text-4xl lg:text-5xl">
+              สินค้าดิจิทัลคุณภาพ
+              <br />
+              ครบ จบ ในที่เดียว
+            </h1>
+            <p className="mt-3 max-w-lg text-sm leading-6 text-white/70 sm:text-base">
+              เลือกสินค้า · ชำระด้วยพร้อมเพย์ · แนบสลิปและติดตามออเดอร์
+            </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link to="/shop/catalog" search={{ cat: "all" }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-black transition hover:bg-white/90">ดูสินค้าทั้งหมด <span aria-hidden="true">→</span></Link>
+              <Link
+                to="/shop/catalog"
+                search={{ cat: "all" }}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-black transition hover:bg-white/90"
+              >
+                ดูสินค้าทั้งหมด <span aria-hidden="true">→</span>
+              </Link>
               <AdminContactPicker
                 facebookUrl={config.facebook}
                 discordUrl={config.discord}
@@ -102,10 +126,15 @@ function ShopHome() {
                 <span className="text-4xl font-black tracking-[-0.12em] lg:text-5xl">V.</span>
               </div>
             </div>
-            <div className="absolute right-36 bottom-2 rounded-2xl border border-white/15 bg-black/50 px-4 py-3 text-xs text-white/75 backdrop-blur-sm lg:right-48">สินค้าดิจิทัล<br /><span className="font-semibold text-white">เลือกง่าย · ซื้อสะดวก</span></div>
+            <div className="absolute right-36 bottom-2 rounded-2xl border border-white/15 bg-black/50 px-4 py-3 text-xs text-white/75 backdrop-blur-sm lg:right-48">
+              สินค้าดิจิทัล
+              <br />
+              <span className="font-semibold text-white">เลือกง่าย · ซื้อสะดวก</span>
+            </div>
           </div>
         </div>
       </section>
+      <CheckoutGuide />
       <section className="rounded-3xl bg-surface p-5 shadow-border sm:p-6">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
@@ -131,7 +160,12 @@ function ShopHome() {
                 search={tile.search}
                 className="quick-link flex flex-col items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/50 px-3 py-3 sm:py-5 text-center"
               >
-                <span className={cn("grid size-10 place-items-center rounded-2xl sm:size-12", tile.tint)}>
+                <span
+                  className={cn(
+                    "grid size-10 place-items-center rounded-2xl sm:size-12",
+                    tile.tint,
+                  )}
+                >
                   <tile.icon className="size-5" />
                 </span>
                 <span>
@@ -153,7 +187,9 @@ function ShopHome() {
             </span>
             <span>
               <span className="block text-sm font-medium">ติดต่อแอดมิน</span>
-              <span className="mt-0.5 block text-xs tracking-wider text-subtle">FACEBOOK · DISCORD</span>
+              <span className="mt-0.5 block text-xs tracking-wider text-subtle">
+                FACEBOOK · DISCORD
+              </span>
             </span>
           </AdminContactPicker>
         </div>

@@ -2,6 +2,7 @@ import type { CartRequest } from "@/lib/shop/cart-requests";
 import { formatBaht } from "@/lib/utils";
 import { requestStatuses } from "@/lib/shop/cart-presentation";
 import { CartPaymentPanel } from "./cart-payment-panel";
+import { useState } from "react";
 export function RequestSummary({
   request: r,
   children,
@@ -11,6 +12,7 @@ export function RequestSummary({
   children?: React.ReactNode;
   showPayment?: boolean;
 }) {
+  const [paymentOpen, setPaymentOpen] = useState(false);
   const [status, color] = requestStatuses[r.status] ?? ["รอตรวจสอบ", "bg-amber-50 text-amber-900"];
   return (
     <article className="min-w-0 rounded-2xl border border-border bg-surface p-4 sm:p-5">
@@ -44,10 +46,37 @@ export function RequestSummary({
         ))}
       </ul>
       <p className="mt-2 text-right font-semibold">ยอดรายการ {formatBaht(r.total)}</p>
-      <p className={`mt-1 text-right text-xs font-medium ${r.payment_status === "paid" ? "text-emerald-700" : r.payment_status === "rejected" ? "text-danger" : "text-muted"}`}>
-        {{ unpaid: "ยังไม่ชำระ", verifying: "กำลังตรวจสลิป", paid: "ชำระแล้ว · ตรวจสลิปผ่าน", rejected: "สลิปถูกปฏิเสธ", manual_review: "รอตรวจโดยแอดมิน" }[r.payment_status] ?? "สถานะชำระเงินไม่ทราบ"}
+      <p
+        className={`mt-1 text-right text-xs font-medium ${r.payment_status === "paid" ? "text-emerald-700" : r.payment_status === "rejected" ? "text-danger" : "text-muted"}`}
+      >
+        {{
+          unpaid: "รอชำระเงิน",
+          verifying: "กำลังตรวจสลิป",
+          paid: "ยืนยันได้รับเงินแล้ว",
+          rejected: "สลิปถูกปฏิเสธ",
+          manual_review: "รับสลิปแล้ว · รอแอดมินตรวจ",
+          expired: "หมดเวลาชำระเงิน",
+        }[r.payment_status] ?? "สถานะชำระเงินไม่ทราบ"}
       </p>
-      {showPayment ? <CartPaymentPanel id={r.id} paymentStatus={r.payment_status} paymentReason={r.payment_reason} /> : null}
+      {showPayment && r.status !== "cancelled" ? (
+        <details
+          className="mt-4 border-t border-border pt-3"
+          onToggle={(e) => setPaymentOpen(e.currentTarget.open)}
+        >
+          <summary className="cursor-pointer py-2 text-sm font-semibold">
+            {r.payment_status === "paid"
+              ? "ดูรายละเอียดการชำระเงิน"
+              : "เปิดการชำระเงิน / ส่งสลิป / ดูผลตรวจ"}
+          </summary>
+          {paymentOpen ? (
+            <CartPaymentPanel
+              id={r.id}
+              paymentStatus={r.payment_status}
+              paymentReason={r.payment_reason}
+            />
+          ) : null}
+        </details>
+      ) : null}
       {r.note ? (
         <p className="mt-4 whitespace-pre-wrap break-words rounded-xl bg-bg p-3 text-sm">
           หมายเหตุ: {r.note}

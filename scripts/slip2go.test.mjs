@@ -6,7 +6,7 @@ test("missing configuration never calls a provider or grants credit", async () =
   const old = process.env.SLIP2GO_API_SECRET;
   delete process.env.SLIP2GO_API_SECRET;
   try {
-    assert.equal((await verifySlip2Go(new Blob(["slip"]), "slip.png", 50, "receiver")).ok, false);
+    assert.equal((await verifySlip2Go(new Blob(["slip"]), "slip.png", 50, "0928160016")).ok, false);
   } finally {
     if (old !== undefined) process.env.SLIP2GO_API_SECRET = old;
   }
@@ -30,17 +30,17 @@ test("official response must validate conditions, amount, reference and date", a
       globalThis.fetch = async (url, options) => {
         const payload = JSON.parse(options.body.get("payload"));
         assert.equal(payload.checkDuplicate, true);
-        assert.equal(payload.checkReceiver[0].accountNumber, "receiver");
+        assert.equal(payload.checkReceiver[0].accountNumber, "0928160016");
         assert.equal(options.headers.Authorization, "unit-test-only");
         return Response.json({ code, data: { amount, transRef: reference, dateTime: date } });
       };
       assert.equal(
-        (await verifySlip2Go(new Blob(["slip"]), "slip.png", 50, "receiver")).ok,
+        (await verifySlip2Go(new Blob(["slip"]), "slip.png", 50, "0928160016")).ok,
         expected,
       );
     }
     process.env.SLIP2GO_VERIFY_URL = "https://attacker.example/api/verify-slip/qr-image/info";
-    await assert.rejects(verifySlip2Go(new Blob(["slip"]), "slip.png", 50, "receiver"));
+    await assert.rejects(verifySlip2Go(new Blob(["slip"]), "slip.png", 50, "0928160016"));
   } finally {
     globalThis.fetch = original;
     if (secret === undefined) delete process.env.SLIP2GO_API_SECRET;
