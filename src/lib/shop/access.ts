@@ -11,7 +11,11 @@ export const updateAccess = createServerFn({ method: "POST" })
       .object({
         userId: z.string().min(1).max(200),
         role: z.enum(["super_admin", "admin", "staff", "customer"]),
-        reason: z.string().trim().min(3, "กรุณาระบุเหตุผลอย่างน้อย 3 ตัวอักษร").max(2000, "เหตุผลต้องไม่เกิน 2,000 ตัวอักษร"),
+        reason: z
+          .string()
+          .trim()
+          .min(3, "กรุณาระบุเหตุผลอย่างน้อย 3 ตัวอักษร")
+          .max(2000, "เหตุผลต้องไม่เกิน 2,000 ตัวอักษร"),
       })
       .parse(v),
   )
@@ -50,7 +54,11 @@ export const updateAccess = createServerFn({ method: "POST" })
   });
 export const authCapabilities = createServerFn({ method: "GET" }).handler(async () => ({
   google:
+    process.env.VITE_AUTH_ENABLED !== "false" &&
     (await configuration(await getSql())).google &&
     Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+  facebook:
+    process.env.VITE_AUTH_ENABLED !== "false" &&
+    Boolean(process.env.FACEBOOK_CLIENT_ID?.trim() && process.env.FACEBOOK_CLIENT_SECRET?.trim()),
   emailReset: Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM),
 }));

@@ -21,11 +21,15 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [resetEnabled, setResetEnabled] = useState(false);
   const [google, setGoogle] = useState(false);
+  const [facebook, setFacebook] = useState(false);
   useEffect(() => {
-    void authCapabilities().then((r) => {
-      setGoogle(r.google);
-      setResetEnabled(r.emailReset);
-    });
+    void authCapabilities()
+      .then((r) => {
+        setGoogle(r.google);
+        setFacebook(r.facebook);
+        setResetEnabled(r.emailReset);
+      })
+      .catch(() => toast.error("โหลดช่องทางเข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่"));
   }, []);
   const [busy, setBusy] = useState(false);
 
@@ -34,6 +38,19 @@ function LoginPage() {
     loginShop(user.displayName || user.primaryEmail || "สมาชิก");
     void nav({ to: "/shop" });
   }, [isPending, user, loginShop, nav]);
+
+  async function onSocialSignIn(provider: "google" | "facebook") {
+    if (busy || isPending) return;
+    setBusy(true);
+    try {
+      const { error } = await authClient.signIn.social({ provider, callbackURL: "/shop" });
+      if (error) throw new Error(error.message || "เข้าสู่ระบบไม่สำเร็จ");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "เข้าสู่ระบบไม่สำเร็จ");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -109,11 +126,19 @@ function LoginPage() {
             {google ? (
               <Button
                 className="w-full"
-                onClick={() =>
-                  void authClient.signIn.social({ provider: "google", callbackURL: "/shop" })
-                }
+                disabled={busy || isPending}
+                onClick={() => void onSocialSignIn("google")}
               >
                 เข้าสู่ระบบด้วย Google
+              </Button>
+            ) : null}
+            {facebook ? (
+              <Button
+                className="w-full"
+                disabled={busy || isPending}
+                onClick={() => void onSocialSignIn("facebook")}
+              >
+                เข้าสู่ระบบด้วย Facebook
               </Button>
             ) : null}
             {import.meta.env.VITE_GROK_OAUTH === "true" ? (
