@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { auth, recordSessionEvent } from "@/lib/auth/server";
+import { preserveAuthResponse } from "@/lib/auth/response-audit";
 import { getSql } from "@/lib/db";
 import { configuration } from "@/lib/shop/operations-service.server";
 async function handle(request: Request) {
@@ -32,36 +33,38 @@ async function handle(request: Request) {
     ? await auth.api.getSession({ headers: request.headers })
     : null;
   const response = await auth.handler(request);
-  if (response.ok && previous?.user)
-    await recordSessionEvent({ userId: previous.user.id }, "auth.logout");
-  if (response.ok && (path.endsWith("/sign-in/email") || path.endsWith("/sign-up/email"))) {
-    const result = await response
-      .clone()
-      .json()
-      .catch(() => null);
-    if (result?.user?.id && result?.token)
-      await recordSessionEvent(
-        { userId: result.user.id, userAgent: request.headers.get("user-agent") },
-        "auth.login",
-      );
-  }
-  if (path.includes("/callback/") && response.status >= 300 && response.status < 400) {
-    const cookies = response.headers
-      .getSetCookie()
-      .map((c) => c.split(";")[0])
-      .join("; ");
-    if (cookies) {
-      const headers = new Headers(request.headers);
-      headers.set("cookie", cookies);
-      const session = await auth.api.getSession({ headers });
-      if (session?.user)
+  return preserveAuthResponse(response, async () => {
+    if (response.ok && previous?.user)
+      await recordSessionEvent({ userId: previous.user.id }, "auth.logout");
+    if (response.ok && (path.endsWith("/sign-in/email") || path.endsWith("/sign-up/email"))) {
+      const result = await response
+        .clone()
+        .json()
+        .catch(() => null);
+      if (result?.user?.id && result?.token)
         await recordSessionEvent(
-          { userId: session.user.id, userAgent: request.headers.get("user-agent") },
+          { userId: result.user.id, userAgent: request.headers.get("user-agent") },
           "auth.login",
         );
     }
-  }
-  return response;
+    if (path.includes("/callback/") && response.status >= 300 && response.status < 400) {
+      const cookies = response.headers
+        .getSetCookie()
+        .map((c) => c.split(";")[0])
+        .join("; ");
+      if (cookies) {
+        const headers = new Headers(request.headers);
+        headers.set("cookie", cookies);
+        headers.delete("authorization");
+        const session = await auth.api.getSession({ headers });
+        if (session?.user)
+          await recordSessionEvent(
+            { userId: session.user.id, userAgent: request.headers.get("user-agent") },
+            "auth.login",
+          );
+      }
+    }
+  });
 }
 export const Route = createFileRoute("/api/auth/$")({
   server: {
