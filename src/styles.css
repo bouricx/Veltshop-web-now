@@ -210,10 +210,15 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 .product-card {
+  height: 100%;
   box-shadow: 0 4px 16px #18181b04;
   transition:
     transform 220ms ease,
     box-shadow 220ms ease;
+}
+.product-grid-layout {
+  grid-auto-rows: 1fr;
+  align-items: stretch;
 }
 .product-art {
   background: linear-gradient(145deg, color-mix(in srgb, var(--product-color) 10%, white), white);
