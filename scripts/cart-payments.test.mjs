@@ -8,6 +8,12 @@ import { verifyCartRequestSlip } from "../src/lib/shop/cart-payment-service.serv
 import { reviewCartPayment } from "../src/lib/shop/cart-payment-review.server.ts";
 import { changeCartRequestStatus } from "../src/lib/shop/cart-status-service.server.ts";
 import {
+  fulfillCartRequest,
+  readCartDelivery,
+} from "../src/lib/shop/cart-delivery-service.server.ts";
+import { snapshot } from "../src/lib/shop/backup-service.server.ts";
+import { exportPersonalData } from "../src/lib/shop/privacy-service.server.ts";
+import {
   checkoutReadiness,
   refreshCartPaymentStates,
 } from "../src/lib/shop/checkout-service.server.ts";
@@ -89,6 +95,8 @@ test("manual payment: order -> evidence -> merchant approval -> stock/delivery, 
         await reviewCartPayment(sql, "admin", {
           id: order.id,
           decision: "approve",
+          expectedStatus: "manual_review",
+          bankConfirmed: true,
           reference: "   ",
         })
       ).ok,
@@ -99,6 +107,8 @@ test("manual payment: order -> evidence -> merchant approval -> stock/delivery, 
         await reviewCartPayment(sql, "admin", {
           id: order.id,
           decision: "approve",
+          expectedStatus: "manual_review",
+          bankConfirmed: true,
           reference: "TEST-BANK-REF-1",
         })
       ).ok,
@@ -110,6 +120,8 @@ test("manual payment: order -> evidence -> merchant approval -> stock/delivery, 
         await reviewCartPayment(sql, "admin", {
           id: order.id,
           decision: "approve",
+          expectedStatus: "manual_review",
+          bankConfirmed: true,
           reference: "TEST-BANK-REF-1",
         })
       ).ok,
@@ -137,20 +149,24 @@ test("manual payment: order -> evidence -> merchant approval -> stock/delivery, 
     );
     assert.equal(
       (
-        await changeCartRequestStatus(sql, "admin", {
+        await fulfillCartRequest(sql, "admin", {
           id: order.id,
           expectedStatus: "received",
-          status: "done",
+          channel: "facebook",
+          entries: [],
+          confirmedDelivered: true,
         })
       ).ok,
       true,
     );
     assert.equal(
       (
-        await changeCartRequestStatus(sql, "admin", {
+        await fulfillCartRequest(sql, "admin", {
           id: order.id,
           expectedStatus: "received",
-          status: "done",
+          channel: "facebook",
+          entries: [],
+          confirmedDelivered: true,
         })
       ).ok,
       false,
@@ -295,6 +311,233 @@ test("unpaid orders reserve stock only for their window; invalid files/cancelled
     );
     assert.equal((await verifyCartRequestSlip(sql, "other", second.id, image())).ok, false);
   } finally {
+    await db.close();
+  }
+});
+
+test("merchant can reconcile an expired order against real bank records, without uploaded proof", async () => {
+  const { db, sql, create, row } = await setup();
+  try {
+    const order = await create();
+    await sql.query(
+      "UPDATE cart_request_payments SET expires_at=now()-interval '1 second' WHERE cart_request_id=$1",
+      [order.id],
+    );
+    await refreshCartPaymentStates(sql, "buyer");
+    const approve = {
+      id: order.id,
+      decision: "approve",
+      expectedStatus: "expired",
+      reference: "MANUAL-EXPIRED-REF",
+    };
+    assert.equal((await reviewCartPayment(sql, "admin", approve)).ok, false);
+    assert.equal((await row(order.id)).status, "expired");
+    assert.equal(
+      (
+        await reviewCartPayment(sql, "admin", {
+          ...approve,
+          expectedStatus: "unpaid",
+          bankConfirmed: true,
+        })
+      ).ok,
+      false,
+    );
+    assert.equal(
+      (await reviewCartPayment(sql, "admin", { ...approve, bankConfirmed: true })).ok,
+      true,
+    );
+    assert.equal((await row(order.id)).status, "paid");
+    assert.equal((await row(order.id)).slip_evidence, null);
+    assert.equal(
+      (
+        await sql.query("SELECT provider FROM transactions WHERE provider_ref=$1", [
+          approve.reference,
+        ])
+      )[0].provider,
+      "manual_bank",
+    );
+    const next = await create();
+    assert.equal(
+      (
+        await reviewCartPayment(sql, "admin", {
+          ...approve,
+          id: next.id,
+          expectedStatus: "unpaid",
+          bankConfirmed: true,
+        })
+      ).ok,
+      false,
+    );
+    await changeCartRequestStatus(sql, "admin", {
+      id: next.id,
+      expectedStatus: "pending",
+      status: "cancelled",
+    });
+    assert.equal(
+      (
+        await reviewCartPayment(sql, "admin", {
+          ...approve,
+          id: next.id,
+          expectedStatus: "unpaid",
+          reference: "OTHER-BANK-REF",
+          bankConfirmed: true,
+        })
+      ).ok,
+      false,
+    );
+  } finally {
+    await db.close();
+  }
+});
+
+test("web delivery is encrypted, owner-only, immutable, and deducts stock exactly once", async () => {
+  const { db, sql, create } = await setup();
+  const previousKey = process.env.INVENTORY_ENCRYPTION_KEY;
+  process.env.INVENTORY_ENCRYPTION_KEY = "a1".repeat(32);
+  try {
+    const order = await create();
+    const payload = "TEST-ONLY-SECRET: user@example.test / demonstration-password";
+    const delivery = {
+      id: order.id,
+      expectedStatus: "pending",
+      channel: "web",
+      entries: [{ productId: "test-product", payload }],
+      confirmedDelivered: true,
+    };
+    assert.equal((await fulfillCartRequest(sql, "admin", delivery)).ok, false);
+    await reviewCartPayment(sql, "admin", {
+      id: order.id,
+      decision: "approve",
+      expectedStatus: "unpaid",
+      bankConfirmed: true,
+      reference: "WEB-DELIVERY-REF",
+    });
+    assert.equal(
+      (await fulfillCartRequest(sql, "admin", { ...delivery, confirmedDelivered: false })).ok,
+      false,
+    );
+    assert.equal((await fulfillCartRequest(sql, "admin", { ...delivery, entries: [] })).ok, false);
+    delete process.env.INVENTORY_ENCRYPTION_KEY;
+    assert.equal((await fulfillCartRequest(sql, "admin", delivery)).ok, false);
+    assert.equal(
+      (await sql.query("SELECT stock FROM products WHERE id='test-product'"))[0].stock,
+      10,
+    );
+    process.env.INVENTORY_ENCRYPTION_KEY = "a1".repeat(32);
+    assert.equal((await fulfillCartRequest(sql, "admin", delivery)).ok, true);
+    const [record] = await sql.query(
+      "SELECT status,delivery_ciphertext,delivery_channel,delivered_at FROM cart_requests WHERE id=$1",
+      [order.id],
+    );
+    assert.equal(record.status, "done");
+    assert.equal(record.delivery_channel, "web");
+    assert.ok(record.delivered_at);
+    assert.ok(record.delivery_ciphertext.startsWith("v1."));
+    assert.ok(!record.delivery_ciphertext.includes(payload));
+    assert.equal(await readCartDelivery(sql, "other", order.id), null);
+    const received = await readCartDelivery(sql, "buyer", order.id);
+    assert.equal(received.entries[0].payload, payload);
+    assert.equal(received.entries[0].name, "Test product");
+    assert.equal(
+      (
+        await fulfillCartRequest(sql, "admin", {
+          ...delivery,
+          entries: [{ productId: "test-product", payload: "replacement" }],
+        })
+      ).ok,
+      false,
+    );
+    assert.equal((await readCartDelivery(sql, "buyer", order.id)).entries[0].payload, payload);
+    assert.equal(
+      (await sql.query("SELECT stock FROM products WHERE id='test-product'"))[0].stock,
+      9,
+    );
+    assert.equal(
+      (
+        await sql.query("SELECT count(*)::int n FROM inventory_movements WHERE reason=$1", [
+          `cart:${order.id}`,
+        ])
+      )[0].n,
+      1,
+    );
+    const records = await sql.query(
+      "SELECT to_jsonb(t) data FROM audit_logs t UNION ALL SELECT to_jsonb(n) FROM notifications n",
+    );
+    assert.ok(!JSON.stringify(records).includes(payload));
+    const backup = await snapshot(sql);
+    assert.equal(backup.tables.cart_requests[0].delivery_ciphertext, record.delivery_ciphertext);
+    assert.ok(!JSON.stringify(await exportPersonalData(sql, "buyer")).includes(payload));
+    await sql.query("UPDATE cart_request_payments SET status='rejected' WHERE cart_request_id=$1", [
+      order.id,
+    ]);
+    assert.equal(await readCartDelivery(sql, "buyer", order.id), null);
+  } finally {
+    if (previousKey === undefined) delete process.env.INVENTORY_ENCRYPTION_KEY;
+    else process.env.INVENTORY_ENCRYPTION_KEY = previousKey;
+    await db.close();
+  }
+});
+
+test("multi-product delivery rolls back all stock and credentials if any item is unavailable", async () => {
+  const { db, sql } = await setup();
+  const previousKey = process.env.INVENTORY_ENCRYPTION_KEY;
+  process.env.INVENTORY_ENCRYPTION_KEY = "b2".repeat(32);
+  try {
+    await sql.query(
+      "INSERT INTO products(id,name,category_id,price,stock) VALUES('z-product','Second product','test-category',40,1)",
+    );
+    const order = await createCartRequest(sql, "buyer", {
+      key: randomUUID(),
+      items: [
+        { productId: "test-product", quantity: 1 },
+        { productId: "z-product", quantity: 1 },
+      ],
+      contact: "test@example.test",
+      note: "",
+    });
+    await reviewCartPayment(sql, "admin", {
+      id: order.id,
+      decision: "approve",
+      expectedStatus: "unpaid",
+      bankConfirmed: true,
+      reference: "MULTI-STOCK-REF",
+    });
+    await sql.query("UPDATE products SET stock=0 WHERE id='z-product'");
+    const delivery = {
+      id: order.id,
+      expectedStatus: "pending",
+      channel: "web",
+      confirmedDelivered: true,
+      entries: [
+        { productId: "test-product", payload: "test secret one" },
+        { productId: "z-product", payload: "test secret two" },
+      ],
+    };
+    assert.equal((await fulfillCartRequest(sql, "admin", delivery)).ok, false);
+    assert.equal(
+      (await sql.query("SELECT stock FROM products WHERE id='test-product'"))[0].stock,
+      10,
+    );
+    assert.deepEqual(
+      await sql.query("SELECT status,delivery_ciphertext FROM cart_requests WHERE id=$1", [
+        order.id,
+      ]),
+      [{ status: "pending", delivery_ciphertext: null }],
+    );
+    assert.equal(
+      (
+        await sql.query("SELECT count(*)::int n FROM inventory_movements WHERE reason=$1", [
+          `cart:${order.id}`,
+        ])
+      )[0].n,
+      0,
+    );
+    await sql.query("UPDATE products SET stock=1 WHERE id='z-product'");
+    assert.equal((await fulfillCartRequest(sql, "admin", delivery)).ok, true);
+    assert.equal((await readCartDelivery(sql, "buyer", order.id)).entries.length, 2);
+  } finally {
+    if (previousKey === undefined) delete process.env.INVENTORY_ENCRYPTION_KEY;
+    else process.env.INVENTORY_ENCRYPTION_KEY = previousKey;
     await db.close();
   }
 });

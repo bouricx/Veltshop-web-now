@@ -5,8 +5,17 @@ import { audit, notify } from "./operations-service.server.ts";
 export async function reviewCartPayment(
   sql: Sql,
   actor: string,
-  data: { id: string; decision: "approve" | "reject"; reference?: string; reason?: string },
+  data: {
+    id: string;
+    decision: "approve" | "reject";
+    reference?: string;
+    reason?: string;
+    expectedStatus: string;
+    bankConfirmed?: boolean;
+  },
 ) {
+  if (data.decision === "approve" && data.bankConfirmed !== true)
+    return { ok: false, message: "ตรวจยอดเงินเข้าจริงในบัญชีธนาคารและยืนยันก่อนอนุมัติ" };
   if (data.decision === "approve" && (!data.reference || data.reference.trim().length < 4))
     return { ok: false, message: "กรอกเลขอ้างอิงจากรายการโอนในบัญชีธนาคารก่อนอนุมัติ" };
   try {
@@ -14,12 +23,18 @@ export async function reviewCartPayment(
       const [payment] = await tx.query<{ user_id: string; amount: number; status: string }>(
         `SELECT p.user_id,p.amount,p.status FROM cart_request_payments p
          JOIN cart_requests r ON r.id=p.cart_request_id
-         WHERE p.cart_request_id=$1 AND r.status<>'cancelled' FOR UPDATE OF p,r`,
+         WHERE p.cart_request_id=$1 AND r.status IN ('pending','received') FOR UPDATE OF p,r`,
         [data.id],
       );
-      if (!payment || payment.status !== "manual_review")
-        return { ok: false, message: "รายการไม่อยู่ในสถานะรอตรวจโดยแอดมินแล้ว" };
+      if (
+        !payment ||
+        payment.status !== data.expectedStatus ||
+        !["unpaid", "rejected", "expired", "manual_review"].includes(payment.status)
+      )
+        return { ok: false, message: "สถานะรายการเปลี่ยนแล้ว กรุณาโหลดใหม่ก่อนยืนยันยอดเงิน" };
       if (data.decision === "reject") {
+        if (payment.status !== "manual_review")
+          return { ok: false, message: "ไม่มีสลิปที่รอให้ปฏิเสธ" };
         const reason = data.reason || "แอดมินตรวจสลิปไม่ผ่าน";
         await tx.query(
           "UPDATE cart_request_payments SET status='rejected',reject_reason=$2 WHERE cart_request_id=$1",
@@ -31,14 +46,14 @@ export async function reviewCartPayment(
       }
       const reference = data.reference!.trim();
       const [duplicate] = await tx.query<{ id: string }>(
-        `SELECT id FROM transactions WHERE provider='slip2go' AND provider_ref=$1
+        `SELECT id FROM transactions WHERE provider IN ('slip2go','manual_bank') AND provider_ref=$1
          UNION ALL SELECT id FROM payments WHERE provider_reference=$1 LIMIT 1`,
         [reference],
       );
       if (duplicate) return { ok: false, message: "เลขอ้างอิงนี้เคยใช้กับรายการอื่นแล้ว" };
       await tx.query(
         `INSERT INTO transactions(id,user_id,kind,status,amount,provider,provider_ref)
-         VALUES($1,$2,'CART_PAYMENT','success',$3,'slip2go',$4)`,
+         VALUES($1,$2,'CART_PAYMENT','success',$3,'manual_bank',$4)`,
         [randomUUID(), payment.user_id, payment.amount, reference],
       );
       await tx.query(

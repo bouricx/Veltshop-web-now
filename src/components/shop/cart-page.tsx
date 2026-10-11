@@ -14,6 +14,7 @@ import { CartPaymentPanel } from "./cart-payment-panel";
 import { AdminContactPicker } from "./admin-contact-picker";
 import { useSiteConfiguration } from "@/lib/shop/site-state";
 import { CheckoutGuide } from "./checkout-guide";
+import { OrderContactActions } from "./order-contact-actions";
 
 export function CartPage() {
   const { user, isPending } = useCurrentUserState();
@@ -131,6 +132,7 @@ export function CartPage() {
     }
   }
   const total = items.reduce((n, i) => n + i.price * i.quantity, 0);
+  const createdRequest = requests.find((r) => r.id === success?.id);
   return (
     <section className="space-y-6">
       <div>
@@ -150,29 +152,34 @@ export function CartPage() {
       </div>
       <CheckoutGuide />
       {success ? (
-        <div
-          role="status"
-          className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950"
-        >
-          <CheckCircle2 className="mb-2 size-6" />
-          <h2 className="font-semibold">สร้างรายการสั่งซื้อแล้ว</h2>
-          <p className="mt-2 break-all text-sm">เลขรายการ: {success.id}</p>
-          <p className="mt-1 text-sm">ยอดชำระ {formatBaht(success.total)}</p>
-          <p className="mt-2 text-sm">ชำระภายใน 5 นาที แล้วแนบสลิปในช่องด้านล่างเพื่อตรวจสอบ</p>
-          <CartPaymentPanel
-            id={success.id}
-            paymentStatus={requests.find((r) => r.id === success.id)?.payment_status ?? "unpaid"}
-          />
-          <AdminContactPicker
-            facebookUrl={site.facebook}
-            discordUrl={site.discord}
-            description="หากระบบตรวจสลิปไม่ได้ ให้ติดต่อแอดมินพร้อมเลขรายการนี้"
-            className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-emerald-950 px-5 text-sm font-semibold text-white transition hover:bg-emerald-900"
+        createdRequest ? (
+          <RequestSummary request={createdRequest} showPayment initialPaymentOpen />
+        ) : (
+          <div
+            role="status"
+            className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950"
           >
-            <MessageCircle className="size-4" aria-hidden="true" />
-            ติดต่อแอดมินกรณีมีปัญหา
-          </AdminContactPicker>
-        </div>
+            <CheckCircle2 className="mb-2 size-6" />
+            <h2 className="font-semibold">สร้างรายการสั่งซื้อแล้ว</h2>
+            <p className="mt-2 break-all text-sm">เลขรายการ: {success.id}</p>
+            <p className="mt-1 text-sm">ยอดชำระ {formatBaht(success.total)}</p>
+            <p className="mt-2 text-sm">ชำระภายใน 5 นาที แล้วแนบสลิปในช่องด้านล่างเพื่อตรวจสอบ</p>
+            <CartPaymentPanel
+              id={success.id}
+              paymentStatus={requests.find((r) => r.id === success.id)?.payment_status ?? "unpaid"}
+            />
+            <OrderContactActions id={success.id} total={success.total} />
+            <AdminContactPicker
+              facebookUrl={site.facebook}
+              discordUrl={site.discord}
+              description="หากระบบตรวจสลิปไม่ได้ ให้ติดต่อแอดมินพร้อมเลขรายการนี้"
+              className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-emerald-950 px-5 text-sm font-semibold text-white transition hover:bg-emerald-900"
+            >
+              <MessageCircle className="size-4" aria-hidden="true" />
+              ติดต่อแอดมินกรณีมีปัญหา
+            </AdminContactPicker>
+          </div>
+        )
       ) : null}
       {items.length ? (
         <form

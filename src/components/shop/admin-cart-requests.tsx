@@ -6,6 +6,8 @@ import { listAdminCartRequests, updateCartRequest } from "@/lib/shop/cart-reques
 import { RequestSummary } from "./request-summary";
 import { requestStatuses } from "@/lib/shop/cart-presentation";
 import { AdminManualCartPayment } from "./admin-manual-cart-payment";
+import { AdminCartDelivery } from "./admin-cart-delivery";
+import { WalletCards, PackageCheck, RefreshCw } from "lucide-react";
 export function AdminCartRequests() {
   const [status, setStatus] = useState(""),
     [page, setPage] = useState(0),
@@ -61,11 +63,26 @@ export function AdminCartRequests() {
   }
   return (
     <section className="space-y-4">
-      <p className="text-sm text-muted">
-        ระบบแสดงสถานะตรวจสลิปแยกจากสถานะจัดการรายการ
-        ปุ่มรับเรื่องและจัดการรายการจะใช้ได้เมื่อสลิปผ่านการตรวจสอบแล้ว หลังส่งสินค้าให้ลูกค้าแล้ว
-        กดยืนยันจัดส่ง ระบบจะตัดสต็อกและแจ้งลูกค้า
-      </p>
+      <div className="grid gap-3 rounded-2xl border border-border bg-surface p-4 sm:grid-cols-2">
+        <p className="flex items-start gap-2 text-sm">
+          <WalletCards className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-hidden="true" />
+          <span>
+            <strong className="block">1. ตรวจยอดเงินเข้า</strong>
+            <span className="text-xs text-muted">
+              ตรวจบัญชีธนาคาร แล้วกรอกเลขอ้างอิงและยืนยันรับเงิน
+            </span>
+          </span>
+        </p>
+        <p className="flex items-start gap-2 text-sm">
+          <PackageCheck className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+          <span>
+            <strong className="block">2. ส่งสินค้าและยืนยัน</strong>
+            <span className="text-xs text-muted">
+              ส่งรหัสในเว็บ หรือยืนยันว่าจัดส่งทางเพจแล้ว ระบบแจ้งลูกค้าและตัดสต็อก
+            </span>
+          </span>
+        </p>
+      </div>
       <div className="flex flex-wrap gap-3">
         <NativeSelect
           className="sm:max-w-64"
@@ -84,6 +101,7 @@ export function AdminCartRequests() {
           ))}
         </NativeSelect>
         <Button variant="outline" onClick={() => setRevision((v) => v + 1)}>
+          <RefreshCw className="size-4" aria-hidden="true" />
           โหลดรายการใหม่
         </Button>
       </div>
@@ -99,34 +117,44 @@ export function AdminCartRequests() {
       <div className="space-y-4">
         {data?.rows.map((r) => (
           <RequestSummary key={r.id} request={r}>
-            {r.payment_status === "manual_review" ? <AdminManualCartPayment id={r.id} /> : null}
+            {["pending", "received"].includes(r.status) &&
+            ["unpaid", "expired", "rejected", "manual_review"].includes(r.payment_status) ? (
+              <AdminManualCartPayment
+                id={r.id}
+                paymentStatus={r.payment_status}
+                onResolved={() => setRevision((v) => v + 1)}
+              />
+            ) : null}
+            {r.payment_status === "verifying" ? (
+              <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-950">
+                กำลังตรวจสลิป กรุณารอผลตรวจหรือสถานะรอแอดมินก่อนยืนยันยอดเงิน
+              </p>
+            ) : null}
             {["pending", "received"].includes(r.status) ? (
               <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
-                {r.status === "pending" ? (
+                {r.payment_status === "paid" ? (
+                  <AdminCartDelivery request={r} onDelivered={() => setRevision((v) => v + 1)} />
+                ) : null}
+                {r.status === "pending" && r.payment_status === "paid" ? (
                   <Button
                     disabled={Boolean(busy) || r.payment_status !== "paid"}
                     onClick={() => void update(r.id, r.status, "received")}
                   >
                     รับเรื่อง
                   </Button>
-                ) : (
+                ) : null}
+                {!["paid", "verifying", "manual_review"].includes(r.payment_status) ? (
                   <Button
-                    disabled={Boolean(busy) || r.payment_status !== "paid"}
-                    onClick={() => void update(r.id, r.status, "done")}
+                    variant="outline"
+                    disabled={
+                      Boolean(busy) ||
+                      ["paid", "verifying", "manual_review"].includes(r.payment_status)
+                    }
+                    onClick={() => void update(r.id, r.status, "cancelled")}
                   >
-                    ยืนยันจัดส่งแล้ว
+                    ยกเลิกรายการ
                   </Button>
-                )}
-                <Button
-                  variant="outline"
-                  disabled={
-                    Boolean(busy) ||
-                    ["paid", "verifying", "manual_review"].includes(r.payment_status)
-                  }
-                  onClick={() => void update(r.id, r.status, "cancelled")}
-                >
-                  ยกเลิกรายการ
-                </Button>
+                ) : null}
               </div>
             ) : null}
           </RequestSummary>
