@@ -29,8 +29,8 @@ export function CheckoutGuide() {
   const steps = [
     { icon: ShoppingBag, title: "เลือกสินค้า", detail: "เพิ่มลงตะกร้าและตรวจยอด" },
     { icon: QrCode, title: "สแกนจ่าย", detail: "ชำระตามยอดภายใน 5 นาที" },
-    { icon: Upload, title: "แนบสลิป", detail: "รอผลตรวจในหน้าออเดอร์" },
-    { icon: PackageCheck, title: "รับสินค้า", detail: "โดยปกติ 5–10 นาทีหลังยืนยัน" },
+    { icon: Upload, title: "แจ้งชำระเงิน", detail: "แนบสลิปในเว็บ หรือแคปแจ้งเพจ" },
+    { icon: PackageCheck, title: "รับสินค้า", detail: "ดูรหัสในออเดอร์ หรือรับทางเพจ" },
   ];
   return (
     <section

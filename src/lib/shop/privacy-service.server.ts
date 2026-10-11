@@ -8,8 +8,10 @@ export async function exportPersonalData(sql: Sql, userId: string) {
     profile: 'SELECT id,name,email,image,"emailVerified","createdAt" FROM "user" WHERE id=$1',
     membership: "SELECT rank,rank_color,disabled FROM member_profiles WHERE user_id=$1",
     wallet: "SELECT balance FROM wallet_accounts WHERE user_id=$1",
-    cartRequests: "SELECT id,contact,note,items,total,status,created_at,updated_at FROM cart_requests WHERE user_id=$1 ORDER BY created_at,id",
-    cartPayments: "SELECT cart_request_id,amount,status,provider_reference,reject_reason,created_at,verified_at FROM cart_request_payments WHERE user_id=$1 ORDER BY created_at,cart_request_id",
+    cartRequests:
+      "SELECT id,contact,note,items,total,status,delivery_channel,delivered_at,created_at,updated_at FROM cart_requests WHERE user_id=$1 ORDER BY created_at,id",
+    cartPayments:
+      "SELECT cart_request_id,amount,status,provider_reference,reject_reason,created_at,verified_at FROM cart_request_payments WHERE user_id=$1 ORDER BY created_at,cart_request_id",
     orders:
       "SELECT id,status,total,subtotal,created_at,warranty_end FROM orders WHERE user_id=$1 ORDER BY created_at,id",
     payments:
@@ -83,7 +85,10 @@ export async function reviewDeletion(
         "INSERT INTO member_profiles(user_id,disabled) VALUES($1,true) ON CONFLICT(user_id) DO UPDATE SET disabled=true,updated_at=now()",
         [row.user_id],
       );
-      await tx.query("UPDATE cart_requests SET contact='บัญชีที่ปิดแล้ว',note='' WHERE user_id=$1", [row.user_id]);
+      await tx.query(
+        "UPDATE cart_requests SET contact='บัญชีที่ปิดแล้ว',note='',delivery_ciphertext=NULL WHERE user_id=$1",
+        [row.user_id],
+      );
       await tx.query('DELETE FROM session WHERE "userId"=$1', [row.user_id]);
       await tx.query('DELETE FROM account WHERE "userId"=$1', [row.user_id]);
     } else await notify(tx, row.user_id, "ผลคำขอปิดบัญชี", reply);

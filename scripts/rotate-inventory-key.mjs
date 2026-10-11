@@ -21,7 +21,7 @@ let count = 0;
 try {
   await client.query("BEGIN");
   await client.query(
-    "LOCK TABLE products,inventory_items,order_deliveries,payments,site_configuration,private_files IN EXCLUSIVE MODE",
+    "LOCK TABLE products,inventory_items,order_deliveries,payments,site_configuration,private_files,cart_requests,cart_request_payments IN EXCLUSIVE MODE",
   );
   const config = (await client.query("SELECT value FROM site_configuration WHERE id=1")).rows[0]
     ?.value;
@@ -32,6 +32,7 @@ try {
     ["order_deliveries", "payload_ciphertext", "product_id"],
     ["payments", "gift_ciphertext", null],
     ["private_files", "ciphertext", "product_id"],
+    ["cart_requests", "delivery_ciphertext", null],
   ]) {
     const rows = (
       await client.query(
@@ -40,11 +41,13 @@ try {
     ).rows;
     for (const row of rows) {
       const binding =
-        table === "private_files"
-          ? `file:${row.product_id}:${row.id}`
-          : aad
-            ? row[aad]
-            : "gift:" + row.id;
+        table === "cart_requests"
+          ? `cart-delivery:${row.id}`
+          : table === "private_files"
+            ? `file:${row.product_id}:${row.id}`
+            : aad
+              ? row[aad]
+              : "gift:" + row.id;
       process.env.INVENTORY_ENCRYPTION_KEY = oldKey;
       const plain = decryptInventory(binding, row[column]);
       process.env.INVENTORY_ENCRYPTION_KEY = nextKey;

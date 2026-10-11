@@ -170,7 +170,7 @@ export async function verifyCartRequestSlip(
         throw new CommerceError("สถานะชำระเงินเปลี่ยนแล้ว กรุณาโหลดรายการใหม่");
       const [used] = await tx.query(
         `SELECT id FROM payments WHERE provider_reference=$1
-         UNION ALL SELECT id FROM transactions WHERE provider='slip2go' AND provider_ref=$1 LIMIT 1`,
+         UNION ALL SELECT id FROM transactions WHERE provider IN ('slip2go','manual_bank') AND provider_ref=$1 LIMIT 1`,
         [result.reference],
       );
       if (used) throw new CommerceError("เลขอ้างอิงโอนนี้เคยใช้แล้ว");

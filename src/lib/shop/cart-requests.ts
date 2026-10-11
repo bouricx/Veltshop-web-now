@@ -10,6 +10,11 @@ import { changeCartRequestStatus } from "./cart-status-service.server";
 import { reviewCartPayment } from "./cart-payment-review.server";
 import { verifyCartRequestSlip } from "./cart-payment-service.server";
 import { checkoutReadiness, refreshCartPaymentStates } from "./checkout-service.server";
+import {
+  fulfillCartRequest,
+  readCartDelivery,
+  type DeliveryChannel,
+} from "./cart-delivery-service.server";
 export type { RequestItem } from "./cart-request-service.server";
 
 export type CartRequest = {
@@ -26,6 +31,9 @@ export type CartRequest = {
   updated_at: string;
   payment_status: "unpaid" | "verifying" | "paid" | "rejected" | "manual_review" | "expired";
   payment_reason: string | null;
+  delivery_channel: DeliveryChannel | null;
+  delivered_at: string | null;
+  has_delivery: boolean;
 };
 const input = z
   .object({
@@ -78,9 +86,10 @@ export const listMyCartRequests = createServerFn({ method: "GET" })
     await refreshCartPaymentStates(sql, String(context.userId));
     return sql.query<CartRequest>(
       `SELECT r.id,r.user_id,r.contact,r.note,r.items,r.total,r.status,r.created_at::text,r.updated_at::text,
-        p.status AS payment_status,p.reject_reason AS payment_reason
+        p.status AS payment_status,p.reject_reason AS payment_reason,r.delivery_channel,r.delivered_at::text,
+        (r.delivery_ciphertext IS NOT NULL) AS has_delivery
        FROM cart_requests r JOIN cart_request_payments p ON p.cart_request_id=r.id
-       WHERE r.user_id=$1 ORDER BY r.created_at DESC,r.id LIMIT 30`,
+       WHERE r.user_id=$1 ORDER BY r.updated_at DESC,r.id LIMIT 30`,
       [String(context.userId)],
     );
   });
@@ -136,18 +145,23 @@ export const submitCartPaymentSlip = createServerFn({ method: "POST" })
     }
   });
 
-export const getCartPaymentEvidence = createServerFn({ method: "GET" })
+export const getAdminCartPaymentReview = createServerFn({ method: "GET" })
   .validator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
   .middleware([authMiddleware])
   .handler(async ({ data, context }) => {
     await requirePermission(String(context.userId), "orders.manage", context.bearerToken);
     const [row] = await (
       await getSql()
-    ).query<{ slip_evidence: string | null }>(
-      "SELECT slip_evidence FROM cart_request_payments WHERE cart_request_id=$1 AND status='manual_review'",
+    ).query<{
+      slip_evidence: string | null;
+      receive_account: string;
+      receive_name: string;
+      amount: number;
+    }>(
+      "SELECT slip_evidence,receive_account,receive_name,amount FROM cart_request_payments WHERE cart_request_id=$1",
       [data.id],
     );
-    return row?.slip_evidence ?? null;
+    return row ?? null;
   });
 
 export const resolveManualCartPayment = createServerFn({ method: "POST" })
@@ -158,6 +172,8 @@ export const resolveManualCartPayment = createServerFn({ method: "POST" })
         decision: z.enum(["approve", "reject"]),
         reference: z.string().trim().max(200).optional(),
         reason: z.string().trim().max(300).optional(),
+        expectedStatus: z.enum(["unpaid", "rejected", "expired", "manual_review"]),
+        bankConfirmed: z.boolean().default(false),
       })
       .parse(v),
   )
@@ -184,7 +200,8 @@ export const listAdminCartRequests = createServerFn({ method: "GET" })
     await refreshCartPaymentStates(sql);
     const rows = await sql.query<CartRequest>(
       `SELECT r.id,r.user_id,u.name,u.email,r.contact,r.note,r.items,r.total,r.status,r.created_at::text,r.updated_at::text,
-        p.status AS payment_status,p.reject_reason AS payment_reason
+        p.status AS payment_status,p.reject_reason AS payment_reason,r.delivery_channel,r.delivered_at::text,
+        (r.delivery_ciphertext IS NOT NULL) AS has_delivery
        FROM cart_requests r JOIN "user" u ON u.id=r.user_id
        JOIN cart_request_payments p ON p.cart_request_id=r.id
        WHERE $1='' OR r.status=$1 ORDER BY r.created_at DESC,r.id LIMIT 30 OFFSET $2`,
@@ -213,3 +230,36 @@ export const updateCartRequest = createServerFn({ method: "POST" })
     await requirePermission(actor, "orders.manage", context.bearerToken);
     return changeCartRequestStatus(await getSql(), actor, data);
   });
+
+export const deliverCartRequest = createServerFn({ method: "POST" })
+  .validator((v: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        expectedStatus: z.enum(["pending", "received"]),
+        channel: z.enum(["web", "facebook", "discord"]),
+        entries: z
+          .array(
+            z.object({
+              productId: z.string().min(1).max(160),
+              payload: z.string().trim().min(1).max(10000),
+            }),
+          )
+          .max(30),
+        confirmedDelivered: z.literal(true),
+      })
+      .parse(v),
+  )
+  .middleware([authMiddleware])
+  .handler(async ({ data, context }) => {
+    const actor = String(context.userId);
+    await requirePermission(actor, "orders.manage", context.bearerToken);
+    return fulfillCartRequest(await getSql(), actor, data);
+  });
+
+export const getMyCartDelivery = createServerFn({ method: "GET" })
+  .validator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
+  .middleware([authMiddleware])
+  .handler(async ({ data, context }) =>
+    readCartDelivery(await getSql(), String(context.userId), data.id),
+  );
