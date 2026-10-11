@@ -21,10 +21,8 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [resetEnabled, setResetEnabled] = useState(false);
-  const [google, setGoogle] = useState(false);
   useEffect(() => {
     void authCapabilities().then((r) => {
-      setGoogle(r.google);
       setResetEnabled(r.emailReset);
     });
   }, []);
@@ -118,30 +116,6 @@ function LoginPage() {
                 }}
               >
                 ลืมรหัสผ่าน
-              </Button>
-            ) : null}
-            {google ? (
-              <Button
-                className="w-full"
-                disabled={busy}
-                onClick={async () => {
-                  setBusy(true);
-                  try {
-                    const result = await authClient.signIn.social({
-                      provider: "google",
-                      callbackURL: "/shop",
-                      errorCallbackURL: "/login",
-                    });
-                    if (result.error)
-                      toast.error(result.error.message || "เข้าสู่ระบบ Google ไม่สำเร็จ");
-                  } catch {
-                    toast.error("ติดต่อระบบเข้าสู่ระบบไม่ได้ กรุณาลองใหม่");
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              >
-                เข้าสู่ระบบด้วย Google
               </Button>
             ) : null}
             {import.meta.env.VITE_GROK_OAUTH === "true" ? (
