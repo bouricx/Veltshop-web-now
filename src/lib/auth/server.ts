@@ -99,10 +99,13 @@ const grokClientSecret =
 
 /** True when federated social sign-in is active (broker OAuth). Email/password is separate. */
 const brokerConfigured = !authDisabled && Boolean(grokClientId && grokClientSecret);
+const facebookConfigured =
+  !authDisabled && Boolean(env("FACEBOOK_CLIENT_ID") && env("FACEBOOK_CLIENT_SECRET"));
 const googleConfigured =
   !authDisabled && Boolean(env("GOOGLE_CLIENT_ID") && env("GOOGLE_CLIENT_SECRET"));
 export const authConfigured =
-  !authDisabled && (brokerConfigured || googleConfigured || emailAndPasswordEnabled);
+  !authDisabled &&
+  (brokerConfigured || googleConfigured || facebookConfigured || emailAndPasswordEnabled);
 // Explicit `string[]` (not a readonly tuple) — Better Auth's DynamicBaseURLConfig
 // requires a mutable `allowedHosts: string[]`.
 const previewAllowedHosts: string[] = [...PREVIEW_ALLOWED_HOSTS];
@@ -224,9 +227,9 @@ export async function recordSessionEvent(
 }
 export const auth = betterAuth({
   baseURL,
-  ...(googleConfigured
-    ? {
-        socialProviders: {
+  socialProviders: {
+    ...(googleConfigured
+      ? {
           google: {
             clientId: env("GOOGLE_CLIENT_ID")!,
             clientSecret: env("GOOGLE_CLIENT_SECRET")!,
@@ -234,9 +237,19 @@ export const auth = betterAuth({
             prompt: "select_account" as const,
             disableIdTokenSignIn: true,
           },
-        },
-      }
-    : {}),
+        }
+      : {}),
+    ...(facebookConfigured
+      ? {
+          facebook: {
+            clientId: env("FACEBOOK_CLIENT_ID")!,
+            clientSecret: env("FACEBOOK_CLIENT_SECRET")!,
+            redirectURI: env("FACEBOOK_CALLBACK_URL"),
+            disableIdTokenSignIn: true,
+          },
+        }
+      : {}),
+  },
   ...(env("RESEND_API_KEY") && env("EMAIL_FROM")
     ? {
         emailVerification: {
