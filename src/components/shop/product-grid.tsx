@@ -255,7 +255,7 @@ export function ProductGrid({
           ) : null}
         </div>
       ) : (
-        <div className="stagger-in mt-6 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+        <div className="product-grid-layout stagger-in mt-6 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
           {displayed.map((p) => (
             <ProductCard key={p.id} product={p} canEdit={isAdmin} onEdit={() => setEditing(p)} />
           ))}
@@ -357,7 +357,7 @@ function ProductCard({
             borderColor: `${product.borderColor ?? theme}45`,
           } as CSSProperties
         }
-        className="product-card group relative flex min-w-0 flex-col overflow-hidden rounded-3xl border border-border bg-surface"
+        className="product-card group relative flex h-full min-w-0 flex-col overflow-hidden rounded-3xl border border-border bg-surface"
       >
         {canEdit ? (
           <button
@@ -415,7 +415,7 @@ function ProductCard({
               {product.description}
             </p>
           ) : null}
-          <div className="product-price-row mt-4 flex items-end justify-between border-t border-border/40 pt-3">
+          <div className="product-price-row mt-auto flex min-h-16 items-end justify-between border-t border-border/40 pt-3">
             <div>
               <p className="product-price tabular text-xl font-bold tracking-tight text-fg">
                 {formatBaht(product.price)}
