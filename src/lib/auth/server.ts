@@ -225,6 +225,7 @@ export async function recordSessionEvent(
 }
 export const auth = betterAuth({
   baseURL,
+  onAPIError: { errorURL: "/login" },
   ...(googleConfigured
     ? {
         socialProviders: {

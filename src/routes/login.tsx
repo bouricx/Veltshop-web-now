@@ -1,3 +1,4 @@
+import { googleOAuthError } from "@/lib/auth/oauth-error";
 import { authCapabilities } from "@/lib/shop/access";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -28,15 +29,9 @@ function LoginPage() {
     });
   }, []);
   const [busy, setBusy] = useState(false);
+  const [oauthError, setOauthError] = useState<string | null>(null);
   useEffect(() => {
-    const error = new URLSearchParams(window.location.search).get("error");
-    if (!error) return;
-    const messages: Record<string, string> = {
-      account_not_linked: "อีเมลนี้มีบัญชีเดิมอยู่แล้ว กรุณาเข้าสู่ระบบบัญชีเดิมก่อนเชื่อม Google",
-      state_mismatch: "การยืนยัน Google หมดอายุหรือ session ไม่ตรง กรุณาเริ่มใหม่",
-      unable_to_create_user: "บันทึกบัญชี Google ไม่สำเร็จ กรุณาติดต่อผู้ดูแล",
-    };
-    toast.error(messages[error] || "เข้าสู่ระบบ Google ไม่สำเร็จ กรุณาลองใหม่หรือติดต่อผู้ดูแล");
+    setOauthError(googleOAuthError(new URLSearchParams(window.location.search).get("error")));
   }, []);
 
   useEffect(() => {
@@ -95,6 +90,15 @@ function LoginPage() {
             เข้าสู่ระบบเพื่อซื้อสินค้า รับสินค้า และติดตามคำสั่งซื้อ
           </p>
         </div>
+
+        {oauthError ? (
+          <p
+            role="alert"
+            className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+          >
+            {oauthError}
+          </p>
+        ) : null}
 
         {!authEnabled ? (
           <p className="text-sm text-muted">ระบบสมาชิกปิดอยู่</p>
