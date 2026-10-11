@@ -1,12 +1,15 @@
 import type { CartRequest } from "@/lib/shop/cart-requests";
 import { formatBaht } from "@/lib/utils";
 import { requestStatuses } from "@/lib/shop/cart-presentation";
+import { CartPaymentPanel } from "./cart-payment-panel";
 export function RequestSummary({
   request: r,
   children,
+  showPayment = false,
 }: {
   request: CartRequest;
   children?: React.ReactNode;
+  showPayment?: boolean;
 }) {
   const [status, color] = requestStatuses[r.status] ?? ["รอตรวจสอบ", "bg-amber-50 text-amber-900"];
   return (
@@ -41,7 +44,10 @@ export function RequestSummary({
         ))}
       </ul>
       <p className="mt-2 text-right font-semibold">ยอดรายการ {formatBaht(r.total)}</p>
-      <p className="mt-1 text-right text-xs text-muted">ยังไม่ได้ชำระเงิน · ทักเพจ/Discord พร้อมภาพหน้าจอรายการเพื่อรับวิธีชำระ · จัดส่งภายใน 5–10 นาทีหลังยืนยัน</p>
+      <p className={`mt-1 text-right text-xs font-medium ${r.payment_status === "paid" ? "text-emerald-700" : r.payment_status === "rejected" ? "text-danger" : "text-muted"}`}>
+        {{ unpaid: "ยังไม่ชำระ", verifying: "กำลังตรวจสลิป", paid: "ชำระแล้ว · ตรวจสลิปผ่าน", rejected: "สลิปถูกปฏิเสธ", manual_review: "รอตรวจโดยแอดมิน" }[r.payment_status] ?? "สถานะชำระเงินไม่ทราบ"}
+      </p>
+      {showPayment ? <CartPaymentPanel id={r.id} paymentStatus={r.payment_status} paymentReason={r.payment_reason} /> : null}
       {r.note ? (
         <p className="mt-4 whitespace-pre-wrap break-words rounded-xl bg-bg p-3 text-sm">
           หมายเหตุ: {r.note}

@@ -17,6 +17,7 @@ export const backupTables = [
   "payments",
   "orders",
   "cart_requests",
+  "cart_request_payments",
   "order_items",
   "wallet_accounts",
   "wallet_ledger",

@@ -10,6 +10,7 @@ import { listProducts } from "@/lib/shop/actions";
 import { formatBaht } from "@/lib/utils";
 import { RequestSummary } from "./request-summary";
 import { ProductMark } from "./product-mark";
+import { CartPaymentPanel } from "./cart-payment-panel";
 import { AdminContactPicker } from "./admin-contact-picker";
 import { useSiteConfiguration } from "@/lib/shop/site-state";
 
@@ -143,33 +144,25 @@ export function CartPage() {
           </span>
         </h1>
         <p className="mt-2 text-sm text-muted">
-          ส่งรายการให้ร้านตรวจสอบก่อนได้ ไม่มีการชำระเงินบนเว็บไซต์หรือหักเครดิต
-          หลังส่งรายการให้แคปหน้าจอและทักแอดมินเพื่อรับรายละเอียดการชำระเงิน
+เลือกสินค้าแล้วชำระด้วย QR พร้อมเพย์ แนบสลิปเพื่อให้ระบบตรวจสอบก่อนยืนยันรายการ
         </p>
       </div>
       {success ? (
-        <div
-          role="status"
-          className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950"
-        >
+        <div role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950">
           <CheckCircle2 className="mb-2 size-6" />
-          <h2 className="font-semibold">ส่งรายการให้ร้านแล้ว</h2>
+          <h2 className="font-semibold">สร้างรายการสั่งซื้อแล้ว</h2>
           <p className="mt-2 break-all text-sm">เลขรายการ: {success.id}</p>
-          <p className="mt-1 text-sm">
-            ยอดตามรายการ {formatBaht(success.total)} · ยังไม่ได้ชำระเงิน
-          </p>
-          <p className="mt-2 text-sm leading-relaxed">
-            แคปหน้าจอนี้แล้วส่งให้แอดมินทาง Facebook Page หรือ Discord เพื่อรับรายละเอียดการชำระเงิน
-            หลังยืนยันการชำระเงินและสินค้าพร้อม ร้านจัดส่งภายใน 5–10 นาที
-          </p>
+          <p className="mt-1 text-sm">ยอดชำระ {formatBaht(success.total)}</p>
+          <p className="mt-2 text-sm">สแกน QR แล้วแนบสลิป ระบบจะตรวจยอดและบัญชีผู้รับก่อนยืนยัน</p>
+          <CartPaymentPanel id={success.id} paymentStatus="unpaid" />
           <AdminContactPicker
             facebookUrl={site.facebook}
             discordUrl={site.discord}
-            description="ส่งภาพหน้าจอยืนยันรายการนี้ให้แอดมิน เพื่อรับช่องทางและรายละเอียดการชำระเงิน"
+            description="หากระบบตรวจสลิปไม่ได้ ให้ติดต่อแอดมินพร้อมเลขรายการนี้"
             className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-emerald-950 px-5 text-sm font-semibold text-white transition hover:bg-emerald-900"
           >
             <MessageCircle className="size-4" aria-hidden="true" />
-            เลือกช่องทางติดต่อแอดมิน
+            ติดต่อแอดมินกรณีมีปัญหา
           </AdminContactPicker>
         </div>
       ) : null}
@@ -275,13 +268,13 @@ export function CartPage() {
                 <span className="font-medium">{totalQuantity} ชิ้น</span>
               </div>
               <div className="flex justify-between gap-3 border-t border-border pt-2">
-                <span className="font-medium">ยอดรวมโดยประมาณ</span>
+                <span className="font-medium">ยอดชำระ</span>
                 <span className="font-bold">{formatBaht(total)}</span>
               </div>
             </div>
             <p className="flex gap-2 text-xs leading-relaxed text-muted">
               <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-              ส่งรายการก่อน แล้วแคปหน้าจอยืนยันส่งให้แอดมินเพื่อรับช่องทางชำระเงิน · จัดส่งภายใน 5–10 นาทีหลังยืนยันชำระและสต็อก
+ระบบคำนวณยอดจากราคาปัจจุบัน แล้วจะแสดง QR สำหรับชำระเงินหลังสร้างรายการ
             </p>
             <div>
               <Label htmlFor="cart-contact">ช่องทางให้ร้านติดต่อกลับ</Label>
@@ -318,7 +311,7 @@ export function CartPage() {
               <p>กำลังตรวจสอบบัญชี…</p>
             ) : userId ? (
               <Button type="submit" className="w-full" disabled={busy}>
-                {busy ? "กำลังส่งรายการ…" : "ส่งรายการให้ร้าน · ไม่ต้องชำระเงิน"}
+                {busy ? "กำลังสร้างรายการ…" : "สร้างรายการและชำระด้วย QR"}
               </Button>
             ) : (
               <>
@@ -343,14 +336,14 @@ export function CartPage() {
       )}
       {userId ? (
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold">รายการที่ส่งให้ร้าน</h2>
+          <h2 className="text-lg font-semibold">รายการสั่งซื้อของฉัน</h2>
           {historyError ? (
             <p role="alert" className="text-sm text-danger">
               {historyError}
             </p>
           ) : null}
-          {requests.map((r) => (
-            <RequestSummary key={r.id} request={r} />
+          {requests.filter((r) => r.id !== success?.id).map((r) => (
+            <RequestSummary key={r.id} request={r} showPayment />
           ))}
           {!requests.length && !historyError ? (
             <p className="text-sm text-muted">ยังไม่มีรายการที่ส่ง</p>

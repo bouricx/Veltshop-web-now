@@ -9,6 +9,7 @@ export async function exportPersonalData(sql: Sql, userId: string) {
     membership: "SELECT rank,rank_color,disabled FROM member_profiles WHERE user_id=$1",
     wallet: "SELECT balance FROM wallet_accounts WHERE user_id=$1",
     cartRequests: "SELECT id,contact,note,items,total,status,created_at,updated_at FROM cart_requests WHERE user_id=$1 ORDER BY created_at,id",
+    cartPayments: "SELECT cart_request_id,amount,status,provider_reference,reject_reason,created_at,verified_at FROM cart_request_payments WHERE user_id=$1 ORDER BY created_at,cart_request_id",
     orders:
       "SELECT id,status,total,subtotal,created_at,warranty_end FROM orders WHERE user_id=$1 ORDER BY created_at,id",
     payments:

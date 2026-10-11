@@ -5,6 +5,7 @@ import { NativeSelect } from "@/components/ui/input";
 import { listAdminCartRequests, updateCartRequest } from "@/lib/shop/cart-requests";
 import { RequestSummary } from "./request-summary";
 import { requestStatuses } from "@/lib/shop/cart-presentation";
+import { AdminManualCartPayment } from "./admin-manual-cart-payment";
 export function AdminCartRequests() {
   const [status, setStatus] = useState(""),
     [page, setPage] = useState(0),
@@ -61,9 +62,8 @@ export function AdminCartRequests() {
   return (
     <section className="space-y-4">
       <p className="text-sm text-muted">
-        ลูกค้าส่งรายการก่อนชำระผ่านเว็บไซต์ ให้ตรวจสอบสต็อกและรับภาพหน้าจอจากลูกค้าทาง Facebook/Discord
-        หลังยืนยันการชำระเงินและสินค้าพร้อม ให้จัดส่งภายใน 5–10 นาที
-        การเปลี่ยนสถานะนี้ไม่หักเครดิต ไม่ตัดสต็อก และไม่ส่งรหัสสินค้าอัตโนมัติ
+        ระบบแสดงสถานะตรวจสลิปแยกจากสถานะจัดการรายการ ปุ่มรับเรื่องและจัดการรายการจะใช้ได้เมื่อสลิปผ่านการตรวจสอบแล้ว
+        การจัดการรายการยังไม่ตัดสต็อกหรือส่งข้อมูลสินค้าอัตโนมัติ
       </p>
       <div className="flex flex-wrap gap-3">
         <NativeSelect
@@ -98,6 +98,7 @@ export function AdminCartRequests() {
       <div className="space-y-4">
         {data?.rows.map((r) => (
           <RequestSummary key={r.id} request={r}>
+            {r.payment_status === "manual_review" ? <AdminManualCartPayment id={r.id} /> : null}
             {["pending", "received"].includes(r.status) ? (
               <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
                 {r.status === "pending" ? (
