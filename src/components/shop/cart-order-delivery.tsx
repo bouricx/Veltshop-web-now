@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Copy, Eye, EyeOff, KeyRound, PackageCheck } from "lucide-react";
+import { BookOpen, Copy, Eye, EyeOff, KeyRound, PackageCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getMyCartDelivery } from "@/lib/shop/cart-requests";
+import { defaultAppUsageGuide } from "@/lib/shop/app-usage-guide";
 
 export function CartOrderDelivery({ id }: { id: string }) {
   const [data, setData] = useState<Awaited<ReturnType<typeof getMyCartDelivery>>>(null);
@@ -43,7 +44,7 @@ export function CartOrderDelivery({ id }: { id: string }) {
         ) : (
           <Eye className="size-4" aria-hidden="true" />
         )}
-        {data ? "ซ่อนข้อมูลสินค้า" : busy ? "กำลังโหลด…" : "ดูข้อมูลสินค้า / รหัสผ่าน"}
+        {data ? "ซ่อนข้อมูลสินค้า" : busy ? "กำลังโหลด…" : "ดูสินค้า / รหัส / วิธีใช้งาน"}
       </Button>
       {data ? (
         <ul className="mt-4 space-y-3">
@@ -56,24 +57,41 @@ export function CartOrderDelivery({ id }: { id: string }) {
                 <KeyRound className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                 {i.name} × {i.quantity}
               </h4>
-              <pre className="mt-3 whitespace-pre-wrap break-all font-sans text-sm leading-relaxed">
-                {i.payload}
-              </pre>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="mt-3 text-emerald-950"
-                onClick={() =>
-                  void navigator.clipboard
-                    .writeText(i.payload)
-                    .then(() => setMessage("คัดลอกข้อมูลแล้ว"))
-                    .catch(() => setMessage("คัดลอกไม่สำเร็จ กรุณาเลือกข้อความด้วยตนเอง"))
-                }
-              >
-                <Copy className="size-4" aria-hidden="true" />
-                คัดลอกข้อมูลสินค้า
-              </Button>
+              {i.payload ? (
+                <>
+                  <pre className="mt-3 whitespace-pre-wrap break-all font-sans text-sm leading-relaxed">
+                    {i.payload}
+                  </pre>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 text-emerald-950"
+                    onClick={() =>
+                      void navigator.clipboard
+                        .writeText(i.payload)
+                        .then(() => setMessage("คัดลอกข้อมูลแล้ว"))
+                        .catch(() => setMessage("คัดลอกไม่สำเร็จ กรุณาเลือกข้อความด้วยตนเอง"))
+                    }
+                  >
+                    <Copy className="size-4" aria-hidden="true" />
+                    คัดลอกข้อมูลสินค้า
+                  </Button>
+                </>
+              ) : (
+                <p className="mt-2 text-xs text-muted">
+                  ข้อมูลเข้าสู่ระบบจัดส่งผ่านช่องทางที่ร้านยืนยันไว้ในออเดอร์
+                </p>
+              )}
+              <div className="mt-4 rounded-xl border border-border bg-surface-2 p-3 text-fg">
+                <h5 className="flex items-center gap-2 text-sm font-semibold">
+                  <BookOpen className="size-4 shrink-0" aria-hidden="true" />
+                  วิธีใช้งาน {i.name}
+                </h5>
+                <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed">
+                  {i.instructions || defaultAppUsageGuide(i.name)}
+                </p>
+              </div>
             </li>
           ))}
         </ul>

@@ -6,12 +6,18 @@ import { deductCartStock } from "./cart-status-service.server.ts";
 import type { RequestItem } from "./cart-request-service.server.ts";
 
 export type DeliveryChannel = "web" | "facebook" | "discord";
-export type DeliveryLine = { productId: string; name: string; quantity: number; payload: string };
+export type DeliveryLine = {
+  productId: string;
+  name: string;
+  quantity: number;
+  payload: string;
+  instructions?: string;
+};
 export type CartDeliveryInput = {
   id: string;
   expectedStatus: "pending" | "received";
   channel: DeliveryChannel;
-  entries: { productId: string; payload: string }[];
+  entries: { productId: string; payload: string; instructions?: string }[];
   confirmedDelivered: boolean;
 };
 export async function fulfillCartRequest(sql: Sql, actor: string, data: CartDeliveryInput) {
@@ -40,7 +46,7 @@ export async function fulfillCartRequest(sql: Sql, actor: string, data: CartDeli
       if (!["web", "facebook", "discord"].includes(data.channel))
         throw new CommerceError("ช่องทางจัดส่งไม่ถูกต้อง");
       let ciphertext: string | null = null;
-      if (data.channel === "web") {
+      if (data.channel === "web" || data.entries.length) {
         if (
           data.entries.length !== row.items.length ||
           new Set(data.entries.map((e) => e.productId)).size !== row.items.length
@@ -48,17 +54,21 @@ export async function fulfillCartRequest(sql: Sql, actor: string, data: CartDeli
           throw new CommerceError("กรอกข้อมูลให้ครบทุกสินค้าในรายการ");
         const lines: DeliveryLine[] = row.items.map((item) => {
           const entry = data.entries.find((e) => e.productId === item.productId);
-          const payload = entry?.payload.trim();
-          if (!payload || payload.length > 10000)
+          const payload = entry?.payload.trim() ?? "";
+          const instructions = entry?.instructions?.trim() ?? "";
+          if ((data.channel === "web" && !payload) || payload.length > 10000)
             throw new CommerceError(`กรอกข้อมูล ${item.name} ให้ครบ ไม่เกิน 10,000 ตัวอักษร`);
-          return { ...item, payload };
+          if (instructions.length > 10000)
+            throw new CommerceError("วิธีใช้งานต้องไม่เกิน 10,000 ตัวอักษรต่อสินค้า");
+          if (data.channel !== "web" && (payload || !instructions))
+            throw new CommerceError("ส่งทางเพจหรือ Discord ให้ใส่เฉพาะวิธีใช้งานในเว็บ");
+          return { ...item, payload, instructions };
         });
         const encoded = JSON.stringify(lines);
         if (encoded.length > 60000)
           throw new CommerceError("ข้อมูลจัดส่งมากเกินไป กรุณาติดต่อผู้ดูแลระบบ");
         ciphertext = encryptInventory(`cart-delivery:${data.id}`, encoded).ciphertext;
-      } else if (data.entries.length)
-        throw new CommerceError("ข้อมูลรหัสในเว็บใช้ได้เฉพาะช่องทางส่งในเว็บ");
+      }
       await deductCartStock(tx, actor, data.id, row.items);
       await tx.query(
         `UPDATE cart_requests SET status='done',delivery_ciphertext=$2,delivery_channel=$3,
@@ -100,7 +110,7 @@ export async function readCartDelivery(sql: Sql, userId: string, id: string) {
     `SELECT r.delivery_ciphertext,r.delivered_at::text FROM cart_requests r
      JOIN cart_request_payments p ON p.cart_request_id=r.id
      WHERE r.id=$1 AND r.user_id=$2 AND r.status='done' AND p.status='paid'
-       AND r.delivery_channel='web' AND r.delivery_ciphertext IS NOT NULL`,
+       AND r.delivery_ciphertext IS NOT NULL`,
     [id, userId],
   );
   if (!row) return null;

@@ -242,7 +242,8 @@ export const deliverCartRequest = createServerFn({ method: "POST" })
           .array(
             z.object({
               productId: z.string().min(1).max(160),
-              payload: z.string().trim().min(1).max(10000),
+              payload: z.string().trim().max(10000),
+              instructions: z.string().trim().max(10000).optional(),
             }),
           )
           .max(30),
