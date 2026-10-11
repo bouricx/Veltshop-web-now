@@ -1,10 +1,29 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { auth, recordSessionEvent } from "@/lib/auth/server";
+import { authRuntimeReadiness } from "@/lib/auth/runtime-readiness";
 import { preserveAuthResponse } from "@/lib/auth/response-audit";
 import { getSql } from "@/lib/db";
 import { configuration } from "@/lib/shop/operations-service.server";
 async function handle(request: Request) {
   const path = new URL(request.url).pathname;
+  const readiness = authRuntimeReadiness(process.env);
+  if (request.method === "GET" && path.endsWith("/session-status")) {
+    return Response.json(readiness, { headers: { "Cache-Control": "no-store" } });
+  }
+  if (
+    !readiness.ready &&
+    (path.endsWith("/sign-in/social") ||
+      path.endsWith("/sign-in/email") ||
+      path.endsWith("/sign-up/email"))
+  ) {
+    return Response.json(
+      {
+        code: "AUTH_CONFIGURATION_REQUIRED",
+        message: "ระบบสมาชิกยังไม่พร้อม: ผู้ดูแลต้องตั้งค่า " + readiness.missing.join(", "),
+      },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
+  }
   if (request.method === "POST" && path.endsWith("/sign-in/social")) {
     const data = await request
       .clone()

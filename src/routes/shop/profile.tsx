@@ -48,6 +48,9 @@ function ProfileBody() {
             <div>
               <p className="font-semibold">{data.profile.name}</p>
               <p className="text-sm text-muted">{data.profile.email}</p>
+              {data.loginProviders.includes("google") ? (
+                <p className="text-sm text-muted">เชื่อมบัญชี Google แล้ว</p>
+              ) : null}
               <p className="text-sm" style={{ color: data.profile.rank_color }}>
                 {data.profile.rank}
               </p>
@@ -163,7 +166,6 @@ function ProfileBody() {
       >
         ออกจากระบบทุกอุปกรณ์
       </Button>
-
     </div>
   );
 }
