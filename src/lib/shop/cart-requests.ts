@@ -185,7 +185,7 @@ export const updateCartRequest = createServerFn({ method: "POST" })
         tx,
         row.user_id,
         label,
-        เลขรายการ ${data.id} · สถานะรายการอัปเดตแล้ว`,
+        `เลขรายการ ${data.id} · สถานะรายการอัปเดตแล้ว`,
       );
       return { ok: true, message: label };
     });
