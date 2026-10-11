@@ -1,3 +1,3 @@
-/** The storefront collects product lists; customer payment endpoints stay closed. */
+/** Credit top-ups and wallet checkout remain closed; cart orders use PromptPay plus slip verification. */
 export const LIST_ONLY_STORE: boolean = true;
-export const listOnlyMessage = "ร้านรับรายการสินค้าผ่านตะกร้า ไม่ต้องเติมเงินหรือชำระผ่านเว็บ";
+export const listOnlyMessage = "ปิดการเติมเงินและซื้อด้วยเครดิต กรุณาสั่งซื้อผ่านตะกร้าและชำระด้วย QR";

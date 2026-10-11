@@ -38,6 +38,7 @@ test("cart requests use server prices, replay once, and never debit or deliver s
     assert.equal(result.total, 120);
     assert.deepEqual(await createCartRequest(sql, "buyer", input), result);
     assert.equal((await sql.query("SELECT count(*)::int AS n FROM cart_requests"))[0].n, 1);
+    assert.deepEqual(await sql.query("SELECT amount,status FROM cart_request_payments"), [{ amount: 120, status: "unpaid" }]);
     assert.equal((await sql.query("SELECT balance FROM wallet_accounts"))[0].balance, 100);
     assert.equal((await sql.query("SELECT stock FROM products"))[0].stock, 3);
     for (const table of ["orders", "order_deliveries", "wallet_ledger"])
@@ -109,8 +110,10 @@ test("cart data is owner scoped in privacy exports, backed up and redacted after
     assert.equal((await exportPersonalData(source.sql, "other")).data.cartRequests.length, 0);
     const backup = await snapshot(source.sql);
     assert.equal(backup.tables.cart_requests.length, 1);
+    assert.equal(backup.tables.cart_request_payments.length, 1);
     await restoreIntoEmpty(target.sql, backup);
     assert.equal((await target.sql.query("SELECT count(*)::int AS n FROM cart_requests"))[0].n, 1);
+    assert.equal((await target.sql.query("SELECT count(*)::int AS n FROM cart_request_payments"))[0].n, 1);
     await source.sql.query("UPDATE wallet_accounts SET balance=0");
     const deletion = await requestDeletion(source.sql, "buyer", "Please remove my account");
     await assert.rejects(

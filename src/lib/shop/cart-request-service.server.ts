@@ -67,17 +67,22 @@ export async function createCartRequest(sql: Sql, user: string, data: CartReques
     const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
     if (!Number.isSafeInteger(total) || total > 2147483647)
       throw new CommerceError("ยอดรายการสูงเกินไป กรุณาลดจำนวนสินค้า");
+    if (total < 1) throw new CommerceError("ยอดรายการต้องมากกว่า 0 บาท");
     const id = randomUUID();
     await tx.query(
       "INSERT INTO cart_requests(id,user_id,idempotency_key,fingerprint,contact,note,items,total) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
       [id, user, data.key, fingerprint, data.contact, data.note, JSON.stringify(items), total],
     );
+    await tx.query(
+      "INSERT INTO cart_request_payments(cart_request_id,user_id,amount) VALUES($1,$2,$3)",
+      [id, user, total],
+    );
     await audit(tx, user, "cart.requested", "cart_request", id, { lines: items.length, total });
     await notify(
       tx,
       user,
-      "ร้านได้รับรายการจากตะกร้าแล้ว",
-      `เลขรายการ ${id} · แคปหน้าจอรายการส่งทางเพจ Facebook/Discord เพื่อรับรายละเอียดชำระเงิน · จัดส่งภายใน 5–10 นาทีหลังยืนยันชำระและสต็อก`,
+      "สร้างรายการสั่งซื้อแล้ว",
+      `เลขรายการ ${id} · ยอดชำระ ${total} บาท · สแกน QR และแนบสลิปเพื่อให้ระบบตรวจ`,
     );
     return { ok: true as const, id, total };
   });

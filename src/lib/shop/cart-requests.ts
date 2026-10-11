@@ -6,6 +6,7 @@ import { requirePermission } from "./permissions.server";
 import { audit, limit, notify } from "./operations-service.server";
 import { CommerceError } from "./commerce.server";
 import { createCartRequest, type RequestItem } from "./cart-request-service.server";
+import { verifyCartRequestSlip } from "./cart-payment-service.server";
 export type { RequestItem } from "./cart-request-service.server";
 
 export type CartRequest = {
@@ -20,6 +21,8 @@ export type CartRequest = {
   status: string;
   created_at: string;
   updated_at: string;
+  payment_status: "unpaid" | "verifying" | "paid" | "rejected" | "manual_review";
+  payment_reason: string | null;
 };
 const input = z
   .object({
@@ -65,10 +68,52 @@ export const listMyCartRequests = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }) =>
     (await getSql()).query<CartRequest>(
-      "SELECT id,user_id,contact,note,items,total,status,created_at::text,updated_at::text FROM cart_requests WHERE user_id=$1 ORDER BY created_at DESC,id LIMIT 30",
+      `SELECT r.id,r.user_id,r.contact,r.note,r.items,r.total,r.status,r.created_at::text,r.updated_at::text,
+        p.status AS payment_status,p.reject_reason AS payment_reason
+       FROM cart_requests r JOIN cart_request_payments p ON p.cart_request_id=r.id
+       WHERE r.user_id=$1 ORDER BY r.created_at DESC,r.id LIMIT 30`,
       [String(context.userId)],
     ),
   );
+
+
+
+export const getCartPaymentInfo = createServerFn({ method: "GET" })
+  .validator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
+  .middleware([authMiddleware])
+  .handler(async ({ data, context }) => {
+    const sql = await getSql();
+    const [row] = await sql.query<{
+      amount: number;
+      status: CartRequest["payment_status"];
+      receive_account: string;
+      receive_name: string;
+    }>(
+      `SELECT p.amount,p.status,s.receive_account,s.receive_name
+       FROM cart_request_payments p JOIN shop_settings s ON s.id=1
+       WHERE p.cart_request_id=$1 AND p.user_id=$2`,
+      [data.id, String(context.userId)],
+    );
+    return row ?? null;
+  });
+
+export const submitCartPaymentSlip = createServerFn({ method: "POST" })
+  .validator((v: unknown) => z.object({
+    id: z.string().uuid(),
+    slipDataUrl: z.string().min(1).max(8_000_000),
+    mime: z.enum(["image/png", "image/jpeg", "image/webp"]).optional(),
+  }).parse(v))
+  .middleware([authMiddleware])
+  .handler(async ({ data, context }) => {
+    const userId = String(context.userId);
+    const sql = await getSql();
+    try {
+      await limit(sql, `cart-slip:${userId}`, 5, 300);
+      return await verifyCartRequestSlip(sql, userId, data.id, data.slipDataUrl, data.mime);
+    } catch (error) {
+      return { ok: false as const, message: error instanceof CommerceError ? error.message : "ตรวจสลิปไม่สำเร็จ กรุณาลองใหม่หรือแจ้งร้าน" };
+    }
+  });
 
 export const listAdminCartRequests = createServerFn({ method: "GET" })
   .validator((v: unknown) =>
@@ -84,7 +129,11 @@ export const listAdminCartRequests = createServerFn({ method: "GET" })
     await requirePermission(String(context.userId), "orders.manage", context.bearerToken);
     const sql = await getSql();
     const rows = await sql.query<CartRequest>(
-      "SELECT r.id,r.user_id,u.name,u.email,r.contact,r.note,r.items,r.total,r.status,r.created_at::text,r.updated_at::text FROM cart_requests r JOIN \"user\" u ON u.id=r.user_id WHERE $1='' OR r.status=$1 ORDER BY r.created_at DESC,r.id LIMIT 30 OFFSET $2",
+      `SELECT r.id,r.user_id,u.name,u.email,r.contact,r.note,r.items,r.total,r.status,r.created_at::text,r.updated_at::text,
+        p.status AS payment_status,p.reject_reason AS payment_reason
+       FROM cart_requests r JOIN "user" u ON u.id=r.user_id
+       JOIN cart_request_payments p ON p.cart_request_id=r.id
+       WHERE $1='' OR r.status=$1 ORDER BY r.created_at DESC,r.id LIMIT 30 OFFSET $2`,
       [data.status, data.page * 30],
     );
     const [count] = await sql.query<{ total: number }>(
@@ -109,12 +158,16 @@ export const updateCartRequest = createServerFn({ method: "POST" })
     const actor = String(context.userId);
     await requirePermission(actor, "orders.manage", context.bearerToken);
     return (await getSql()).transaction(async (tx) => {
-      const [row] = await tx.query<{ user_id: string; status: string }>(
-        "SELECT user_id,status FROM cart_requests WHERE id=$1 FOR UPDATE",
+      const [row] = await tx.query<{ user_id: string; status: string; payment_status: string }>(
+        `SELECT r.user_id,r.status,p.status AS payment_status
+         FROM cart_requests r JOIN cart_request_payments p ON p.cart_request_id=r.id
+         WHERE r.id=$1 FOR UPDATE OF r,p`,
         [data.id],
       );
       if (!row || row.status !== data.expectedStatus || ["done", "cancelled"].includes(row.status))
         return { ok: false, message: "รายการเปลี่ยนสถานะแล้ว กรุณาโหลดใหม่" };
+      if (data.status !== "cancelled" && row.payment_status !== "paid")
+        return { ok: false, message: "ยังจัดการรายการไม่ได้ เพราะยังไม่ยืนยันการชำระเงิน" };
       await tx.query("UPDATE cart_requests SET status=$2,updated_at=now() WHERE id=$1", [
         data.id,
         data.status,
@@ -132,7 +185,7 @@ export const updateCartRequest = createServerFn({ method: "POST" })
         tx,
         row.user_id,
         label,
-        `เลขรายการ ${data.id} · ติดต่อร้านเพื่อยืนยันการชำระและการจัดส่ง`,
+        เลขรายการ ${data.id} · สถานะรายการอัปเดตแล้ว`,
       );
       return { ok: true, message: label };
     });
