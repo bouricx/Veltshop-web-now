@@ -21,7 +21,7 @@ async function setup(seed = true) {
   });
   if (seed)
     await db.exec(
-      `INSERT INTO "user"(id,name,email,"emailVerified","updatedAt") VALUES('buyer','Buyer','buyer@example.test',true,now()),('other','Other','other@example.test',true,now());INSERT INTO categories(id,label) VALUES('test','Test category');INSERT INTO products(id,name,category_id,price,stock) VALUES('product','Test product','test',60,3);INSERT INTO wallet_accounts(user_id,balance) VALUES('buyer',100);`,
+      `INSERT INTO "user"(id,name,email,"emailVerified","updatedAt") VALUES('buyer','Buyer','buyer@example.test',true,now()),('other','Other','other@example.test',true,now());INSERT INTO categories(id,label) VALUES('test','Test category') ON CONFLICT(id) DO NOTHING;INSERT INTO products(id,name,category_id,price,stock) VALUES('product','Test product','test',60,3);INSERT INTO wallet_accounts(user_id,balance) VALUES('buyer',100);`,
     );
   return { db, sql: wrap(db) };
 }
@@ -40,7 +40,7 @@ test("cart requests use server prices, replay once, and never debit or deliver s
     assert.equal((await sql.query("SELECT count(*)::int AS n FROM cart_requests"))[0].n, 1);
     assert.deepEqual(await sql.query("SELECT amount,status FROM cart_request_payments"), [{ amount: 120, status: "unpaid" }]);
     assert.equal((await sql.query("SELECT balance FROM wallet_accounts"))[0].balance, 100);
-    assert.equal((await sql.query("SELECT stock FROM products"))[0].stock, 3);
+    assert.equal((await sql.query("SELECT stock FROM products WHERE id='product'"))[0].stock, 3);
     for (const table of ["orders", "order_deliveries", "wallet_ledger"])
       assert.equal((await sql.query(`SELECT count(*)::int AS n FROM ${table}`))[0].n, 0);
     const [row] = await sql.query("SELECT items,status FROM cart_requests");
@@ -68,16 +68,21 @@ test("cart requests use server prices, replay once, and never debit or deliver s
     await db.close();
   }
 });
-test("active products can be listed without stock, including multiple quantities", async () => {
+test("products without confirmed stock cannot be added to a paid cart request", async () => {
   const { db, sql } = await setup();
   try {
-    await sql.query("UPDATE products SET stock=0");
-    const result = await createCartRequest(sql, "buyer", {
-      ...input,
-      items: [{ productId: "product", quantity: 4 }],
-    });
-    assert.equal(result.total, 240);
-    assert.equal((await sql.query("SELECT stock FROM products"))[0].stock, 0);
+    await sql.query("UPDATE products SET stock=0 WHERE id='product'");
+    await assert.rejects(
+      createCartRequest(sql, "buyer", { ...input, items: [{ productId: "product", quantity: 1 }] }),
+      /สต็อกยืนยันแล้ว 0 ชิ้น/,
+    );
+    await sql.query("UPDATE products SET stock=3 WHERE id='product'");
+    await assert.rejects(
+      createCartRequest(sql, "buyer", { ...input, items: [{ productId: "product", quantity: 4 }] }),
+      /สต็อกยืนยันแล้ว 3 ชิ้น/,
+    );
+    assert.equal((await sql.query("SELECT stock FROM products WHERE id='product'"))[0].stock, 3);
+    assert.equal((await sql.query("SELECT count(*)::int AS n FROM cart_requests"))[0].n, 0);
     assert.equal((await sql.query("SELECT balance FROM wallet_accounts"))[0].balance, 100);
   } finally {
     await db.close();
@@ -105,6 +110,9 @@ test("cart data is owner scoped in privacy exports, backed up and redacted after
   const source = await setup(),
     target = await setup(false);
   try {
+    await target.sql.query("DELETE FROM products");
+    await target.sql.query("DELETE FROM categories");
+    await target.sql.query("DELETE FROM admin_events");
     await createCartRequest(source.sql, "buyer", input);
     assert.equal((await exportPersonalData(source.sql, "buyer")).data.cartRequests.length, 1);
     assert.equal((await exportPersonalData(source.sql, "other")).data.cartRequests.length, 0);
