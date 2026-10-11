@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { NativeSelect, Textarea } from "@/components/ui/input";
 import { deliverCartRequest, type CartRequest } from "@/lib/shop/cart-requests";
+import { defaultAppUsageGuide } from "@/lib/shop/app-usage-guide";
 
 export function AdminCartDelivery({
   request: r,
@@ -16,6 +17,7 @@ export function AdminCartDelivery({
     [channel, setChannel] = useState<"web" | "facebook" | "discord">("web");
   const [values, setValues] = useState<Record<string, string>>({}),
     [confirmed, setConfirmed] = useState(false);
+  const [guides, setGuides] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
   const sending = useRef(false);
@@ -27,6 +29,13 @@ export function AdminCartDelivery({
       setMessage(`กรอกข้อมูล ${missing.name} ให้ครบก่อนส่ง`);
       return;
     }
+    const missingGuide = r.items.find(
+      (i) => !(guides[i.productId] ?? defaultAppUsageGuide(i.name)).trim(),
+    );
+    if (missingGuide) {
+      setMessage(`กรอกวิธีใช้งาน ${missingGuide.name} ก่อนยืนยันจัดส่ง`);
+      return;
+    }
     sending.current = true;
     setBusy(true);
     setMessage("");
@@ -36,19 +45,18 @@ export function AdminCartDelivery({
           id: r.id,
           expectedStatus: r.status as "pending" | "received",
           channel,
-          entries:
-            channel === "web"
-              ? r.items.map((i) => ({
-                  productId: i.productId,
-                  payload: values[i.productId]?.trim() ?? "",
-                }))
-              : [],
+          entries: r.items.map((i) => ({
+            productId: i.productId,
+            payload: channel === "web" ? (values[i.productId]?.trim() ?? "") : "",
+            instructions: (guides[i.productId] ?? defaultAppUsageGuide(i.name)).trim(),
+          })),
           confirmedDelivered: true,
         },
       });
       setMessage(result.message);
       if (result.ok) {
         setValues({});
+        setGuides({});
         setConfirmed(false);
         setOpen(false);
         onDelivered();
@@ -68,6 +76,7 @@ export function AdminCartDelivery({
           setOpen(v);
           if (!v) {
             setValues({});
+            setGuides({});
             setConfirmed(false);
             setMessage("");
           }
@@ -135,6 +144,26 @@ export function AdminCartDelivery({
               ให้เรียบร้อยก่อนยืนยัน ปุ่มนี้จะบันทึกสถานะจัดส่งในเว็บ
             </p>
           )}
+          <div className="space-y-4 rounded-xl border border-border bg-surface-2 p-3">
+            <p className="text-sm font-semibold">วิธีใช้งานหลังรับสินค้า</p>
+            <p className="text-xs leading-relaxed text-muted">
+              แก้คำแนะนำเริ่มต้นให้ตรงกับแอป แพ็กเกจ และวิธีรับสิทธิ์ที่ขาย
+              ลูกค้าจะเห็นในออเดอร์หลังยืนยันจัดส่ง แม้รับรหัสทางเพจหรือ Discord
+            </p>
+            {r.items.map((i) => (
+              <label key={i.productId} className="block text-sm font-medium">
+                วิธีใช้งาน {i.name}
+                <Textarea
+                  className="mt-2 min-h-40"
+                  required
+                  maxLength={10000}
+                  disabled={busy}
+                  value={guides[i.productId] ?? defaultAppUsageGuide(i.name)}
+                  onChange={(e) => setGuides((v) => ({ ...v, [i.productId]: e.target.value }))}
+                />
+              </label>
+            ))}
+          </div>
           <label className="flex min-h-11 items-start gap-2 text-sm">
             <input
               type="checkbox"
@@ -145,8 +174,8 @@ export function AdminCartDelivery({
             />
             <span>
               {channel === "web"
-                ? "ตรวจข้อมูลและจำนวนครบแล้ว พร้อมส่งให้ลูกค้า"
-                : "จัดส่งสินค้าครบทุกชิ้นทางช่องทางที่เลือกแล้ว"}
+                ? "ตรวจข้อมูล จำนวน และวิธีใช้งานครบแล้ว พร้อมส่งให้ลูกค้า"
+                : "จัดส่งสินค้าครบแล้ว และตรวจวิธีใช้งานตรงกับสินค้าที่ขาย"}
             </span>
           </label>
           {message ? (

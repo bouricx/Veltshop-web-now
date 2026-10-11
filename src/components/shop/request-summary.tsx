@@ -84,7 +84,7 @@ export function RequestSummary({
             : ""}
         </p>
       ) : null}
-      {showPayment && r.status === "done" && r.delivery_channel === "web" && r.has_delivery ? (
+      {showPayment && r.status === "done" && r.payment_status === "paid" && r.has_delivery ? (
         <CartOrderDelivery id={r.id} />
       ) : null}
       {showPayment && r.status !== "cancelled" ? (

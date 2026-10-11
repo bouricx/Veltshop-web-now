@@ -397,11 +397,12 @@ test("web delivery is encrypted, owner-only, immutable, and deducts stock exactl
   try {
     const order = await create();
     const payload = "TEST-ONLY-SECRET: user@example.test / demonstration-password";
+    const instructions = "TEST-ONLY-GUIDE: เปิดแอป แล้วใช้โปรไฟล์ที่ร้านระบุ";
     const delivery = {
       id: order.id,
       expectedStatus: "pending",
       channel: "web",
-      entries: [{ productId: "test-product", payload }],
+      entries: [{ productId: "test-product", payload, instructions }],
       confirmedDelivered: true,
     };
     assert.equal((await fulfillCartRequest(sql, "admin", delivery)).ok, false);
@@ -434,9 +435,11 @@ test("web delivery is encrypted, owner-only, immutable, and deducts stock exactl
     assert.ok(record.delivered_at);
     assert.ok(record.delivery_ciphertext.startsWith("v1."));
     assert.ok(!record.delivery_ciphertext.includes(payload));
+    assert.ok(!record.delivery_ciphertext.includes(instructions));
     assert.equal(await readCartDelivery(sql, "other", order.id), null);
     const received = await readCartDelivery(sql, "buyer", order.id);
     assert.equal(received.entries[0].payload, payload);
+    assert.equal(received.entries[0].instructions, instructions);
     assert.equal(received.entries[0].name, "Test product");
     assert.equal(
       (
@@ -464,6 +467,7 @@ test("web delivery is encrypted, owner-only, immutable, and deducts stock exactl
       "SELECT to_jsonb(t) data FROM audit_logs t UNION ALL SELECT to_jsonb(n) FROM notifications n",
     );
     assert.ok(!JSON.stringify(records).includes(payload));
+    assert.ok(!JSON.stringify(records).includes(instructions));
     const backup = await snapshot(sql);
     assert.equal(backup.tables.cart_requests[0].delivery_ciphertext, record.delivery_ciphertext);
     assert.ok(!JSON.stringify(await exportPersonalData(sql, "buyer")).includes(payload));
@@ -535,6 +539,69 @@ test("multi-product delivery rolls back all stock and credentials if any item is
     await sql.query("UPDATE products SET stock=1 WHERE id='z-product'");
     assert.equal((await fulfillCartRequest(sql, "admin", delivery)).ok, true);
     assert.equal((await readCartDelivery(sql, "buyer", order.id)).entries.length, 2);
+  } finally {
+    if (previousKey === undefined) delete process.env.INVENTORY_ENCRYPTION_KEY;
+    else process.env.INVENTORY_ENCRYPTION_KEY = previousKey;
+    await db.close();
+  }
+});
+
+test("external delivery keeps the app guide private and available only after paid fulfillment", async () => {
+  const { db, sql, create } = await setup();
+  const previousKey = process.env.INVENTORY_ENCRYPTION_KEY;
+  process.env.INVENTORY_ENCRYPTION_KEY = "c3".repeat(32);
+  try {
+    const order = await create();
+    const instructions = "PRIVATE-GUIDE: เปิดแอปแล้วใช้ข้อมูลที่ได้รับทางเพจ";
+    const delivery = {
+      id: order.id,
+      expectedStatus: "pending",
+      channel: "facebook",
+      entries: [{ productId: "test-product", payload: "", instructions }],
+      confirmedDelivered: true,
+    };
+    assert.equal(await readCartDelivery(sql, "buyer", order.id), null);
+    assert.equal((await fulfillCartRequest(sql, "admin", delivery)).ok, false);
+    await reviewCartPayment(sql, "admin", {
+      id: order.id,
+      decision: "approve",
+      expectedStatus: "unpaid",
+      bankConfirmed: true,
+      reference: "EXTERNAL-GUIDE-REF",
+    });
+    assert.equal(await readCartDelivery(sql, "buyer", order.id), null);
+    assert.equal(
+      (
+        await fulfillCartRequest(sql, "admin", {
+          ...delivery,
+          entries: [{ productId: "test-product", payload: "secret", instructions }],
+        })
+      ).ok,
+      false,
+    );
+    assert.equal(
+      (
+        await fulfillCartRequest(sql, "admin", {
+          ...delivery,
+          entries: [{ productId: "test-product", payload: "", instructions: " " }],
+        })
+      ).ok,
+      false,
+    );
+    assert.equal((await fulfillCartRequest(sql, "admin", delivery)).ok, true);
+    assert.equal(await readCartDelivery(sql, "other", order.id), null);
+    const result = await readCartDelivery(sql, "buyer", order.id);
+    assert.equal(result.entries[0].instructions, instructions);
+    assert.equal(result.entries[0].payload, "");
+    const [record] = await sql.query("SELECT delivery_ciphertext FROM cart_requests WHERE id=$1", [
+      order.id,
+    ]);
+    assert.ok(!record.delivery_ciphertext.includes(instructions));
+    assert.equal((await fulfillCartRequest(sql, "admin", delivery)).ok, false);
+    const records = await sql.query(
+      "SELECT to_jsonb(t) data FROM audit_logs t UNION ALL SELECT to_jsonb(n) FROM notifications n",
+    );
+    assert.ok(!JSON.stringify(records).includes(instructions));
   } finally {
     if (previousKey === undefined) delete process.env.INVENTORY_ENCRYPTION_KEY;
     else process.env.INVENTORY_ENCRYPTION_KEY = previousKey;
