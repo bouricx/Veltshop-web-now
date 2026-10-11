@@ -11,6 +11,10 @@ import {
   fulfillCartRequest,
   readCartDelivery,
 } from "../src/lib/shop/cart-delivery-service.server.ts";
+import {
+  readProductUsageGuides,
+  saveProductUsageGuides,
+} from "../src/lib/shop/product-usage-guides-service.server.ts";
 import { snapshot } from "../src/lib/shop/backup-service.server.ts";
 import { exportPersonalData } from "../src/lib/shop/privacy-service.server.ts";
 import {
@@ -605,6 +609,144 @@ test("external delivery keeps the app guide private and available only after pai
   } finally {
     if (previousKey === undefined) delete process.env.INVENTORY_ENCRYPTION_KEY;
     else process.env.INVENTORY_ENCRYPTION_KEY = previousKey;
+    await db.close();
+  }
+});
+
+test("saved app guides survive reopening without delivering orders, and fulfilled guides remain immutable", async () => {
+  const { db, sql, create, row } = await setup();
+  const previousKey = process.env.INVENTORY_ENCRYPTION_KEY;
+  process.env.INVENTORY_ENCRYPTION_KEY = "d4".repeat(32);
+  try {
+    const order = await create();
+    const guide = {
+      productId: "test-product",
+      instructions: "  GUIDE-V1: Open the app  ",
+      expectedVersion: 0,
+    };
+    assert.equal((await saveProductUsageGuides(sql, "admin", [guide])).ok, true);
+    let saved = (await readProductUsageGuides(sql, [guide.productId]))[0];
+    assert.equal(saved.instructions, guide.instructions.trim());
+    assert.equal(saved.version, 1);
+    assert.equal((await row(order.id)).status, "unpaid");
+    assert.equal(
+      (await sql.query("SELECT status FROM cart_requests WHERE id=$1", [order.id]))[0].status,
+      "pending",
+    );
+    assert.equal(
+      (await sql.query("SELECT stock FROM products WHERE id='test-product'"))[0].stock,
+      10,
+    );
+    assert.equal((await sql.query("SELECT count(*)::int n FROM inventory_movements"))[0].n, 0);
+    assert.equal((await sql.query("SELECT count(*)::int n FROM transactions"))[0].n, 0);
+    assert.equal(
+      (
+        await saveProductUsageGuides(sql, "admin", [
+          { ...guide, instructions: "GUIDE-V2", expectedVersion: 1 },
+        ])
+      ).ok,
+      true,
+    );
+    assert.equal(
+      (
+        await saveProductUsageGuides(sql, "admin", [
+          { ...guide, instructions: "stale overwrite", expectedVersion: 1 },
+        ])
+      ).ok,
+      false,
+    );
+    saved = (await readProductUsageGuides(sql, [guide.productId]))[0];
+    assert.equal(saved.instructions, "GUIDE-V2");
+    assert.equal(saved.version, 2);
+    assert.equal(
+      (
+        await saveProductUsageGuides(sql, "admin", [
+          { ...guide, instructions: " ", expectedVersion: 2 },
+        ])
+      ).ok,
+      false,
+    );
+    await reviewCartPayment(sql, "admin", {
+      id: order.id,
+      decision: "approve",
+      expectedStatus: "unpaid",
+      bankConfirmed: true,
+      reference: "SAVED-GUIDE-REF",
+    });
+    assert.equal(
+      (
+        await fulfillCartRequest(sql, "admin", {
+          id: order.id,
+          expectedStatus: "pending",
+          channel: "web",
+          confirmedDelivered: true,
+          entries: [
+            {
+              productId: guide.productId,
+              payload: "TEST-ONLY-ACCOUNT",
+              instructions: saved.instructions,
+            },
+          ],
+        })
+      ).ok,
+      true,
+    );
+    assert.equal(
+      (
+        await saveProductUsageGuides(sql, "admin", [
+          { ...guide, instructions: "GUIDE-V3", expectedVersion: 2 },
+        ])
+      ).ok,
+      true,
+    );
+    assert.equal(
+      (await readCartDelivery(sql, "buyer", order.id)).entries[0].instructions,
+      "GUIDE-V2",
+    );
+    assert.equal(
+      (await readProductUsageGuides(sql, [guide.productId]))[0].instructions,
+      "GUIDE-V3",
+    );
+    assert.equal(await readCartDelivery(sql, "other", order.id), null);
+  } finally {
+    if (previousKey === undefined) delete process.env.INVENTORY_ENCRYPTION_KEY;
+    else process.env.INVENTORY_ENCRYPTION_KEY = previousKey;
+    await db.close();
+  }
+});
+
+test("batch guide saves roll back completely on version conflicts and are included in backups", async () => {
+  const { db, sql } = await setup();
+  try {
+    await sql.query(
+      "INSERT INTO products(id,name,category_id,price,stock) VALUES('z-product','Second product','test-category',40,1)",
+    );
+    await saveProductUsageGuides(sql, "admin", [
+      { productId: "z-product", instructions: "Z guide", expectedVersion: 0 },
+    ]);
+    assert.equal(
+      (
+        await saveProductUsageGuides(sql, "admin", [
+          { productId: "test-product", instructions: "Must roll back", expectedVersion: 0 },
+          { productId: "z-product", instructions: "Stale", expectedVersion: 0 },
+        ])
+      ).ok,
+      false,
+    );
+    assert.equal((await readProductUsageGuides(sql, ["test-product"])).length, 0);
+    assert.equal((await readProductUsageGuides(sql, ["z-product"]))[0].instructions, "Z guide");
+    const backup = await snapshot(sql);
+    assert.equal(backup.migration, "0021");
+    assert.equal(backup.tables.product_usage_guides[0].instructions, "Z guide");
+    assert.equal(
+      (
+        await saveProductUsageGuides(sql, "admin", [
+          { productId: "missing", instructions: "Missing", expectedVersion: 0 },
+        ])
+      ).ok,
+      false,
+    );
+  } finally {
     await db.close();
   }
 });

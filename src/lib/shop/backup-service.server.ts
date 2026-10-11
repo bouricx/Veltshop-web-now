@@ -9,6 +9,7 @@ export const backupTables = [
   "verification",
   "categories",
   "products",
+  "product_usage_guides",
   "shop_settings",
   "roles",
   "permissions",
@@ -107,7 +108,7 @@ export async function snapshot(sql: Sql): Promise<Snapshot> {
       );
       tables[table] = rows.map((r) => r.data);
     }
-    return { version: 1, migration: "0020", createdAt: new Date().toISOString(), tables };
+    return { version: 1, migration: "0021", createdAt: new Date().toISOString(), tables };
   });
 }
 export async function restoreIntoEmpty(sql: Sql, value: Snapshot) {
