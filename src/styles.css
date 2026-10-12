@@ -780,6 +780,13 @@ html[data-shop] {
 }
 html[data-theme="light"] {
   --bg: #f5f3ff;
+  --fg: #202036;
+  --muted: #47475f;
+  --subtle: #56566e;
+  --icon-blue: #1d4ed8;
+  --icon-purple: #7c3aed;
+  --icon-teal: #0f766e;
+  --icon-orange: #b45309;
   --surface: #fff;
   --surface-2: #ede9fe;
   --border: #ddd6fe;
@@ -789,8 +796,12 @@ html[data-theme="dark"] {
   --surface: #181c30;
   --surface-2: #242a43;
   --fg: #f8fafc;
-  --muted: #c0c7d8;
-  --subtle: #a5afc5;
+  --muted: #d0d6e5;
+  --subtle: #bdc6db;
+  --icon-blue: #93c5fd;
+  --icon-purple: #c4b5fd;
+  --icon-teal: #5eead4;
+  --icon-orange: #fcd34d;
   --border: #39425e;
   --soft: #242a43;
   --accent: #a78bfa;
@@ -877,4 +888,34 @@ html[data-theme="dark"] :where(.text-emerald-700, .text-emerald-600) {
 }
 html[data-theme="dark"] .payment-qr .text-muted {
   color: #52525b;
+}
+
+/* Navigation and guidance icons carry color independently of readable labels. */
+[data-shop] :where(.bottom-dock, .quick-link, .checkout-guide) .lucide-shopping-cart,
+[data-shop] .checkout-guide .lucide-shopping-bag {
+  color: var(--icon-blue);
+}
+[data-shop] :where(.bottom-dock, .quick-link) .lucide-monitor-play,
+[data-shop] .checkout-guide .lucide-qr-code {
+  color: var(--icon-purple);
+}
+[data-shop] .bottom-dock .lucide-scroll-text,
+[data-shop] .checkout-guide .lucide-upload {
+  color: var(--icon-orange);
+}
+[data-shop] .bottom-dock .lucide-user-round,
+[data-shop] .checkout-guide .lucide-package-check {
+  color: var(--icon-teal);
+}
+[data-shop] .bottom-dock a:not([aria-label="หน้าแรก"]) svg {
+  box-sizing: content-box;
+  padding: 0.35rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, currentColor 12%, var(--surface));
+}
+[data-shop] .bottom-dock a:not([aria-label="หน้าแรก"]) {
+  font-weight: 600;
+}
+[data-shop] .storefront-hero :where(.text-white\/70, .text-white\/75) {
+  color: #f1efff;
 }

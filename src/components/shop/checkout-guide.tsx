@@ -35,7 +35,7 @@ export function CheckoutGuide() {
   return (
     <section
       aria-label="วิธีสั่งซื้อและสถานะชำระเงิน"
-      className="rounded-2xl border border-border bg-surface p-4 sm:p-5"
+      className="checkout-guide rounded-2xl border border-border bg-surface p-4 sm:p-5"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">สั่งซื้อง่าย ๆ ใน 4 ขั้นตอน</h2>
