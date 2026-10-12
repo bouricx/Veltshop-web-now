@@ -224,8 +224,21 @@ export function CartPaymentPanel({
   return (
     <section
       aria-label="รายละเอียดการชำระเงิน"
-      className="mt-5 min-w-0 rounded-2xl border border-border bg-surface p-4 text-text sm:p-5"
+      className="mt-5 min-w-0 overflow-hidden rounded-3xl border border-border bg-surface p-5 text-fg shadow-[0_12px_40px_rgba(15,23,42,0.06)] sm:p-7"
     >
+      <ol aria-label="ขั้นตอนชำระเงิน" className="mb-6 grid grid-cols-3 gap-2 text-center text-xs">
+        {["สแกนจ่าย", "แนบสลิป", "รอยืนยัน"].map((step, index) => (
+          <li key={step} className="rounded-2xl border border-border bg-surface-2 px-2 py-3">
+            <span
+              aria-hidden="true"
+              className="mx-auto mb-2 grid size-6 place-items-center rounded-full bg-accent text-accent-fg"
+            >
+              {index + 1}
+            </span>
+            <span className="font-medium">{step}</span>
+          </li>
+        ))}
+      </ol>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 font-semibold">
           <QrCode className="size-5" aria-hidden="true" />
@@ -235,8 +248,13 @@ export function CartPaymentPanel({
           {info.verification === "manual" ? "แอดมินตรวจสลิป" : "ตรวจสลิปอัตโนมัติ"}
         </span>
       </div>
-      <p className="mt-4 text-xs text-muted">ยอดที่ต้องชำระ</p>
-      <p className="mt-1 text-3xl font-semibold tabular-nums">{formatBaht(info.amount)}</p>
+      <div className="mt-5 rounded-2xl bg-accent px-5 py-5 text-accent-fg sm:px-6">
+        <p className="text-xs opacity-80">ยอดที่ต้องชำระ</p>
+        <p className="mt-2 text-4xl font-bold tracking-tight tabular-nums">
+          {formatBaht(info.amount)}
+        </p>
+        <p className="mt-2 text-xs opacity-80">ชำระตามยอดนี้ แล้วแนบสลิปเพื่อยืนยัน</p>
+      </div>
       {expired ? (
         <div role="status" className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-950">
           <p className="font-semibold">หมดเวลาชำระเงินแล้ว · กรุณาอย่าโอนเพิ่ม</p>
@@ -248,15 +266,16 @@ export function CartPaymentPanel({
       ) : !info.available ? (
         <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-950">{info.message}</p>
       ) : (
-        <div className="mt-4 grid gap-5 sm:grid-cols-[minmax(0,240px)_minmax(0,1fr)]">
-          <div className="min-w-0 text-center">
+        <div className="mt-6 grid items-start gap-5 sm:grid-cols-[minmax(0,260px)_minmax(0,1fr)]">
+          <div className="min-w-0 rounded-2xl border border-border bg-white p-4 text-center text-zinc-900">
+            <p className="mb-3 text-xs font-semibold tracking-widest">PROMPTPAY</p>
             {qr ? (
               <img
                 src={qr}
                 alt={`QR พร้อมเพย์ ยอด ${info.amount} บาท`}
                 width={224}
                 height={224}
-                className="mx-auto aspect-square w-full max-w-56 rounded-xl border border-border bg-white p-2"
+                className="mx-auto aspect-square w-full max-w-56 rounded-xl bg-white p-2"
               />
             ) : (
               <p className="p-8 text-sm text-muted">กำลังเตรียม QR…</p>
@@ -272,7 +291,7 @@ export function CartPaymentPanel({
               </a>
             ) : null}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 rounded-2xl border border-border p-4 sm:p-5">
             <p className="text-xs text-muted">บัญชีรับเงิน</p>
             <p className="mt-1 break-words font-semibold">{info.receive_name}</p>
             <p className="mt-1 break-all text-sm tabular-nums">{info.receive_account}</p>
@@ -305,7 +324,7 @@ export function CartPaymentPanel({
           </div>
         </div>
       )}
-      <div className="mt-5 border-t border-border pt-4">
+      <div className="mt-6 rounded-2xl border border-dashed border-border bg-surface-2/50 p-4 sm:p-5">
         <h4 className="text-sm font-semibold">
           {expired ? "โอนแล้ว? แนบสลิปให้แอดมินตรวจ" : "โอนแล้ว แนบสลิปที่นี่"}
         </h4>
@@ -327,7 +346,7 @@ export function CartPaymentPanel({
           type="file"
           accept="image/png,image/jpeg,image/webp"
           disabled={busy}
-          className="mt-2 block w-full min-w-0 text-xs file:mr-2 file:rounded-xl file:border-0 file:bg-surface-2 file:px-3 file:py-3 file:text-sm"
+          className="mt-3 block min-h-12 w-full min-w-0 rounded-xl border border-border bg-surface p-2 text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-2.5 file:text-sm file:font-medium file:text-accent-fg focus-visible:outline-2 focus-visible:outline-accent"
           onChange={(event) => {
             const selected = event.currentTarget.files?.[0] ?? null;
             setError("");
