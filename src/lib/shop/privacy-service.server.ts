@@ -18,6 +18,8 @@ export async function exportPersonalData(sql: Sql, userId: string) {
       "SELECT id,method,amount,fee,credit,status,provider,provider_reference,created_at FROM payments WHERE user_id=$1 ORDER BY created_at,id",
     ledger:
       "SELECT id,reason,amount,(balance_after-amount) AS balance_before,balance_after,order_id,payment_id,created_at FROM wallet_ledger WHERE user_id=$1 ORDER BY created_at,id",
+    cartClaims:
+      "SELECT result FROM operation_keys WHERE user_id=$1 AND kind='cart_claim' ORDER BY created_at,key",
     claims:
       "SELECT id,order_id,title,message,status,reply,created_at FROM claims WHERE user_id=$1 ORDER BY created_at,id",
     notifications:
@@ -72,7 +74,7 @@ export async function reviewDeletion(
       );
       await tx.query('SELECT id FROM "user" WHERE id=$1 FOR UPDATE', [row.user_id]);
       const [blocked] = await tx.query<{ blocked: boolean }>(
-        "SELECT EXISTS(SELECT 1 FROM user_roles WHERE user_id=$1 AND role_id IN ('super_admin','admin','staff')) OR EXISTS(SELECT 1 FROM wallet_accounts WHERE user_id=$1 AND balance<>0) OR EXISTS(SELECT 1 FROM payments WHERE user_id=$1 AND status IN ('pending','reconciliation_required')) OR EXISTS(SELECT 1 FROM claims WHERE user_id=$1 AND status IN ('pending','accepted')) OR EXISTS(SELECT 1 FROM cart_requests WHERE user_id=$1 AND status IN ('pending','received')) AS blocked",
+        "SELECT EXISTS(SELECT 1 FROM user_roles WHERE user_id=$1 AND role_id IN ('super_admin','admin','staff')) OR EXISTS(SELECT 1 FROM wallet_accounts WHERE user_id=$1 AND balance<>0) OR EXISTS(SELECT 1 FROM payments WHERE user_id=$1 AND status IN ('pending','reconciliation_required')) OR EXISTS(SELECT 1 FROM claims WHERE user_id=$1 AND status IN ('pending','accepted')) OR EXISTS(SELECT 1 FROM cart_requests WHERE user_id=$1 AND status IN ('pending','received')) OR EXISTS(SELECT 1 FROM operation_keys WHERE user_id=$1 AND kind='cart_claim' AND result->>'status' IN ('pending','accepted')) AS blocked",
         [row.user_id],
       );
       if (blocked.blocked)
@@ -87,6 +89,10 @@ export async function reviewDeletion(
       );
       await tx.query(
         "UPDATE cart_requests SET contact='บัญชีที่ปิดแล้ว',note='',delivery_ciphertext=NULL WHERE user_id=$1",
+        [row.user_id],
+      );
+      await tx.query(
+        "UPDATE operation_keys SET result=result - 'title' - 'message' - 'evidence' WHERE user_id=$1 AND kind='cart_claim'",
         [row.user_id],
       );
       await tx.query('DELETE FROM session WHERE "userId"=$1', [row.user_id]);

@@ -267,7 +267,7 @@ export function CartPaymentPanel({
         <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-950">{info.message}</p>
       ) : (
         <div className="mt-6 grid items-start gap-5 sm:grid-cols-[minmax(0,260px)_minmax(0,1fr)]">
-          <div className="min-w-0 rounded-2xl border border-border bg-white p-4 text-center text-zinc-900">
+          <div className="payment-qr min-w-0 rounded-2xl border border-border bg-white p-4 text-center text-zinc-900">
             <p className="mb-3 text-xs font-semibold tracking-widest">PROMPTPAY</p>
             {qr ? (
               <img

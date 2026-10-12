@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 export type Mode = "dark" | "light";
 export type Accent = "ice" | "teal" | "slate";
@@ -36,32 +29,34 @@ function readStored(): { mode: Mode; accent: Accent } {
   }
 }
 
-function shopLocked() {
-  return typeof document !== "undefined" && document.documentElement.hasAttribute("data-shop");
-}
-
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<Mode>("light");
   const [accent, setAccentState] = useState<Accent>("ice");
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const stored = readStored();
     setModeState(stored.mode);
     setAccentState(stored.accent);
+    setReady(true);
   }, []);
 
   useEffect(() => {
+    if (!ready) return;
     const root = document.documentElement;
-    const locked = shopLocked();
-    root.dataset.theme = locked ? "light" : mode;
+    root.dataset.theme = mode;
     root.dataset.accent = accent;
-    root.style.colorScheme = locked ? "light" : mode;
-    localStorage.setItem(KEY, JSON.stringify({ mode, accent }));
-  }, [mode, accent]);
+    root.style.colorScheme = mode;
+    try {
+      localStorage.setItem(KEY, JSON.stringify({ mode, accent }));
+    } catch {
+      /* Theme remains usable when storage is blocked. */
+    }
+  }, [mode, accent, ready]);
 
   const value = useMemo<ThemeCtx>(
     () => ({
-      mode: shopLocked() ? "light" : mode,
+      mode,
       accent,
       setMode: setModeState,
       setAccent: setAccentState,

@@ -63,3 +63,26 @@ export const importDigitalInventory = createServerFn({ method: "POST" })
       return { ok: true as const, message: `เพิ่ม ${data.payloads.length} ชิ้นแล้ว` };
     });
   });
+
+/** Explicit privileged reveal; metadata listing never contains delivered credentials. */
+export const getAdminOrderDelivery = createServerFn({ method: "POST" })
+  .validator((v: unknown) => z.object({ orderId: z.string().min(1).max(160) }).parse(v))
+  .middleware([authMiddleware])
+  .handler(async ({ data, context }) => {
+    const { requirePermission } = await import("./permissions.server");
+    await requirePermission(String(context.userId), "orders.manage", context.bearerToken);
+    const { setResponseHeader } = await import("@tanstack/react-start/server");
+    setResponseHeader("Cache-Control", "private, no-store");
+    const sql = await getSql();
+    const [order] = await sql.query<{ user_id: string }>(
+      "SELECT user_id FROM orders WHERE id=$1 AND status='completed'",
+      [data.orderId],
+    );
+    if (!order) return null;
+    const payload = await readOwnedDelivery(sql, order.user_id, data.orderId);
+    if (payload !== null) {
+      const { audit } = await import("./operations-service.server");
+      await audit(sql, String(context.userId), "order.delivery_viewed", "order", data.orderId);
+    }
+    return payload;
+  });

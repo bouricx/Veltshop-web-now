@@ -1,3 +1,5 @@
+import { CartOrderDelivery } from "./cart-order-delivery";
+import { AdminCartClaims } from "./cart-claim-panel";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -63,6 +65,7 @@ export function AdminCartRequests() {
   }
   return (
     <section className="space-y-4">
+      <AdminCartClaims />
       <div className="grid gap-3 rounded-2xl border border-border bg-surface p-4 sm:grid-cols-2">
         <p className="flex items-start gap-2 text-sm">
           <WalletCards className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-hidden="true" />
@@ -117,6 +120,9 @@ export function AdminCartRequests() {
       <div className="space-y-4">
         {data?.rows.map((r) => (
           <RequestSummary key={r.id} request={r}>
+            {r.status === "done" && r.payment_status === "paid" && r.has_delivery ? (
+              <CartOrderDelivery id={r.id} admin />
+            ) : null}
             {["pending", "received"].includes(r.status) &&
             ["unpaid", "expired", "rejected", "manual_review"].includes(r.payment_status) ? (
               <AdminManualCartPayment

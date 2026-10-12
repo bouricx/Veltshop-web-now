@@ -1,3 +1,5 @@
+import { AdminOrderSecret } from "./admin-order-secret";
+import { authClient } from "@/lib/auth/client";
 import { OperationalBrowser } from "./operational-browser";
 import { formatBaht } from "@/lib/utils";
 import { onShopChange } from "@/lib/shop/realtime-client";
@@ -339,6 +341,13 @@ export function AdminRecords({
         },
       });
     if (kind === "coupons" && can("promotions.manage")) list.push(couponAction(row));
+    if (kind === "users" && row.email && can("users.manage")) list.push({
+      title: "ส่งลิงก์รีเซ็ตรหัสสมาชิก", fields: [], run: async () => {
+        const r = await authClient.requestPasswordReset({ email: String(row.email), redirectTo: "/reset-password" });
+        if (r.error) throw new Error("บริการอีเมลยังไม่พร้อมหรือส่งคำขอไม่ได้");
+        return { message: "หากบัญชีรองรับ ระบบจะส่งลิงก์ให้สมาชิก โดยไม่เปิดเผยรหัสผ่านเดิม" };
+      },
+    });
     if (kind === "orders") {
       if (row.status === "processing")
         list.push({
@@ -576,6 +585,7 @@ export function AdminRecords({
                 ))}
                 <td data-label="จัดการ" className="min-w-40 p-3 align-top">
                   <div className="flex flex-wrap gap-2">
+                    {kind === "orders" && row.status === "completed" && can("orders.manage") ? <AdminOrderSecret id={String(row.id)} /> : null}
                     {actions(row).map((a) => (
                       <Button
                         key={a.title}

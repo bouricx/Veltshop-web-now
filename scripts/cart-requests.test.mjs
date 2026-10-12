@@ -2,13 +2,21 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
-import { createCartRequest } from "../src/lib/shop/cart-request-service.server.ts";
+import { createCartRequest as createCartRequestRaw } from "../src/lib/shop/cart-request-service.server.ts";
 import {
   exportPersonalData,
   requestDeletion,
   reviewDeletion,
 } from "../src/lib/shop/privacy-service.server.ts";
 import { snapshot, restoreIntoEmpty } from "../src/lib/shop/backup-service.server.ts";
+import { quoteCart } from "../src/lib/shop/cart-quote.server.ts";
+const createCartRequest = async (sql, user, data) =>
+  createCartRequestRaw(sql, user, {
+    ...data,
+    acceptedQuote:
+      data.acceptedQuote ??
+      (await sql.transaction((tx) => quoteCart(tx, user, data.items, data.coupon))),
+  });
 async function setup(seed = true) {
   const db = new PGlite();
   for (const file of (await readdir(new URL("../migrations/", import.meta.url)))
@@ -38,7 +46,9 @@ test("cart requests use server prices, replay once, and never debit or deliver s
     assert.equal(result.total, 120);
     assert.deepEqual(await createCartRequest(sql, "buyer", input), result);
     assert.equal((await sql.query("SELECT count(*)::int AS n FROM cart_requests"))[0].n, 1);
-    assert.deepEqual(await sql.query("SELECT amount,status FROM cart_request_payments"), [{ amount: 120, status: "unpaid" }]);
+    assert.deepEqual(await sql.query("SELECT amount,status FROM cart_request_payments"), [
+      { amount: 120, status: "unpaid" },
+    ]);
     assert.equal((await sql.query("SELECT balance FROM wallet_accounts"))[0].balance, 100);
     assert.equal((await sql.query("SELECT stock FROM products WHERE id='product'"))[0].stock, 3);
     for (const table of ["orders", "order_deliveries", "wallet_ledger"])
@@ -52,6 +62,8 @@ test("cart requests use server prices, replay once, and never debit or deliver s
         category: "Test category",
         price: 60,
         quantity: 2,
+        lineTotal: 120,
+        warrantyDays: 0,
       },
     ]);
     await assert.rejects(
@@ -121,7 +133,10 @@ test("cart data is owner scoped in privacy exports, backed up and redacted after
     assert.equal(backup.tables.cart_request_payments.length, 1);
     await restoreIntoEmpty(target.sql, backup);
     assert.equal((await target.sql.query("SELECT count(*)::int AS n FROM cart_requests"))[0].n, 1);
-    assert.equal((await target.sql.query("SELECT count(*)::int AS n FROM cart_request_payments"))[0].n, 1);
+    assert.equal(
+      (await target.sql.query("SELECT count(*)::int AS n FROM cart_request_payments"))[0].n,
+      1,
+    );
     await source.sql.query("UPDATE wallet_accounts SET balance=0");
     const deletion = await requestDeletion(source.sql, "buyer", "Please remove my account");
     await assert.rejects(

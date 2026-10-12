@@ -1,3 +1,4 @@
+import { quoteCart } from "./cart-quote.server";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
@@ -35,6 +36,23 @@ export type CartRequest = {
   delivered_at: string | null;
   has_delivery: boolean;
 };
+const quoteSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        productId: z.string(),
+        quantity: z.number().int(),
+        price: z.number().int(),
+        lineTotal: z.number().int(),
+        warrantyDays: z.number().int(),
+      }),
+    )
+    .max(30),
+  subtotal: z.number().int(),
+  discount: z.number().int(),
+  total: z.number().int(),
+  coupon: z.string().max(128),
+});
 const input = z
   .object({
     key: z.string().uuid(),
@@ -49,6 +67,8 @@ const input = z
       .max(30),
     contact: z.string().trim().min(3).max(300),
     note: z.string().trim().max(2000).default(""),
+    coupon: z.string().trim().max(128).default(""),
+    acceptedQuote: quoteSchema,
   })
   .refine(
     (v) => new Set(v.items.map((i) => i.productId)).size === v.items.length,
@@ -71,6 +91,42 @@ export const submitCartRequest = createServerFn({ method: "POST" })
           e instanceof CommerceError
             ? e.message
             : "ส่งรายการไม่สำเร็จ กรุณาลองอีกครั้ง รายการในตะกร้ายังอยู่",
+      };
+    }
+  });
+
+export const getCartQuote = createServerFn({ method: "POST" })
+  .validator((v: unknown) =>
+    z
+      .object({
+        items: z
+          .array(
+            z.object({
+              productId: z.string().min(1).max(160),
+              quantity: z.number().int().min(1).max(99),
+            }),
+          )
+          .min(1)
+          .max(30),
+        coupon: z.string().trim().max(128).default(""),
+      })
+      .parse(v),
+  )
+  .middleware([authMiddleware])
+  .handler(async ({ data, context }) => {
+    const sql = await getSql();
+    await limit(sql, `cart-quote:${context.userId}`, 60);
+    try {
+      return {
+        ok: true as const,
+        quote: await sql.transaction((tx) =>
+          quoteCart(tx, String(context.userId), data.items, data.coupon),
+        ),
+      };
+    } catch (e) {
+      return {
+        ok: false as const,
+        message: e instanceof CommerceError ? e.message : "ตรวจยอดไม่สำเร็จ กรุณาลองใหม่",
       };
     }
   });
@@ -261,6 +317,29 @@ export const deliverCartRequest = createServerFn({ method: "POST" })
 export const getMyCartDelivery = createServerFn({ method: "GET" })
   .validator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
   .middleware([authMiddleware])
-  .handler(async ({ data, context }) =>
-    readCartDelivery(await getSql(), String(context.userId), data.id),
-  );
+  .handler(async ({ data, context }) => {
+    const { setResponseHeader } = await import("@tanstack/react-start/server");
+    setResponseHeader("Cache-Control", "private, no-store");
+    return readCartDelivery(await getSql(), String(context.userId), data.id);
+  });
+
+export const getAdminCartDelivery = createServerFn({ method: "POST" })
+  .validator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v))
+  .middleware([authMiddleware])
+  .handler(async ({ data, context }) => {
+    await requirePermission(String(context.userId), "orders.manage", context.bearerToken);
+    const { setResponseHeader } = await import("@tanstack/react-start/server");
+    setResponseHeader("Cache-Control", "private, no-store");
+    const sql = await getSql();
+    const [r] = await sql.query<{ user_id: string }>(
+      "SELECT user_id FROM cart_requests WHERE id=$1",
+      [data.id],
+    );
+    if (!r) return null;
+    const result = await readCartDelivery(sql, r.user_id, data.id);
+    if (result) {
+      const { audit } = await import("./operations-service.server");
+      await audit(sql, String(context.userId), "cart.delivery_viewed", "cart_request", data.id);
+    }
+    return result;
+  });

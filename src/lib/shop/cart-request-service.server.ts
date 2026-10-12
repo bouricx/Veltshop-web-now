@@ -1,3 +1,5 @@
+import { quoteCart, type CartQuote } from "./cart-quote.server.ts";
+import { sameQuote } from "./cart-quote.ts";
 import type { Sql } from "../db";
 import { audit, configuration, notify } from "./operations-service.server.ts";
 import { CommerceError } from "./commerce.server.ts";
@@ -9,12 +11,18 @@ export type RequestItem = {
   category: string;
   quantity: number;
   price: number;
+  lineTotal?: number;
+  warrantyDays?: number;
+  couponId?: string;
+  couponCode?: string;
 };
 export type CartRequestInput = {
   key: string;
   items: { productId: string; quantity: number }[];
   contact: string;
   note: string;
+  coupon?: string;
+  acceptedQuote?: CartQuote;
 };
 export async function createCartRequest(sql: Sql, user: string, data: CartRequestInput) {
   return await sql.transaction(async (tx) => {
@@ -45,6 +53,17 @@ export async function createCartRequest(sql: Sql, user: string, data: CartReques
       [user],
     );
     if (member?.disabled) throw new CommerceError("บัญชีถูกระงับ กรุณาติดต่อร้าน");
+    const quote = await quoteCart(tx, user, data.items, data.coupon);
+    if (!sameQuote(data.acceptedQuote, quote))
+      return {
+        ok: false as const,
+        code: "PRICE_CHANGED" as const,
+        quote,
+        message: "ราคาหรือยอดส่วนลดเปลี่ยน กรุณาตรวจและยอมรับยอดใหม่ก่อนยืนยันอีกครั้ง",
+      };
+    const [coupon] = quote.coupon
+      ? await tx.query<{ id: string }>("SELECT id FROM coupons WHERE code=$1", [quote.coupon])
+      : [];
     const products = await tx.query<{
       id: string;
       name: string;
@@ -87,9 +106,12 @@ export async function createCartRequest(sql: Sql, user: string, data: CartReques
         category: p.category || "ไม่ระบุหมวดหมู่",
         price: Number(p.price),
         quantity: i.quantity,
+        lineTotal: quote.items.find((q) => q.productId === p.id)!.lineTotal,
+        warrantyDays: quote.items.find((q) => q.productId === p.id)!.warrantyDays,
+        ...(coupon ? { couponId: coupon.id, couponCode: quote.coupon } : {}),
       };
     });
-    const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    const total = quote.total;
     if (!Number.isSafeInteger(total) || total > 2147483647)
       throw new CommerceError("ยอดรายการสูงเกินไป กรุณาลดจำนวนสินค้า");
     if (total < 1) throw new CommerceError("ยอดรายการต้องมากกว่า 0 บาท");

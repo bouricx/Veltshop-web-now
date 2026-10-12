@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { BookOpen, Copy, Eye, EyeOff, KeyRound, PackageCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getMyCartDelivery } from "@/lib/shop/cart-requests";
+import { getMyCartDelivery, getAdminCartDelivery } from "@/lib/shop/cart-requests";
 import { defaultAppUsageGuide } from "@/lib/shop/app-usage-guide";
 
-export function CartOrderDelivery({ id }: { id: string }) {
+export function CartOrderDelivery({ id, admin = false }: { id: string; admin?: boolean }) {
   const [data, setData] = useState<Awaited<ReturnType<typeof getMyCartDelivery>>>(null);
   const [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
@@ -13,7 +13,7 @@ export function CartOrderDelivery({ id }: { id: string }) {
     setBusy(true);
     setMessage("");
     try {
-      const value = await getMyCartDelivery({ data: { id } });
+      const value = await (admin ? getAdminCartDelivery : getMyCartDelivery)({ data: { id } });
       setData(value);
       if (!value) setMessage("ยังไม่พบข้อมูลสินค้า กรุณาติดต่อร้านพร้อมเลขรายการ");
     } catch {
@@ -29,7 +29,9 @@ export function CartOrderDelivery({ id }: { id: string }) {
     >
       <h3 className="flex items-center gap-2 font-semibold">
         <PackageCheck className="size-5" aria-hidden="true" />
-        สินค้าพร้อมใช้งานแล้ว
+        {admin
+          ? "ข้อมูลสินค้าที่ส่งให้ลูกค้า · ตรวจสิทธิ์และบันทึกการเปิดดู"
+          : "สินค้าพร้อมใช้งานแล้ว"}
       </h3>
       <p className="mt-1 text-sm">เปิดดูข้อมูลสินค้าและวิธีใช้งานที่ร้านส่งให้ได้ที่นี่</p>
       <Button

@@ -44,13 +44,14 @@ const catIcon: Record<CategoryId, typeof MonitorPlay> = {
 
 export function ShopShell() {
   const cartCount = useCart((s) => s.items.reduce((n, i) => n + i.quantity, 0));
-  const [shopTheme, setShopTheme] = useState<ShopTheme>("ink");
+  const [shopTheme, setShopTheme] = useState<ShopTheme>("violet");
   useEffect(() => {
     void useCart.persist.rehydrate();
     try {
       const saved = localStorage.getItem("veltshop-theme");
       if (saved === "ink" || saved === "ocean" || saved === "violet" || saved === "forest") {
         setShopTheme(saved);
+        document.documentElement.dataset.shopTheme = saved;
       }
     } catch {
       // Keep the default black and white theme when local storage is unavailable.
@@ -113,7 +114,7 @@ export function ShopShell() {
   }
 
   return (
-    <div data-shop data-shop-theme={shopTheme} className="min-h-dvh bg-bg text-fg">
+    <div data-shop className="shop-app min-h-dvh bg-bg text-fg">
       <a href="#shop-main" className="skip-link">
         ข้ามไปเนื้อหา
       </a>
@@ -125,6 +126,7 @@ export function ShopShell() {
         theme={shopTheme}
         onThemeChange={(theme) => {
           setShopTheme(theme);
+          document.documentElement.dataset.shopTheme = theme;
           try {
             localStorage.setItem("veltshop-theme", theme);
           } catch {

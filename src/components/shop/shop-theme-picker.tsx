@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, Palette } from "lucide-react";
+import { useTheme } from "@/lib/theme";
+import { Check, Palette, Moon, Sun } from "lucide-react";
 
 export type ShopTheme = "ink" | "ocean" | "violet" | "forest";
 
@@ -17,6 +18,7 @@ export function ShopThemePicker({
   value: ShopTheme;
   onChange: (theme: ShopTheme) => void;
 }) {
+  const { mode, toggleMode } = useTheme();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const selected = themes.find((theme) => theme.id === value) ?? themes[0];
@@ -61,7 +63,15 @@ export function ShopThemePicker({
           className="absolute right-0 top-full z-50 mt-2 w-56 rounded-2xl border border-border bg-surface p-3 shadow-xl"
         >
           <p className="px-1 text-sm font-semibold">สีเน้นของร้าน</p>
-          <p className="px-1 pt-1 text-xs text-muted">พื้นหลังยังคงโทนขาวดำ</p>
+          <button
+            type="button"
+            onClick={toggleMode}
+            className="mt-3 flex min-h-11 w-full items-center gap-2 rounded-xl bg-surface-2 px-3 text-sm"
+            aria-label={mode === "dark" ? "เปลี่ยนเป็นโหมดขาว" : "เปลี่ยนเป็นโหมดมืด"}
+          >
+            {mode === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+            {mode === "dark" ? "โหมดมืด · เปลี่ยนเป็นขาว" : "โหมดขาว · เปลี่ยนเป็นมืด"}
+          </button>
           <div className="mt-2 grid gap-1">
             {themes.map((theme) => (
               <button

@@ -194,9 +194,10 @@ export async function createClaim(
       "SELECT status,warranty_end FROM orders WHERE id=$1 AND user_id=$2 FOR UPDATE",
       [orderId, user],
     );
-    if (!order || !["completed", "processing"].includes(order.status))
+    if (!order || order.status !== "completed")
       throw new CommerceError("ไม่พบออเดอร์ที่สามารถแจ้งปัญหาได้");
-    // Problems may always be reported; expired warranty is shown to staff, never a silent auto refund.
+    if (!order.warranty_end || new Date(order.warranty_end).getTime() <= Date.now())
+      throw new CommerceError("สินค้านี้ไม่มีประกันหรือหมดระยะรับประกันแล้ว กรุณาติดต่อร้าน");
     const [existing] = await tx.query<{ id: string }>(
       "SELECT id FROM claims WHERE order_id=$1 AND status IN ('pending','accepted')",
       [orderId],
