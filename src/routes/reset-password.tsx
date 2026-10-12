@@ -35,6 +35,7 @@ function ResetPassword() {
                 if (r.error) toast.error("ลิงก์ไม่ถูกต้องหรือหมดอายุ");
                 else setDone(true);
               })
+              .catch(() => toast.error("ติดต่อระบบไม่ได้ กรุณาลองใหม่"))
               .finally(() => setBusy(false));
           }}
         >

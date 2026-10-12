@@ -1,3 +1,4 @@
+import { cartCouponUsage } from "./coupon-usage.server.ts";
 import { configurationSchema } from "./settings-schema.ts";
 import { decryptInventory } from "./inventory-crypto.server.ts";
 import type { Sql } from "../db";
@@ -60,7 +61,15 @@ export async function purchase(
         "SELECT count(*)::int AS n FROM coupon_uses WHERE coupon_id=$1 AND user_id=$2",
         [coupon.id, userId],
       );
-      if (usage.n >= coupon.per_user_limit) throw new CommerceError("คุณใช้ส่วนลดครบสิทธิ์แล้ว");
+      const cartUsage = await cartCouponUsage(tx, coupon.id, userId);
+      const [limits] = await tx.query<{ used: number; usage_limit: number }>(
+        "SELECT used,usage_limit FROM coupons WHERE id=$1",
+        [coupon.id],
+      );
+      if (limits.used + cartUsage.n >= limits.usage_limit)
+        throw new CommerceError("ส่วนลดถูกใช้หรือจองครบสิทธิ์แล้ว");
+      if (usage.n + cartUsage.own >= coupon.per_user_limit)
+        throw new CommerceError("คุณใช้ส่วนลดครบสิทธิ์แล้ว");
     }
     const [product] = await tx.query<{
       id: string;

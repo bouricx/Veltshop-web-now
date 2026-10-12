@@ -1,3 +1,4 @@
+import { CartClaimPanel } from "./cart-claim-panel";
 import type { CartRequest } from "@/lib/shop/cart-requests";
 import { formatBaht } from "@/lib/utils";
 import { requestStatuses } from "@/lib/shop/cart-presentation";
@@ -52,7 +53,9 @@ export function RequestSummary({
                 {i.category} · {formatBaht(i.price)} / ชิ้น
               </p>
             </div>
-            <span className="text-sm font-semibold">{formatBaht(i.price * i.quantity)}</span>
+            <span className="text-sm font-semibold">
+              {formatBaht(i.lineTotal ?? i.price * i.quantity)}
+            </span>
           </li>
         ))}
       </ul>
@@ -86,6 +89,9 @@ export function RequestSummary({
       ) : null}
       {showPayment && r.status === "done" && r.payment_status === "paid" && r.has_delivery ? (
         <CartOrderDelivery id={r.id} />
+      ) : null}
+      {showPayment && r.status === "done" && r.payment_status === "paid" ? (
+        <CartClaimPanel id={r.id} />
       ) : null}
       {showPayment && r.status !== "cancelled" ? (
         <details

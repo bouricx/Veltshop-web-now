@@ -17,7 +17,7 @@ export const Route = createRootRoute({
         content: "VeltShop.com ร้านแอป บริการดิจิทัล เติมเกม OTP และ SMM ตรวจสลิปอัตโนมัติ",
       },
       { name: "theme-color", content: "#f6f6f4" },
-      { name: "color-scheme", content: "light" },
+      { name: "color-scheme", content: "light dark" },
       {
         name: "keywords",
         content: "เช่าร้านค้า, เติมเกม, ตรวจสลิป, True Wallet, พร้อมเพย์, OTP, SMM",
@@ -45,6 +45,11 @@ function Root() {
     >
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{const t=JSON.parse(localStorage.getItem("velt-theme")||"{}");const r=document.documentElement;r.dataset.theme=t.mode==="dark"?"dark":"light";r.style.colorScheme=r.dataset.theme;const a=localStorage.getItem("veltshop-theme");r.dataset.shopTheme=["ink","ocean","violet","forest"].includes(a)?a:"violet";}catch{}`,
+          }}
+        />
       </head>
       <body className="bg-bg text-fg antialiased">
         <PreviewHostBridge />

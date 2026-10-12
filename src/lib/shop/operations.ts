@@ -207,7 +207,6 @@ export const redeemGiftCode = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ data, context }) =>
     safe(async () => {
-      if (LIST_ONLY_STORE) throw new CommerceError(listOnlyMessage);
       const sql = await getSql();
       await limit(sql, `gift:${context.userId}`, 5);
       return redeemGift(sql, String(context.userId), data.code, data.key, data.productId);

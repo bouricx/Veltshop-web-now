@@ -27,6 +27,8 @@ function LoginPage() {
     });
   }, []);
   const [busy, setBusy] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetMessage, setResetMessage] = useState("");
   const [oauthError, setOauthError] = useState<string | null>(null);
   useEffect(() => {
     setOauthError(googleOAuthError(new URLSearchParams(window.location.search).get("error")));
@@ -73,7 +75,7 @@ function LoginPage() {
 
   return (
     <main className="grid min-h-dvh place-items-center bg-bg px-4 py-10 text-fg">
-      <div className="w-full max-w-md space-y-5 rounded-3xl bg-white p-6 shadow-[0_0_0_1px_rgba(0,0,0,0.06)]">
+      <div className="w-full max-w-md space-y-5 rounded-3xl bg-surface p-6 shadow-[0_0_0_1px_rgba(0,0,0,0.06)]">
         <div className="flex items-center justify-between gap-3">
           <BrandMark to="/shop" />
           <Link to="/shop" className="text-sm text-muted hover:text-fg">
@@ -102,22 +104,47 @@ function LoginPage() {
           <p className="text-sm text-muted">ระบบสมาชิกปิดอยู่</p>
         ) : (
           <>
-            {resetEnabled ? (
+            <div className="rounded-2xl border border-border bg-surface-2 p-3">
               <Button
+                type="button"
                 variant="ghost"
-                onClick={() => {
-                  if (!email.trim()) {
-                    toast.error("ใส่อีเมลก่อน");
+                disabled={resetBusy || busy}
+                onClick={async () => {
+                  setResetMessage("");
+                  if (!resetEnabled) {
+                    setResetMessage("บริการรีเซ็ตรหัสผ่านยังไม่พร้อม กรุณาติดต่อแอดมินร้าน");
                     return;
                   }
-                  void authClient
-                    .requestPasswordReset({ email: email.trim(), redirectTo: "/reset-password" })
-                    .then(() => toast.success("หากพบบัญชี ระบบจะส่งลิงก์ไปยังอีเมล"));
+                  if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+                    setResetMessage("กรอกอีเมลในช่องด้านล่างก่อนขอลิงก์รีเซ็ต");
+                    return;
+                  }
+                  setResetBusy(true);
+                  try {
+                    const result = await authClient.requestPasswordReset({
+                      email: email.trim(),
+                      redirectTo: "/reset-password",
+                    });
+                    setResetMessage(
+                      result.error
+                        ? "ส่งคำขอไม่ได้ กรุณาลองใหม่หรือติดต่อร้าน"
+                        : "หากอีเมลนี้มีบัญชี ระบบจะส่งลิงก์รีเซ็ต กรุณาตรวจกล่องจดหมายและสแปม",
+                    );
+                  } catch {
+                    setResetMessage("ติดต่อบริการอีเมลไม่ได้ กรุณาลองใหม่");
+                  } finally {
+                    setResetBusy(false);
+                  }
                 }}
               >
-                ลืมรหัสผ่าน
+                {resetBusy ? "กำลังส่งคำขอ…" : "ลืมรหัสผ่าน?"}
               </Button>
-            ) : null}
+              {resetMessage ? (
+                <p role="status" className="mt-2 text-sm text-muted">
+                  {resetMessage}
+                </p>
+              ) : null}
+            </div>
             {import.meta.env.VITE_GROK_OAUTH === "true" ? (
               <>
                 <div className="flex gap-2">

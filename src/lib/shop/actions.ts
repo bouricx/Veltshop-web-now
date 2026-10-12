@@ -376,8 +376,15 @@ export const listMyOrders = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     const sql = await getSql();
-    return sql<{ id: string; name: string; price: number; status: string; created_at: string }>`
-      select o.id, i.product_name as name, o.total as price, o.status, o.created_at::text as created_at
+    return sql<{
+      id: string;
+      name: string;
+      price: number;
+      status: string;
+      warranty_end: string | null;
+      created_at: string;
+    }>`
+      select o.id, i.product_name as name, o.total as price, o.status, o.warranty_end::text as warranty_end, o.created_at::text as created_at
       from orders o join order_items i on i.order_id = o.id
       where o.user_id = ${context.userId} order by o.created_at desc limit 100
     `;

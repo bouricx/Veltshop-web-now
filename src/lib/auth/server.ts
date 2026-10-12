@@ -257,6 +257,7 @@ export const auth = betterAuth({
       "/sign-in/email": { window: 60, max: 5 },
       "/sign-up/email": { window: 60, max: 3 },
       "/request-password-reset": { window: 60, max: 3 },
+      "/reset-password": { window: 60, max: 5 },
     },
   },
   // Deployed apps inject BETTER_AUTH_SECRET. Preview: process-stable secret on
@@ -303,6 +304,7 @@ export const auth = betterAuth({
           enabled: true,
           minPasswordLength: 10,
           revokeSessionsOnPasswordReset: true,
+          resetPasswordTokenExpiresIn: 900,
           ...(env("RESEND_API_KEY") && env("EMAIL_FROM")
             ? {
                 sendResetPassword: async ({

@@ -24,6 +24,16 @@ async function handle(request: Request) {
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }
+  if (
+    request.method === "POST" &&
+    path.endsWith("/request-password-reset") &&
+    !(process.env.RESEND_API_KEY?.trim() && process.env.EMAIL_FROM?.trim())
+  ) {
+    return Response.json(
+      { code: "EMAIL_NOT_CONFIGURED", message: "บริการรีเซ็ตรหัสผ่านยังไม่พร้อม กรุณาติดต่อร้าน" },
+      { status: 503 },
+    );
+  }
   if (request.method === "POST" && path.endsWith("/sign-in/social")) {
     const data = await request
       .clone()

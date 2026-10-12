@@ -58,10 +58,14 @@ test("admin cannot change the QR destination without changing the fixed verifier
   assert.match(src, /next\.receive_account\.replace\(\/\\D\/g, ""\) !== VERIFIER_PROMPTPAY/);
 });
 
-test("topup route does not POST slipVerified to processPayment", () => {
-  const src = readFileSync(join(here, "../../routes/shop/topup.tsx"), "utf8");
-  assert.equal(/slipVerified/.test(src), false);
-  assert.equal(/verifiedAmount/.test(src), false);
-  assert.match(src, /topupWithSlip/);
-  assert.match(src, /method:\s*paymentMethod/);
+test("topup redirects to cart and cart slip upload never trusts client verification flags", () => {
+  const route = readFileSync(join(here, "../../routes/shop/topup.tsx"), "utf8");
+  assert.match(route, /redirect\(\{ to: "\/shop\/cart"/);
+  const panel = readFileSync(join(here, "../../components/shop/cart-payment-panel.tsx"), "utf8");
+  assert.match(panel, /submitCartPaymentSlip/);
+  assert.match(panel, /data:\s*\{\s*id,\s*slipDataUrl:\s*dataUrl,\s*mime:/);
+  for (const src of [route, panel]) {
+    assert.equal(/slipVerified/.test(src), false);
+    assert.equal(/verifiedAmount/.test(src), false);
+  }
 });

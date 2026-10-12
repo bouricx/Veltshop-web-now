@@ -1,3 +1,6 @@
+import { GiftCodePanel } from "./gift-code-panel";
+import type { CartQuote } from "@/lib/shop/cart-quote";
+import { sameQuote } from "@/lib/shop/cart-quote";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ShoppingCart, Trash2, CheckCircle2, ReceiptText, Info, MessageCircle } from "lucide-react";
@@ -5,7 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useCart } from "@/lib/shop/cart-store";
-import { listMyCartRequests, submitCartRequest, type CartRequest } from "@/lib/shop/cart-requests";
+import {
+  getCartQuote,
+  listMyCartRequests,
+  submitCartRequest,
+  type CartRequest,
+} from "@/lib/shop/cart-requests";
 import { listProducts } from "@/lib/shop/actions";
 import { formatBaht } from "@/lib/utils";
 import { RequestSummary } from "./request-summary";
@@ -32,6 +40,13 @@ export function CartPage() {
     [requests, setRequests] = useState<CartRequest[]>([]),
     [historyError, setHistoryError] = useState(""),
     [revision, setRevision] = useState(0);
+  const [couponInput, setCouponInput] = useState("");
+  const [coupon, setCoupon] = useState("");
+  const [quote, setQuote] = useState<CartQuote | null>(null);
+  const [acceptedQuote, setAcceptedQuote] = useState<CartQuote | null>(null);
+  const [quoteBusy, setQuoteBusy] = useState(false);
+  const [quoteError, setQuoteError] = useState("");
+  const [quoteRevision, setQuoteRevision] = useState(0);
   const retry = useRef<{ signature: string; key: string } | null>(null);
   useEffect(() => {
     let active = true;
@@ -47,9 +62,53 @@ export function CartPage() {
     };
   }, [syncProductMarks]);
   const userId = user && !user.isDevFallback ? user.id : undefined;
+  const quoteLines = JSON.stringify(
+    items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+  );
+  useEffect(() => {
+    setAcceptedQuote(null);
+    setQuote(null);
+    setQuoteError("");
+    if (!userId || !items.length) return;
+    let active = true,
+      sequence = 0;
+    const load = async () => {
+      const current = ++sequence;
+      setQuoteBusy(true);
+      try {
+        const r = await getCartQuote({ data: { items: JSON.parse(quoteLines), coupon } });
+        if (!active || sequence !== current) return;
+        if (!r.ok) {
+          setQuote(null);
+          setAcceptedQuote(null);
+          setQuoteError(r.message);
+          return;
+        }
+        setQuote(r.quote);
+        setAcceptedQuote((previous) =>
+          previous && sameQuote(previous, r.quote) ? previous : null,
+        );
+      } catch {
+        if (active && sequence === current) {
+          setQuoteError("ตรวจยอดไม่ได้ กรุณาโหลดใหม่ก่อนยืนยัน");
+          setAcceptedQuote(null);
+        }
+      } finally {
+        if (active && sequence === current) setQuoteBusy(false);
+      }
+    };
+    void load();
+    const timer = setInterval(() => {
+      if (!document.hidden) void load();
+    }, 15000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [userId, quoteLines, coupon, quoteRevision, items.length]);
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
   useEffect(() => {
-    setContact(user?.primaryEmail || "");
+    setContact("");
     setNote("");
     retry.current = null;
     if (!userId) return;
@@ -66,7 +125,7 @@ export function CartPage() {
     } catch {
       /* A damaged pending draft cannot override validated server data. */
     }
-  }, [userId, user?.primaryEmail]);
+  }, [userId]);
   useEffect(() => {
     if (!userId) {
       setRequests([]);
@@ -93,13 +152,24 @@ export function CartPage() {
   }, [userId, revision]);
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (busy || !items.length || !userId) return;
+    if (
+      busy ||
+      !items.length ||
+      !userId ||
+      !acceptedQuote ||
+      quoteBusy ||
+      !quote ||
+      !sameQuote(acceptedQuote, quote)
+    )
+      return;
     setBusy(true);
     setError("");
     const payload = {
       items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
       contact: contact.trim(),
       note: note.trim(),
+      coupon,
+      acceptedQuote,
     };
     const signature = JSON.stringify(payload);
     if (retry.current?.signature !== signature)
@@ -113,6 +183,11 @@ export function CartPage() {
       const r = await submitCartRequest({ data: { ...payload, key: retry.current.key } });
       if (!r.ok) {
         setError(r.message);
+        if ("code" in r && r.code === "PRICE_CHANGED") {
+          setQuote(r.quote);
+          setAcceptedQuote(null);
+          retry.current = null;
+        }
         return;
       }
       setSuccess({ id: r.id, total: r.total });
@@ -131,10 +206,11 @@ export function CartPage() {
       setBusy(false);
     }
   }
-  const total = items.reduce((n, i) => n + i.price * i.quantity, 0);
+  const subtotal = quote?.subtotal ?? items.reduce((n, i) => n + i.price * i.quantity, 0);
+  const total = quote?.total ?? subtotal;
   const createdRequest = requests.find((r) => r.id === success?.id);
   return (
-    <section className="space-y-6">
+    <section className="cart-page space-y-6">
       <div>
         <p className="text-xs font-semibold tracking-[0.14em] text-muted uppercase">
           VELTSHOP · รายการที่เลือก
@@ -190,7 +266,7 @@ export function CartPage() {
             {items.map((i) => (
               <article
                 key={i.productId}
-                className="rounded-2xl border border-border bg-surface p-4 shadow-border sm:p-5"
+                className="cart-item rounded-2xl border border-border bg-surface p-4 shadow-border sm:p-5"
               >
                 <div className="flex min-w-0 items-start gap-3">
                   <ProductMark
@@ -200,7 +276,13 @@ export function CartPage() {
                   />
                   <div className="min-w-0 flex-1">
                     <h2 className="break-words font-semibold">{i.name}</h2>
-                    <p className="mt-1 text-sm text-muted">ราคา {formatBaht(i.price)} / ชิ้น</p>
+                    <p className="mt-1 text-sm text-muted">
+                      ราคา{" "}
+                      {formatBaht(
+                        quote?.items.find((q) => q.productId === i.productId)?.price ?? i.price,
+                      )}{" "}
+                      / ชิ้น
+                    </p>
                   </div>
                 </div>
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -264,13 +346,16 @@ export function CartPage() {
                 <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3">
                   <span className="text-sm text-muted">รวมสินค้านี้</span>
                   <span className="font-semibold tabular-nums">
-                    {formatBaht(i.price * i.quantity)}
+                    {formatBaht(
+                      quote?.items.find((q) => q.productId === i.productId)?.lineTotal ??
+                        i.price * i.quantity,
+                    )}
                   </span>
                 </div>
               </article>
             ))}
           </div>
-          <div className="min-w-0 space-y-4 self-start rounded-2xl border border-border bg-surface p-5">
+          <div className="cart-summary min-w-0 space-y-4 self-start rounded-2xl border border-border bg-surface p-5">
             <h2 className="flex items-center gap-2 font-semibold">
               <ReceiptText className="size-4" aria-hidden="true" />
               สรุปรายการ
@@ -281,10 +366,77 @@ export function CartPage() {
                 <span className="font-medium">{totalQuantity} ชิ้น</span>
               </div>
               <div className="flex justify-between gap-3 border-t border-border pt-2">
-                <span className="font-medium">ยอดชำระ</span>
+                <span className="font-medium">ยอดสุทธิ</span>
                 <span className="font-bold">{formatBaht(total)}</span>
               </div>
             </div>
+            <div className="rounded-2xl bg-surface-2 p-4">
+              <Label htmlFor="cart-coupon">โค้ดส่วนลด</Label>
+              <div className="mt-2 flex gap-2">
+                <Input
+                  id="cart-coupon"
+                  value={couponInput}
+                  onChange={(e) => setCouponInput(e.target.value)}
+                  placeholder="กรอกโค้ดส่วนลด"
+                  maxLength={128}
+                />
+                <Button
+                  type="button"
+                  disabled={busy || quoteBusy || !userId}
+                  onClick={() => {
+                    setCoupon(couponInput.trim().toUpperCase());
+                    setQuoteRevision((v) => v + 1);
+                  }}
+                >
+                  ใช้โค้ด
+                </Button>
+              </div>
+              {coupon ? (
+                <button
+                  type="button"
+                  className="mt-2 text-sm underline"
+                  onClick={() => {
+                    setCoupon("");
+                    setCouponInput("");
+                  }}
+                >
+                  ยกเลิกโค้ด {coupon}
+                </button>
+              ) : null}
+              {quote?.discount ? (
+                <p className="mt-2 text-sm text-ok">
+                  ยอดก่อนลด {formatBaht(quote.subtotal)} · ส่วนลด {formatBaht(quote.discount)}
+                </p>
+              ) : null}
+            </div>
+            {quoteError ? (
+              <div role="alert" className="text-sm text-danger">
+                {quoteError}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setQuoteRevision((v) => v + 1)}
+                >
+                  ตรวจยอดใหม่
+                </Button>
+              </div>
+            ) : null}
+            {userId && quote && !acceptedQuote ? (
+              <div className="rounded-xl border border-border bg-surface-2 p-4">
+                <p className="text-sm">
+                  ตรวจราคาปัจจุบันและยอดสุทธิ {formatBaht(total)} ก่อนยืนยัน หากราคาเปลี่ยน
+                  ระบบจะให้ตรวจใหม่
+                </p>
+                <Button
+                  type="button"
+                  className="mt-3 w-full"
+                  disabled={quoteBusy}
+                  onClick={() => setAcceptedQuote(quote)}
+                >
+                  ยอมรับยอด {formatBaht(total)}
+                </Button>
+              </div>
+            ) : null}
             <p className="flex gap-2 text-xs leading-relaxed text-muted">
               <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               ระบบคำนวณยอดจากราคาปัจจุบัน แล้วจะแสดง QR สำหรับชำระเงินหลังสร้างรายการ
@@ -296,7 +448,7 @@ export function CartPage() {
                 className="mt-2"
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
-                placeholder="เบอร์โทร / LINE / อีเมล"
+                placeholder="ลิงก์ Facebook หรือชื่อผู้ใช้ Discord"
                 required
                 minLength={3}
                 maxLength={300}
@@ -323,7 +475,11 @@ export function CartPage() {
             {isPending ? (
               <p>กำลังตรวจสอบบัญชี…</p>
             ) : userId ? (
-              <Button type="submit" className="w-full" disabled={busy}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={busy || quoteBusy || !acceptedQuote}
+              >
                 {busy ? "กำลังสร้างรายการ…" : "สร้างรายการและชำระด้วย QR"}
               </Button>
             ) : (
@@ -347,6 +503,7 @@ export function CartPage() {
           </Button>
         </div>
       ) : null}
+      {userId ? <GiftCodePanel products={items} /> : null}
       {userId ? (
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">รายการสั่งซื้อของฉัน</h2>

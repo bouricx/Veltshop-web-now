@@ -70,10 +70,19 @@ function ClaimsBody() {
         >
           <option value="">เลือกออเดอร์</option>
           {orders
-            .filter((o) => ["processing", "completed"].includes(o.status))
+            .filter((o) => o.status === "completed")
             .map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name} · {o.id.slice(0, 8)}
+              <option
+                key={o.id}
+                value={o.id}
+                disabled={!o.warranty_end || Date.parse(o.warranty_end) <= Date.now()}
+              >
+                {o.name} · {o.id.slice(0, 8)}{" "}
+                {!o.warranty_end
+                  ? "ไม่มีประกัน"
+                  : Date.parse(o.warranty_end) <= Date.now()
+                    ? "หมดประกัน"
+                    : "อยู่ในประกัน"}
               </option>
             ))}
         </NativeSelect>

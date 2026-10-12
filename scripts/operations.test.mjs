@@ -139,9 +139,10 @@ test("claim ownership and manual encrypted replacement preserve buyer isolation 
   try {
     const order = await purchase(sql, "a", "p", "manual");
     await assert.rejects(createClaim(sql, "b", order.orderId, "wrong", "wrong owner"));
+    await assert.rejects(createClaim(sql, "a", order.orderId, "problem", "before delivery"));
+    await deliverOrder(sql, "admin", order.orderId, "first actual piece");
     const claim = await createClaim(sql, "a", order.orderId, "problem", "please check");
     assert.equal((await createClaim(sql, "a", order.orderId, "again", "repeated")).id, claim.id);
-    await deliverOrder(sql, "admin", order.orderId, "first actual piece");
     assert.equal(await readOwnedDelivery(sql, "a", order.orderId), "first actual piece");
     assert.equal(await readOwnedDelivery(sql, "b", order.orderId), null);
     await deliverOrder(sql, "admin", order.orderId, "replacement", true);

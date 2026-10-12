@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
-import { createCartRequest } from "../src/lib/shop/cart-request-service.server.ts";
+import { createCartRequest as createCartRequestRaw } from "../src/lib/shop/cart-request-service.server.ts";
 import { verifyCartRequestSlip } from "../src/lib/shop/cart-payment-service.server.ts";
 import { reviewCartPayment } from "../src/lib/shop/cart-payment-review.server.ts";
 import { changeCartRequestStatus } from "../src/lib/shop/cart-status-service.server.ts";
@@ -26,6 +26,14 @@ import { paymentProviders } from "../src/lib/shop/payment-providers.server.ts";
 // Test-only images and provider responses. No bank transfers or external requests.
 const image = (value = "one") =>
   `data:image/png;base64,${Buffer.from(`test-only-image-bytes-${value}`.padEnd(80, ".")).toString("base64")}`;
+import { quoteCart } from "../src/lib/shop/cart-quote.server.ts";
+const createCartRequest = async (sql, user, data) =>
+  createCartRequestRaw(sql, user, {
+    ...data,
+    acceptedQuote:
+      data.acceptedQuote ??
+      (await sql.transaction((tx) => quoteCart(tx, user, data.items, data.coupon))),
+  });
 async function setup() {
   const db = new PGlite();
   for (const name of (await readdir(new URL("../migrations/", import.meta.url)))
