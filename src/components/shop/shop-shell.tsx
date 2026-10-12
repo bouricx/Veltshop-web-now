@@ -1,3 +1,4 @@
+import { ShopChat } from "./shop-chat";
 import { resolveSignInGateState } from "@/lib/auth/sign-in-gate";
 import { useCart } from "@/lib/shop/cart-store";
 import { useSiteConfiguration } from "@/lib/shop/site-state";
@@ -31,7 +32,7 @@ import { formatThaiClock, shopMeta } from "@/lib/shop/meta";
 import { useShop } from "@/lib/shop/store";
 import { BrandMark } from "@/components/brand-mark";
 import { cn } from "@/lib/utils";
-import { ShopThemePicker, type ShopTheme } from "./shop-theme-picker";
+import { ShopThemePicker } from "./shop-theme-picker";
 
 const catIcon: Record<CategoryId, typeof MonitorPlay> = {
   stream: MonitorPlay,
@@ -44,18 +45,8 @@ const catIcon: Record<CategoryId, typeof MonitorPlay> = {
 
 export function ShopShell() {
   const cartCount = useCart((s) => s.items.reduce((n, i) => n + i.quantity, 0));
-  const [shopTheme, setShopTheme] = useState<ShopTheme>("violet");
   useEffect(() => {
     void useCart.persist.rehydrate();
-    try {
-      const saved = localStorage.getItem("veltshop-theme");
-      if (saved === "ink" || saved === "ocean" || saved === "violet" || saved === "forest") {
-        setShopTheme(saved);
-        document.documentElement.dataset.shopTheme = saved;
-      }
-    } catch {
-      // Keep the default black and white theme when local storage is unavailable.
-    }
   }, []);
   const { value: site } = useSiteConfiguration();
   const login = useShop((s) => s.login);
@@ -89,12 +80,6 @@ export function ShopShell() {
   );
 
   useEffect(() => {
-    document.documentElement.dataset.shop = "";
-    document.documentElement.dataset.theme = "light";
-    document.documentElement.style.colorScheme = "light";
-  }, []);
-
-  useEffect(() => {
     if (isPending) return;
     if (user && !user.isDevFallback) {
       login(user.displayName || user.primaryEmail || "สมาชิก");
@@ -123,16 +108,6 @@ export function ShopShell() {
         loggedIn={Boolean(user && !user.isDevFallback)}
         name={user?.displayName || user?.primaryEmail || "สมาชิก"}
         onLogout={() => void handleLogout()}
-        theme={shopTheme}
-        onThemeChange={(theme) => {
-          setShopTheme(theme);
-          document.documentElement.dataset.shopTheme = theme;
-          try {
-            localStorage.setItem("veltshop-theme", theme);
-          } catch {
-            // The selected theme remains active for this visit.
-          }
-        }}
       />
       <div className="mx-auto flex max-w-6xl justify-end px-4 pt-3 sm:px-6">
         <Button
@@ -159,7 +134,7 @@ export function ShopShell() {
       <main
         id="shop-main"
         tabIndex={-1}
-        className="mx-auto w-full min-w-0 max-w-6xl px-4 pt-5 pb-12 sm:px-6"
+        className="mx-auto w-full min-w-0 max-w-6xl px-4 pt-5 pb-28 sm:px-6 lg:pb-12"
       >
         {site.maintenance && !canPreviewMaintenance ? (
           <section className="rounded-xl bg-surface p-8 text-center">
@@ -180,6 +155,7 @@ export function ShopShell() {
       </main>
       <ShopFooter />
       <BottomDock />
+      <ShopChat />
     </div>
   );
 }
@@ -189,15 +165,11 @@ function ShopHeader({
   loggedIn,
   name,
   onLogout,
-  theme,
-  onThemeChange,
 }: {
   pending: boolean;
   loggedIn: boolean;
   name: string;
   onLogout: () => void;
-  theme: ShopTheme;
-  onThemeChange: (theme: ShopTheme) => void;
 }) {
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-surface/90 backdrop-blur-xl">
@@ -212,7 +184,7 @@ function ShopHeader({
         </nav>
         <BrandMark to="/shop" className="shrink-0" />
         <div className="ml-auto flex items-center gap-2">
-          <ShopThemePicker value={theme} onChange={onThemeChange} />
+          <ShopThemePicker />
           <LiveClock />
           {pending ? (
             <span role="status" className="text-sm text-muted">
@@ -574,7 +546,7 @@ function BottomDock() {
   ] as const;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 lg:hidden pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       <div className="bottom-dock pointer-events-auto mx-auto flex w-[min(92vw,36rem)] items-end justify-between rounded-[2rem] bg-surface px-4 pt-2 pb-2 shadow-border">
         {items.map((item) => {
           const on = path.startsWith(item.to);

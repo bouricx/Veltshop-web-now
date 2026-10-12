@@ -2,11 +2,24 @@ import { useCart } from "@/lib/shop/cart-store";
 import { contrastText, selectProducts, type CatalogSort } from "@/lib/shop/presentation";
 import { useSiteConfiguration } from "@/lib/shop/site-state";
 import { onShopChange } from "@/lib/shop/realtime-client";
-import { useEffect, useMemo, useState, useId, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useId,
+  lazy,
+  Suspense,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { Flame, Pencil, Search, ShoppingBag, Check, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { CategoryEditor } from "@/components/shop/category-editor";
-import { ProductEditor } from "@/components/shop/product-editor";
+const CategoryEditor = lazy(() =>
+  import("./category-editor").then((m) => ({ default: m.CategoryEditor })),
+);
+const ProductEditor = lazy(() =>
+  import("./product-editor").then((m) => ({ default: m.ProductEditor })),
+);
 import { ProductMark } from "@/components/shop/product-mark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -282,8 +295,8 @@ export function ProductGrid({
           </Button>
         </nav>
       ) : null}
-      {isAdmin ? (
-        <>
+      {isAdmin && (editing || creating || editingCats) ? (
+        <Suspense fallback={<p role="status">กำลังเปิดเครื่องมือแก้ไข…</p>}>
           <ProductEditor
             open={Boolean(editing) || creating}
             product={creating ? null : editing}
@@ -300,7 +313,7 @@ export function ProductGrid({
             onOpenChange={setEditingCats}
             onSaved={() => void reload()}
           />
-        </>
+        </Suspense>
       ) : null}
     </div>
   );
@@ -410,7 +423,7 @@ function ProductCard({
             <h3 className="min-w-0 font-semibold tracking-tight">{product.name}</h3>
           </div>
           <p className="mt-1 text-sm text-muted line-clamp-1">{product.subtitle}</p>
-          {product.description ? (
+          {product.description && product.description.trim() !== product.subtitle.trim() ? (
             <p className="mt-2 text-xs leading-relaxed text-muted line-clamp-2">
               {product.description}
             </p>
@@ -467,7 +480,11 @@ function ProductCard({
               ) : (
                 <ShoppingBag className="size-4" aria-hidden="true" />
               )}
-              {product.stock < 1 ? "รอตรวจสอบสต็อก" : inCartQuantity > 0 ? "เพิ่มอีกชิ้น" : "เพิ่มลงตะกร้า"}
+              {product.stock < 1
+                ? "รอตรวจสอบสต็อก"
+                : inCartQuantity > 0
+                  ? "เพิ่มอีกชิ้น"
+                  : "เพิ่มลงตะกร้า"}
             </span>
             {inCartQuantity > 0 && product.stock > 0 ? (
               <span

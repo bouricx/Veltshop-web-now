@@ -1,3 +1,4 @@
+import { AccountId } from "@/components/shop/account-id";
 import { ImageEditor } from "@/components/shop/image-editor";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -21,6 +22,7 @@ function ProfilePage() {
   );
 }
 function ProfileBody() {
+  const { user } = useCurrentUserState();
   const [data, setData] = useState<Awaited<ReturnType<typeof myAccountData>> | null>(null),
     [name, setName] = useState(""),
     [currentPassword, setCurrentPassword] = useState(""),
@@ -48,10 +50,16 @@ function ProfileBody() {
             <div>
               <p className="font-semibold">{data.profile.name}</p>
               <p className="text-sm text-muted">{data.profile.email}</p>
+              {user ? <AccountId value={user.id} label="รหัสลูกค้า" /> : null}
               {data.loginProviders.includes("google") ? (
                 <p className="text-sm text-muted">เชื่อมบัญชี Google แล้ว</p>
               ) : null}
-              <p className="text-sm" style={{ color: data.profile.rank_color }}>
+              <p className="flex items-center gap-2 text-sm text-fg">
+                <span
+                  className="size-2 rounded-full"
+                  style={{ background: data.profile.rank_color }}
+                  aria-hidden="true"
+                />
                 {data.profile.rank}
               </p>
             </div>
