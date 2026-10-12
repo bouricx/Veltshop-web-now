@@ -49,7 +49,7 @@ test("admin adjustment retry and refund race create exactly one ledger effect", 
       (await sql.query("SELECT balance FROM wallet_accounts WHERE user_id='a'"))[0].balance,
       120,
     );
-    assert.equal((await sql.query("SELECT stock FROM products"))[0].stock, 9);
+    assert.equal((await sql.query("SELECT stock FROM products WHERE id='p'"))[0].stock, 9);
     await assert.rejects(sql.query("DELETE FROM wallet_ledger"));
     await assert.rejects(sql.query("UPDATE audit_logs SET action='tampered'"));
   } finally {
@@ -188,6 +188,8 @@ test("encrypted backup restores real rows into an empty database and rejects tam
       .filter((f) => /^\d.*\.sql$/.test(f))
       .sort())
       await target.exec(await readFile(new URL("../migrations/" + file, import.meta.url), "utf8"));
+    // Catalog migrations seed rows; restore deliberately requires an empty isolated target.
+    await target.exec("TRUNCATE products, categories, admin_events CASCADE");
     const wrap = (client) => ({
       query: async (text, params = []) => (await client.query(text, params)).rows,
       transaction: (work) => target.transaction((tx) => work(wrap(tx))),

@@ -165,7 +165,11 @@ test("admin event triggers are commit-bound and restore does not replay historic
       `INSERT INTO "user"(id,name,email,"emailVerified","updatedAt") VALUES('n','N','n@notification.test',true,now());INSERT INTO categories(id,label) VALUES('g','G');INSERT INTO products(id,name,category_id,price,stock) VALUES('p','P','g',10,6);UPDATE products SET stock=5 WHERE id='p';UPDATE products SET stock=4 WHERE id='p';`,
     );
     assert.equal(
-      (await sql.query("SELECT count(*)::int AS n FROM admin_events WHERE kind='stock.low'"))[0].n,
+      (
+        await sql.query(
+          "SELECT count(*)::int AS n FROM admin_events WHERE kind='stock.low' AND entity_id='p'",
+        )
+      )[0].n,
       1,
     );
     const before = (await sql.query("SELECT count(*)::int AS n FROM admin_events"))[0].n;
@@ -186,6 +190,8 @@ test("admin event triggers are commit-bound and restore does not replay historic
         .filter((f) => /^\d.*\.sql$/.test(f))
         .sort())
         await target.exec(await readFile(new URL("../migrations/" + f, import.meta.url), "utf8"));
+      // Remove only migration-seeded catalog rows in this disposable restore target.
+      await target.exec("TRUNCATE products, categories, admin_events CASCADE");
       const targetWrap = (client) => ({
         query: async (text, params = []) => (await client.query(text, params)).rows,
         transaction: (work) => target.transaction((tx) => work(targetWrap(tx))),

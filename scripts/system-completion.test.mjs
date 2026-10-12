@@ -19,6 +19,7 @@ async function setup(seed = true) {
     .filter((f) => /^\d.*\.sql$/.test(f))
     .sort())
     await db.exec(await readFile(new URL("../migrations/" + f, import.meta.url), "utf8"));
+  if (!seed) await db.exec("TRUNCATE products, categories, admin_events CASCADE");
   const wrap = (client) => ({
     query: async (text, params = []) => (await client.query(text, params)).rows,
     transaction: (work) => db.transaction((tx) => work(wrap(tx))),
@@ -169,7 +170,7 @@ test("backup job writes snapshot and completes lease atomically; stale runner ca
       "success",
     );
     const value = await snapshot(sql);
-    assert.equal(value.migration, "0015");
+    assert.equal(value.migration, "0021");
     assert.ok(value.tables.cart_requests);
     assert.ok(value.tables.private_files);
     assert.ok(value.tables.privacy_requests);
