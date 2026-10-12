@@ -1,3 +1,5 @@
+import { Users, Package, ShoppingBag, CircleDollarSign, ShieldCheck, Clock3 } from "lucide-react";
+import { AccountId } from "./account-id";
 import { AdminOrderSecret } from "./admin-order-secret";
 import { authClient } from "@/lib/auth/client";
 import { OperationalBrowser } from "./operational-browser";
@@ -57,7 +59,7 @@ type Action = {
 };
 const labels: Record<string, string> = {
   id: "รหัส",
-  user_id: "สมาชิก",
+  user_id: "รหัสลูกค้า",
   order_id: "ออเดอร์",
   created_at: "วันที่",
   name: "ชื่อ",
@@ -95,7 +97,7 @@ const labels: Record<string, string> = {
   minimum: "ยอดขั้นต่ำ",
   per_user_limit: "สิทธิ์ต่อคน",
   action: "การกระทำ",
-  actor_id: "ผู้ดำเนินการ",
+  actor_id: "รหัสผู้ดำเนินการ",
   entity_type: "ประเภทข้อมูล",
   entity_id: "ข้อมูลที่เกี่ยวข้อง",
   metadata: "รายละเอียดการเปลี่ยนแปลง",
@@ -142,29 +144,112 @@ function csv(rows: Row[]) {
 function readableDate(value: unknown) {
   if (!value) return "ยังไม่มีข้อมูล";
   const date = new Date(String(value));
-  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("th-TH", {
-    timeZone: "Asia/Bangkok", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
-  });
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : date.toLocaleString("th-TH", {
+        timeZone: "Asia/Bangkok",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 }
 function memberCell(key: string, row: Row) {
-  if (key === "name") return <div className="space-y-1"><p className="font-semibold text-fg">{String(row.name || "ไม่ระบุชื่อ")}</p><p className="break-all text-xs text-muted">{String(row.email || "—")}</p></div>;
-  if (key === "rank") return <span className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1 font-medium text-violet-900"><span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ backgroundColor: /^#[a-f\d]{6}$/i.test(String(row.color)) ? String(row.color) : "#64748b" }} />{row.rank === "New Member" ? "สมาชิกทั่วไป" : String(row.rank || "สมาชิกทั่วไป")}</span>;
-  if (key === "disabled") return <span className={`inline-flex rounded-full px-3 py-1 font-medium ${row.disabled ? "bg-rose-50 text-rose-800" : "bg-emerald-50 text-emerald-800"}`}>{row.disabled ? "ระงับบัญชี" : "ใช้งานได้"}</span>;
-  if (key === "balance" || key === "spending") return <span className="tabular whitespace-nowrap font-medium">{formatBaht(Number(row[key] || 0))}</span>;
-  if (key === "created_at" || key === "last_login") return <span className="text-muted">{key === "last_login" && !row[key] ? "ยังไม่เคยเข้าสู่ระบบ" : readableDate(row[key])}</span>;
+  if (key === "id") return <AccountId value={String(row.id)} label="รหัสบัญชี" />;
+  if (key === "roles")
+    return (
+      <span className="rounded-full bg-surface-2 px-3 py-1 text-xs font-semibold text-fg">
+        {String(row.roles || "customer")
+          .replaceAll("super_admin", "เจ้าของร้าน")
+          .replaceAll("admin", "แอดมิน")
+          .replaceAll("staff", "ทีมงาน")
+          .replaceAll("customer", "ลูกค้า")}
+      </span>
+    );
+  if (key === "name")
+    return (
+      <div className="space-y-1">
+        <p className="font-semibold text-fg">{String(row.name || "ไม่ระบุชื่อ")}</p>
+        <p className="break-all text-xs text-muted">{String(row.email || "—")}</p>
+      </div>
+    );
+  if (key === "rank")
+    return (
+      <span className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1 font-medium text-violet-900">
+        <span
+          aria-hidden="true"
+          className="size-2 shrink-0 rounded-full"
+          style={{
+            backgroundColor: /^#[a-f\d]{6}$/i.test(String(row.color))
+              ? String(row.color)
+              : "#64748b",
+          }}
+        />
+        {row.rank === "New Member" ? "สมาชิกทั่วไป" : String(row.rank || "สมาชิกทั่วไป")}
+      </span>
+    );
+  if (key === "disabled")
+    return (
+      <span
+        className={`inline-flex rounded-full px-3 py-1 font-medium ${row.disabled ? "bg-rose-50 text-rose-800" : "bg-emerald-50 text-emerald-800"}`}
+      >
+        {row.disabled ? "ระงับบัญชี" : "ใช้งานได้"}
+      </span>
+    );
+  if (key === "balance" || key === "spending")
+    return (
+      <span className="tabular whitespace-nowrap font-medium">
+        {formatBaht(Number(row[key] || 0))}
+      </span>
+    );
+  if (key === "created_at" || key === "last_login")
+    return (
+      <span className="text-muted">
+        {key === "last_login" && !row[key] ? "ยังไม่เคยเข้าสู่ระบบ" : readableDate(row[key])}
+      </span>
+    );
   return String(row[key] ?? "—");
 }
 function stockCell(key: string, row: Row) {
-  if (key === "name") return <div className="space-y-1"><p className="font-semibold text-fg">{String(row.name || "ไม่ระบุชื่อสินค้า")}</p><p className="break-all text-xs text-muted">รหัสสต็อก: {String(row.id)}</p></div>;
-  if (key === "category_name") return <span className="inline-flex rounded-full bg-violet-50 px-3 py-1 text-violet-900">{String(row.category_name || "ไม่ระบุหมวดหมู่")}</span>;
+  if (key === "name")
+    return (
+      <div className="space-y-1">
+        <p className="font-semibold text-fg">{String(row.name || "ไม่ระบุชื่อสินค้า")}</p>
+        <p className="break-all text-xs text-muted">รหัสสต็อก: {String(row.id)}</p>
+      </div>
+    );
+  if (key === "category_name")
+    return (
+      <span className="inline-flex rounded-full bg-violet-50 px-3 py-1 text-violet-900">
+        {String(row.category_name || "ไม่ระบุหมวดหมู่")}
+      </span>
+    );
   if (key === "status") {
-    const states: Record<string, [string, string]> = { available: ["พร้อมขาย", "bg-emerald-50 text-emerald-800"], sold: ["ขายแล้ว", "bg-sky-50 text-sky-800"], disabled: ["ปิดใช้งาน", "bg-rose-50 text-rose-800"], reserved: ["กำลังดำเนินการ", "bg-amber-50 text-amber-800"] };
-    const [label, color] = states[String(row.status)] ?? ["รอตรวจสอบ", "bg-amber-50 text-amber-800"];
-    return <span className={`inline-flex whitespace-nowrap rounded-full px-3 py-1 font-medium ${color}`}>{label}</span>;
+    const states: Record<string, [string, string]> = {
+      available: ["พร้อมขาย", "bg-emerald-50 text-emerald-800"],
+      sold: ["ขายแล้ว", "bg-sky-50 text-sky-800"],
+      disabled: ["ปิดใช้งาน", "bg-rose-50 text-rose-800"],
+      reserved: ["กำลังดำเนินการ", "bg-amber-50 text-amber-800"],
+    };
+    const [label, color] = states[String(row.status)] ?? [
+      "รอตรวจสอบ",
+      "bg-amber-50 text-amber-800",
+    ];
+    return (
+      <span className={`inline-flex whitespace-nowrap rounded-full px-3 py-1 font-medium ${color}`}>
+        {label}
+      </span>
+    );
   }
   if (key === "created_at") return readableDate(row[key]);
   if (key === "sold_at") return row[key] ? readableDate(row[key]) : "ยังไม่ได้ขาย";
-  if (key === "order_id") return row[key] ? <span className="break-all text-xs">{String(row[key])}</span> : "ยังไม่มีออเดอร์";
+  if (key === "order_id")
+    return row[key] ? (
+      <span className="break-all text-xs">{String(row[key])}</span>
+    ) : (
+      "ยังไม่มีออเดอร์"
+    );
   return String(row[key] ?? "—");
 }
 export function AdminRecords({
@@ -341,13 +426,19 @@ export function AdminRecords({
         },
       });
     if (kind === "coupons" && can("promotions.manage")) list.push(couponAction(row));
-    if (kind === "users" && row.email && can("users.manage")) list.push({
-      title: "ส่งลิงก์รีเซ็ตรหัสสมาชิก", fields: [], run: async () => {
-        const r = await authClient.requestPasswordReset({ email: String(row.email), redirectTo: "/reset-password" });
-        if (r.error) throw new Error("บริการอีเมลยังไม่พร้อมหรือส่งคำขอไม่ได้");
-        return { message: "หากบัญชีรองรับ ระบบจะส่งลิงก์ให้สมาชิก โดยไม่เปิดเผยรหัสผ่านเดิม" };
-      },
-    });
+    if (kind === "users" && row.email && can("users.manage"))
+      list.push({
+        title: "ส่งลิงก์รีเซ็ตรหัสสมาชิก",
+        fields: [],
+        run: async () => {
+          const r = await authClient.requestPasswordReset({
+            email: String(row.email),
+            redirectTo: "/reset-password",
+          });
+          if (r.error) throw new Error("บริการอีเมลยังไม่พร้อมหรือส่งคำขอไม่ได้");
+          return { message: "หากบัญชีรองรับ ระบบจะส่งลิงก์ให้สมาชิก โดยไม่เปิดเผยรหัสผ่านเดิม" };
+        },
+      });
     if (kind === "orders") {
       if (row.status === "processing")
         list.push({
@@ -502,14 +593,50 @@ export function AdminRecords({
                   ),
               }
             : null;
-  const visibleKeys = kind === "users"
-    ? ["name", "rank", "disabled", "balance", "spending", "orders", "created_at", "last_login"]
-    : kind === "stock" ? ["name", "category_name", "status", "order_id", "created_at", "sold_at"]
-    : Object.keys(rows[0] ?? {}).filter((k) => !["total_rows", "metadata", "image", "body", "message", "reply", "customer_input", "user_agent"].includes(k));
-  const columnLabel = (key: string) => kind === "users" && key === "name" ? "สมาชิก" : kind === "users" && key === "disabled" ? "สถานะบัญชี" : kind === "users" && key === "created_at" ? "สมัครเมื่อ" : labels[key] ?? key;
+  const visibleKeys =
+    kind === "users"
+      ? [
+          "name",
+          "id",
+          "roles",
+          "rank",
+          "disabled",
+          "balance",
+          "spending",
+          "orders",
+          "created_at",
+          "last_login",
+        ]
+      : kind === "stock"
+        ? ["name", "category_name", "status", "order_id", "created_at", "sold_at"]
+        : Object.keys(rows[0] ?? {}).filter(
+            (k) =>
+              ![
+                "total_rows",
+                "metadata",
+                "image",
+                "body",
+                "message",
+                "reply",
+                "customer_input",
+                "user_agent",
+              ].includes(k),
+          );
+  const columnLabel = (key: string) =>
+    kind === "users" && key === "id"
+      ? "รหัสบัญชี"
+      : key === "roles"
+        ? "สิทธิ์บัญชี"
+        : kind === "users" && key === "name"
+          ? "สมาชิก"
+          : kind === "users" && key === "disabled"
+            ? "สถานะบัญชี"
+            : kind === "users" && key === "created_at"
+              ? "สมัครเมื่อ"
+              : (labels[key] ?? key);
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap gap-2">
+      <div className="admin-record-filters grid gap-3 rounded-2xl border border-border bg-surface-2 p-4 sm:grid-cols-2 xl:grid-cols-4">
         <Input
           className="sm:w-60"
           aria-label="ค้นหา"
@@ -520,43 +647,66 @@ export function AdminRecords({
           }}
           placeholder="ค้นหาชื่อ / รหัส / สถานะ"
         />
-        {kind === "stock" ? <select className="min-h-11 rounded-xl border border-border bg-surface px-3 text-sm sm:w-44" aria-label="กรองสถานะ" value={status} onChange={(e) => { setStatus(e.target.value); setPage(0); }}><option value="">ทุกสถานะ</option><option value="available">พร้อมขาย</option><option value="sold">ขายแล้ว</option><option value="disabled">ปิดใช้งาน</option></select> : <Input
-          className="sm:w-44"
-          aria-label="กรองสถานะ"
-          value={status}
-          onChange={(e) => {
-            setStatus(e.target.value);
-            setPage(0);
-          }}
-          placeholder="กรองสถานะ"
-        />}
-        <Input
-          aria-label="วันที่เริ่ม"
-          type="date"
-          className="sm:w-40"
-          value={from}
-          onChange={(e) => {
-            setFrom(e.target.value);
-            setPage(0);
-          }}
-        />
-        <Input
-          aria-label="วันที่สิ้นสุด"
-          type="date"
-          className="sm:w-40"
-          value={to}
-          onChange={(e) => {
-            setTo(e.target.value);
-            setPage(0);
-          }}
-        />
-        <Button variant="secondary" onClick={() => setDescending((v) => !v)}>
-          วันที่ {descending ? "ใหม่ → เก่า" : "เก่า → ใหม่"}
-        </Button>
-        <Button variant="secondary" onClick={() => void exportAll()}>
-          ส่งออก CSV
-        </Button>
-        {create ? <Button onClick={() => setAction(create)}>เพิ่มรายการ</Button> : null}
+        {kind === "stock" ? (
+          <select
+            className="min-h-11 rounded-xl border border-border bg-surface px-3 text-sm sm:w-44"
+            aria-label="กรองสถานะ"
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setPage(0);
+            }}
+          >
+            <option value="">ทุกสถานะ</option>
+            <option value="available">พร้อมขาย</option>
+            <option value="sold">ขายแล้ว</option>
+            <option value="disabled">ปิดใช้งาน</option>
+          </select>
+        ) : (
+          <Input
+            className="sm:w-44"
+            aria-label="กรองสถานะ"
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setPage(0);
+            }}
+            placeholder="กรองสถานะ"
+          />
+        )}
+        <label className="grid gap-1.5 text-xs text-muted">
+          วันที่เริ่ม
+          <Input
+            aria-label="วันที่เริ่ม"
+            type="date"
+            value={from}
+            onChange={(e) => {
+              setFrom(e.target.value);
+              setPage(0);
+            }}
+          />
+        </label>
+        <label className="grid gap-1.5 text-xs text-muted">
+          วันที่สิ้นสุด
+          <Input
+            aria-label="วันที่สิ้นสุด"
+            type="date"
+            value={to}
+            onChange={(e) => {
+              setTo(e.target.value);
+              setPage(0);
+            }}
+          />
+        </label>
+        <div className="flex flex-wrap gap-2 sm:col-span-2 xl:col-span-4">
+          <Button variant="secondary" onClick={() => setDescending((v) => !v)}>
+            วันที่ {descending ? "ใหม่ → เก่า" : "เก่า → ใหม่"}
+          </Button>
+          <Button variant="secondary" onClick={() => void exportAll()}>
+            ส่งออก CSV
+          </Button>
+          {create ? <Button onClick={() => setAction(create)}>เพิ่มรายการ</Button> : null}
+        </div>
       </div>
       {kind === "gifts" && can("gift_codes.manage") ? (
         <DataImport kind="gifts" onSaved={() => setRefresh((r) => r + 1)} />
@@ -568,10 +718,16 @@ export function AdminRecords({
       ) : null}
       <p className="text-xs text-muted">{total} รายการ · อัปเดตทุก 15 วินาที</p>
       <div className="overflow-auto rounded-2xl border border-border bg-surface">
-        <table className={`w-full text-sm ${kind === "users" || kind === "stock" ? "member-table" : ""}`}>
+        <table
+          className={`w-full text-sm ${kind === "users" || kind === "stock" ? "member-table" : ""}`}
+        >
           <thead>
             <tr>
-              {visibleKeys.map((key) => <th key={key} className="whitespace-nowrap p-3 text-left text-xs text-muted">{columnLabel(key)}</th>)}
+              {visibleKeys.map((key) => (
+                <th key={key} className="whitespace-nowrap p-3 text-left text-xs text-muted">
+                  {columnLabel(key)}
+                </th>
+              ))}
               <th className="p-3">จัดการ</th>
             </tr>
           </thead>
@@ -579,13 +735,33 @@ export function AdminRecords({
             {rows.map((row) => (
               <tr key={String(row.id)} className="border-t border-border">
                 {visibleKeys.map((key) => (
-                  <td key={key} data-label={columnLabel(key)} className={`p-3 align-top ${kind === "users" ? "min-w-28 max-w-64" : "max-w-56 break-words"}`}>
-                    {kind === "users" ? memberCell(key, row) : kind === "stock" ? stockCell(key, row) : typeof row[key] === "boolean" ? row[key] ? "ใช่" : "ไม่" : String(row[key] ?? "—")}
+                  <td
+                    key={key}
+                    data-label={columnLabel(key)}
+                    className={`p-3 align-top ${kind === "users" ? "min-w-28 max-w-64" : "max-w-56 break-words"}`}
+                  >
+                    {kind === "users" ? (
+                      memberCell(key, row)
+                    ) : kind === "stock" ? (
+                      stockCell(key, row)
+                    ) : ["user_id", "actor_id"].includes(key) && row[key] ? (
+                      <AccountId value={String(row[key])} label={labels[key]} />
+                    ) : typeof row[key] === "boolean" ? (
+                      row[key] ? (
+                        "ใช่"
+                      ) : (
+                        "ไม่"
+                      )
+                    ) : (
+                      String(row[key] ?? "—")
+                    )}
                   </td>
                 ))}
                 <td data-label="จัดการ" className="min-w-40 p-3 align-top">
                   <div className="flex flex-wrap gap-2">
-                    {kind === "orders" && row.status === "completed" && can("orders.manage") ? <AdminOrderSecret id={String(row.id)} /> : null}
+                    {kind === "orders" && row.status === "completed" && can("orders.manage") ? (
+                      <AdminOrderSecret id={String(row.id)} />
+                    ) : null}
                     {actions(row).map((a) => (
                       <Button
                         key={a.title}
@@ -748,11 +924,16 @@ function actionErrorMessage(error: unknown) {
   try {
     const issues: unknown = JSON.parse(message);
     if (Array.isArray(issues)) {
-      if (issues.some((issue) => issue?.path?.includes("reason"))) return "กรุณาระบุเหตุผล 3–2,000 ตัวอักษร";
+      if (issues.some((issue) => issue?.path?.includes("reason")))
+        return "กรุณาระบุเหตุผล 3–2,000 ตัวอักษร";
       return "ข้อมูลไม่ครบหรือรูปแบบไม่ถูกต้อง กรุณาตรวจสอบช่องกรอก";
     }
-  } catch { /* A normal application error does not contain a JSON issue list. */ }
-  return message && !/too_small|expected|ZodError|\[\s*\{/i.test(message) ? message : "ทำรายการไม่สำเร็จ กรุณาตรวจสอบข้อมูล";
+  } catch {
+    /* A normal application error does not contain a JSON issue list. */
+  }
+  return message && !/too_small|expected|ZodError|\[\s*\{/i.test(message)
+    ? message
+    : "ทำรายการไม่สำเร็จ กรุณาตรวจสอบข้อมูล";
 }
 function ActionDialog({
   action,
@@ -784,7 +965,10 @@ function ActionDialog({
             e.preventDefault();
             if (!action || busy) return;
             const submittedValues = { ...values };
-            if (action.title !== "รายละเอียด" && action.fields.some((field) => field.name === "reason")) {
+            if (
+              action.title !== "รายละเอียด" &&
+              action.fields.some((field) => field.name === "reason")
+            ) {
               const reason = String(values.reason ?? "").trim();
               if (reason.length < 3 || reason.length > 2000) {
                 setReasonError("กรุณาระบุเหตุผล 3–2,000 ตัวอักษร");
@@ -844,7 +1028,10 @@ function ActionDialog({
                   aria-invalid={f.name === "reason" && Boolean(reasonError)}
                   aria-describedby={f.name === "reason" ? "action-reason-hint" : undefined}
                   value={String(values[f.name] ?? "")}
-                  onChange={(e) => { setValues((v) => ({ ...v, [f.name]: e.target.value })); if (f.name === "reason") setReasonError(""); }}
+                  onChange={(e) => {
+                    setValues((v) => ({ ...v, [f.name]: e.target.value }));
+                    if (f.name === "reason") setReasonError("");
+                  }}
                 />
               ) : (
                 <Input
@@ -866,7 +1053,11 @@ function ActionDialog({
                 />
               )}
               {f.name === "reason" && action?.title !== "รายละเอียด" ? (
-                <p id="action-reason-hint" role={reasonError ? "alert" : undefined} className={`text-xs ${reasonError ? "text-danger" : "text-muted"}`}>
+                <p
+                  id="action-reason-hint"
+                  role={reasonError ? "alert" : undefined}
+                  className={`text-xs ${reasonError ? "text-danger" : "text-muted"}`}
+                >
                   {reasonError || "ระบุเหตุผล 3–2,000 ตัวอักษร เพื่อบันทึกประวัติการดำเนินการ"}
                 </p>
               ) : null}
@@ -1038,12 +1229,66 @@ export function RealDashboard() {
               <div key={n} className="skeleton h-28 rounded-2xl" aria-hidden="true" />
             ))
           : null}
-        {Object.entries(data?.totals ?? {}).map(([k, v]) => (
-          <div key={k} className="rounded-2xl bg-surface p-5 shadow-border">
-            <p className="text-xs text-muted">{names[k] ?? k}</p>
-            <p className="mt-2 text-xl font-semibold">{Number(v).toLocaleString("th-TH")}</p>
-          </div>
-        ))}
+        {Object.entries(data?.totals ?? {})
+          .sort(([a], [b]) => {
+            const order = [
+              "sales",
+              "orders",
+              "waiting_delivery",
+              "pending_claims",
+              "ready_products",
+              "stock",
+              "low_stock",
+              "pending_topups",
+              "failed_jobs",
+              "members",
+              "new_members",
+              "products",
+              "credit",
+              "topups",
+            ];
+            return order.indexOf(a) - order.indexOf(b);
+          })
+          .map(([k, v], index) => {
+            const Icon = k.includes("member")
+              ? Users
+              : k.includes("stock") || k.includes("product")
+                ? Package
+                : k.includes("claim") || k.includes("job")
+                  ? ShieldCheck
+                  : k.includes("waiting") || k.includes("pending")
+                    ? Clock3
+                    : k === "orders"
+                      ? ShoppingBag
+                      : CircleDollarSign;
+            const tone = [
+              "var(--icon-blue)",
+              "var(--icon-teal)",
+              "var(--icon-orange)",
+              "var(--icon-purple)",
+            ][index % 4];
+            return (
+              <div key={k} className="rounded-2xl border border-border bg-surface p-4">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <p className="text-xs text-muted">{names[k] ?? k}</p>
+                  <span
+                    className="admin-metric-icon"
+                    style={{
+                      color: tone,
+                      background: `color-mix(in srgb, ${tone} 12%, var(--surface))`,
+                    }}
+                  >
+                    <Icon className="size-4" aria-hidden="true" />
+                  </span>
+                </div>
+                <p className="text-xl font-semibold tabular">
+                  {["sales", "credit", "topups"].includes(k)
+                    ? formatBaht(Number(v))
+                    : Number(v).toLocaleString("th-TH")}
+                </p>
+              </div>
+            );
+          })}
       </div>
       <section className="rounded-2xl bg-surface p-5 shadow-border">
         <h2 className="font-medium">ยอดขายรายวัน</h2>
@@ -1137,8 +1382,6 @@ export function RealSettings() {
     description: "คำอธิบายร้าน",
     logo: "โลโก้",
     favicon: "ไอคอนเว็บไซต์",
-    primary: "สีหลัก",
-    secondary: "สีรอง",
     discord: "Discord",
     facebook: "Facebook",
     terms: "เงื่อนไขเติมเงิน",
@@ -1186,44 +1429,46 @@ export function RealSettings() {
           .finally(() => setBusy(false));
       }}
     >
-      {Object.entries(value).map(([k, v]) => (
-        <div key={k} className="space-y-1">
-          <Label htmlFor={`setting-${k}`}>{settingLabels[k] ?? k}</Label>
-          {typeof v === "boolean" ? (
-            <input
-              id={`setting-${k}`}
-              type="checkbox"
-              checked={v}
-              onChange={(e) => setValue({ ...value, [k]: e.target.checked })}
-            />
-          ) : ["terms", "refundText", "privacy"].includes(k) ? (
-            <Textarea
-              id={`setting-${k}`}
-              value={String(v)}
-              onChange={(e) => setValue({ ...value, [k]: e.target.value })}
-            />
-          ) : (
-            <Input
-              id={`setting-${k}`}
-              type={typeof v === "number" ? "number" : "text"}
-              value={String(v)}
-              onChange={(e) =>
-                setValue({
-                  ...value,
-                  [k]: typeof v === "number" ? Number(e.target.value) : e.target.value,
-                })
-              }
-            />
-          )}{" "}
-          {["logo", "favicon"].includes(k) ? (
-            <ImageEditor
-              kind={k as "logo" | "favicon"}
-              value={String(v)}
-              onSaved={(url) => setValue({ ...value, [k]: url })}
-            />
-          ) : null}
-        </div>
-      ))}
+      {Object.entries(value)
+        .filter(([k]) => k !== "primary" && k !== "secondary")
+        .map(([k, v]) => (
+          <div key={k} className="space-y-1">
+            <Label htmlFor={`setting-${k}`}>{settingLabels[k] ?? k}</Label>
+            {typeof v === "boolean" ? (
+              <input
+                id={`setting-${k}`}
+                type="checkbox"
+                checked={v}
+                onChange={(e) => setValue({ ...value, [k]: e.target.checked })}
+              />
+            ) : ["terms", "refundText", "privacy"].includes(k) ? (
+              <Textarea
+                id={`setting-${k}`}
+                value={String(v)}
+                onChange={(e) => setValue({ ...value, [k]: e.target.value })}
+              />
+            ) : (
+              <Input
+                id={`setting-${k}`}
+                type={typeof v === "number" ? "number" : "text"}
+                value={String(v)}
+                onChange={(e) =>
+                  setValue({
+                    ...value,
+                    [k]: typeof v === "number" ? Number(e.target.value) : e.target.value,
+                  })
+                }
+              />
+            )}{" "}
+            {["logo", "favicon"].includes(k) ? (
+              <ImageEditor
+                kind={k as "logo" | "favicon"}
+                value={String(v)}
+                onSaved={(url) => setValue({ ...value, [k]: url })}
+              />
+            ) : null}
+          </div>
+        ))}
       <p className="text-xs text-muted sm:col-span-2">
         ข้อมูลลับตั้งค่าในบริการโฮสต์เท่านั้น เมื่อเปิดปิดปรับปรุงจะระงับการซื้อและเติมเงิน
       </p>
@@ -1286,61 +1531,179 @@ export function MediaLibrary() {
 export function SystemPanel() {
   const [health, setHealth] = useState<Awaited<ReturnType<typeof systemHealth>> | null>(null);
   const [error, setError] = useState(false);
-  const load = () => void systemHealth().then((value) => { setHealth(value); setError(false); }).catch(() => setError(true));
+  const load = () =>
+    void systemHealth()
+      .then((value) => {
+        setHealth(value);
+        setError(false);
+      })
+      .catch(() => setError(true));
   useEffect(() => {
     let active = true;
-    const refresh = () => void systemHealth().then((value) => { if (active) { setHealth(value); setError(false); } }).catch(() => { if (active) setError(true); });
+    const refresh = () =>
+      void systemHealth()
+        .then((value) => {
+          if (active) {
+            setHealth(value);
+            setError(false);
+          }
+        })
+        .catch(() => {
+          if (active) setError(true);
+        });
     refresh();
     const timer = setInterval(refresh, 30000);
-    return () => { active = false; clearInterval(timer); };
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
   }, []);
   const statuses: Record<string, { label: string; style: string }> = {
     healthy: { label: "ทำงานปกติ", style: "bg-emerald-50 text-emerald-800" },
     warning: { label: "ต้องตรวจสอบ", style: "bg-amber-50 text-amber-900" },
     configured: { label: "ตั้งค่าแล้ว", style: "bg-blue-50 text-blue-800" },
-    "configured-unverified": { label: "ตั้งค่าแล้ว · รอทดสอบจริง", style: "bg-amber-50 text-amber-900" },
+    "configured-unverified": {
+      label: "ตั้งค่าแล้ว · รอทดสอบจริง",
+      style: "bg-amber-50 text-amber-900",
+    },
     "requires-credentials": { label: "รอข้อมูลเชื่อมต่อ", style: "bg-rose-50 text-rose-800" },
     "requires-key": { label: "รอกุญแจเข้ารหัส", style: "bg-rose-50 text-rose-800" },
     database: { label: "พร้อมจัดเก็บไฟล์", style: "bg-blue-50 text-blue-800" },
   };
-  const cards = health ? [
-    { title: "ฐานข้อมูล", status: health.database.status, detail: `เวลาตรวจ ${health.database.milliseconds} ms` },
-    { title: "ตรวจสลิป Slip2Go", status: health.payment.status, detail: "การเติมเครดิตจากสลิป" },
-    { title: "เข้าสู่ระบบ Google", status: health.google.status, detail: "ต้องทดสอบการเข้าสู่ระบบให้สำเร็จ" },
-    { title: "อีเมลและรีเซ็ตรหัส", status: health.email.status, detail: "ต้องทดสอบการส่งและรับอีเมลจริง" },
-    { title: "เข้ารหัสสินค้าดิจิทัล", status: health.inventory.status, detail: "ปกป้องข้อมูลส่งมอบให้ผู้ซื้อ" },
-    { title: "พื้นที่เก็บไฟล์", status: health.storage.status, detail: "ไฟล์สินค้าส่วนตัวตรวจสิทธิ์ก่อนดาวน์โหลด" },
-    { title: "งานเบื้องหลัง", status: health.queue.failed ? "warning" : "healthy", detail: `รอทำ ${health.queue.pending} · ล้มเหลวถาวร ${health.queue.failed}` },
-    { title: "งานอัตโนมัติ", status: health.scheduler.configured ? "configured" : "requires-credentials", detail: health.scheduler.schedule },
-    { title: "สำรองข้อมูล", status: health.backup.configured ? "configured" : "requires-key", detail: health.backup.everyHours ? `รอบสำรองทุก ${health.backup.everyHours} ชั่วโมง` : "ยังไม่ได้กำหนดรอบสำรอง" },
-  ] : [];
+  const cards = health
+    ? [
+        {
+          title: "ฐานข้อมูล",
+          status: health.database.status,
+          detail: `เวลาตรวจ ${health.database.milliseconds} ms`,
+        },
+        {
+          title: "ตรวจสลิป Slip2Go",
+          status: health.payment.status,
+          detail: "การเติมเครดิตจากสลิป",
+        },
+        {
+          title: "เข้าสู่ระบบ Google",
+          status: health.google.status,
+          detail: "ต้องทดสอบการเข้าสู่ระบบให้สำเร็จ",
+        },
+        {
+          title: "อีเมลและรีเซ็ตรหัส",
+          status: health.email.status,
+          detail: "ต้องทดสอบการส่งและรับอีเมลจริง",
+        },
+        {
+          title: "เข้ารหัสสินค้าดิจิทัล",
+          status: health.inventory.status,
+          detail: "ปกป้องข้อมูลส่งมอบให้ผู้ซื้อ",
+        },
+        {
+          title: "พื้นที่เก็บไฟล์",
+          status: health.storage.status,
+          detail: "ไฟล์สินค้าส่วนตัวตรวจสิทธิ์ก่อนดาวน์โหลด",
+        },
+        {
+          title: "งานเบื้องหลัง",
+          status: health.queue.failed ? "warning" : "healthy",
+          detail: `รอทำ ${health.queue.pending} · ล้มเหลวถาวร ${health.queue.failed}`,
+        },
+        {
+          title: "งานอัตโนมัติ",
+          status: health.scheduler.configured ? "configured" : "requires-credentials",
+          detail: health.scheduler.schedule,
+        },
+        {
+          title: "สำรองข้อมูล",
+          status: health.backup.configured ? "configured" : "requires-key",
+          detail: health.backup.everyHours
+            ? `รอบสำรองทุก ${health.backup.everyHours} ชั่วโมง`
+            : "ยังไม่ได้กำหนดรอบสำรอง",
+        },
+      ]
+    : [];
   return (
     <section className="space-y-5" aria-label="สถานะแอป">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div><h2 className="text-lg font-semibold">สถานะแอปและบริการ</h2>
-          <p className="mt-1 text-sm text-muted">{health ? `รุ่น ${health.version} · ตรวจล่าสุด ${new Date(health.checkedAt).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })}` : "กำลังตรวจสถานะ…"}</p>
+        <div>
+          <h2 className="text-lg font-semibold">สถานะแอปและบริการ</h2>
+          <p className="mt-1 text-sm text-muted">
+            {health
+              ? `รุ่น ${health.version} · ตรวจล่าสุด ${new Date(health.checkedAt).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })}`
+              : "กำลังตรวจสถานะ…"}
+          </p>
         </div>
-        <Button variant="secondary" onClick={load}>ตรวจสถานะอีกครั้ง</Button>
+        <Button variant="secondary" onClick={load}>
+          ตรวจสถานะอีกครั้ง
+        </Button>
       </div>
-      {error ? <p role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-800">ตรวจสถานะไม่สำเร็จ ข้อมูลที่เห็นอาจเป็นผลตรวจครั้งก่อน</p> : null}
+      {error ? (
+        <p role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-800">
+          ตรวจสถานะไม่สำเร็จ ข้อมูลที่เห็นอาจเป็นผลตรวจครั้งก่อน
+        </p>
+      ) : null}
       {!health && !error ? <p role="status">กำลังเชื่อมต่อระบบ…</p> : null}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {cards.map((card) => {
           const state = statuses[card.status] ?? statuses.warning;
-          return <article key={card.title} className={`min-w-0 rounded-2xl border border-border bg-surface p-5 shadow-sm ${card.status === "healthy" ? "border-t-4 border-t-emerald-400" : card.status === "requires-credentials" || card.status === "requires-key" ? "border-t-4 border-t-rose-400" : card.status === "configured-unverified" || card.status === "warning" ? "border-t-4 border-t-amber-400" : "border-t-4 border-t-sky-400"}`}>
-            <h3 className="font-semibold">{card.title}</h3>
-            <p className={`mt-3 inline-flex rounded-full px-3 py-1 text-xs font-medium ${state.style}`}>{state.label}</p>
-            <p className="mt-3 text-sm text-muted">{card.detail}</p>
-          </article>;
+          return (
+            <article
+              key={card.title}
+              className={`min-w-0 rounded-2xl border border-border bg-surface p-5 shadow-sm ${card.status === "healthy" ? "border-t-4 border-t-emerald-400" : card.status === "requires-credentials" || card.status === "requires-key" ? "border-t-4 border-t-rose-400" : card.status === "configured-unverified" || card.status === "warning" ? "border-t-4 border-t-amber-400" : "border-t-4 border-t-sky-400"}`}
+            >
+              <h3 className="font-semibold">{card.title}</h3>
+              <p
+                className={`mt-3 inline-flex rounded-full px-3 py-1 text-xs font-medium ${state.style}`}
+              >
+                {state.label}
+              </p>
+              <p className="mt-3 text-sm text-muted">{card.detail}</p>
+            </article>
+          );
         })}
       </div>
       <div className="rounded-2xl border border-border bg-surface p-5 space-y-3">
         <h3 className="font-semibold">ประวัติงานอัตโนมัติล่าสุด</h3>
-        {health && health.scheduler.recent.length === 0 ? <p className="text-sm text-muted">ยังไม่มีผลการทำงานที่บันทึกไว้</p> : null}
-        {health?.scheduler.recent.map((run, index) => <p key={`${run.started_at}-${index}`} className="text-sm break-words">{({maintenance: "บำรุงรักษาระบบ", backup: "สำรองข้อมูล", jobs: "ประมวลผลงาน"} as Record<string, string>)[run.kind] ?? "งานระบบ"} · {({success: "สำเร็จ", completed: "สำเร็จ", failed: "ไม่สำเร็จ", running: "กำลังทำงาน", pending: "รอดำเนินการ"} as Record<string, string>)[run.status] ?? "รอตรวจสอบ"} · {new Date(run.started_at).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })}</p>)}
-        <Button onClick={() => void runJobs().then((r) => { toast.success(`ประมวลผล ${r.processed} งาน`); load(); }).catch(() => toast.error("ประมวลผลงานไม่สำเร็จ"))}>ประมวลผลงานพร้อมทำ</Button>
+        {health && health.scheduler.recent.length === 0 ? (
+          <p className="text-sm text-muted">ยังไม่มีผลการทำงานที่บันทึกไว้</p>
+        ) : null}
+        {health?.scheduler.recent.map((run, index) => (
+          <p key={`${run.started_at}-${index}`} className="text-sm break-words">
+            {(
+              {
+                maintenance: "บำรุงรักษาระบบ",
+                backup: "สำรองข้อมูล",
+                jobs: "ประมวลผลงาน",
+              } as Record<string, string>
+            )[run.kind] ?? "งานระบบ"}{" "}
+            ·{" "}
+            {(
+              {
+                success: "สำเร็จ",
+                completed: "สำเร็จ",
+                failed: "ไม่สำเร็จ",
+                running: "กำลังทำงาน",
+                pending: "รอดำเนินการ",
+              } as Record<string, string>
+            )[run.status] ?? "รอตรวจสอบ"}{" "}
+            · {new Date(run.started_at).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })}
+          </p>
+        ))}
+        <Button
+          onClick={() =>
+            void runJobs()
+              .then((r) => {
+                toast.success(`ประมวลผล ${r.processed} งาน`);
+                load();
+              })
+              .catch(() => toast.error("ประมวลผลงานไม่สำเร็จ"))
+          }
+        >
+          ประมวลผลงานพร้อมทำ
+        </Button>
       </div>
-      <p className="text-sm text-muted">ตั้งค่าแล้วไม่ได้หมายถึงทดสอบกับผู้ให้บริการจริงแล้ว ผลนี้เป็นสถานะจากระบบปัจจุบัน</p>
+      <p className="text-sm text-muted">
+        ตั้งค่าแล้วไม่ได้หมายถึงทดสอบกับผู้ให้บริการจริงแล้ว ผลนี้เป็นสถานะจากระบบปัจจุบัน
+      </p>
     </section>
   );
 }

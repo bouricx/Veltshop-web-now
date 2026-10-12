@@ -1,4 +1,3 @@
-import { contrastText } from "./presentation";
 import { SHOP_CHANGED, onShopChange } from "./realtime-client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useEffect } from "react";
@@ -25,9 +24,6 @@ export function SiteRuntime() {
           useSiteConfiguration.setState({ value, loaded: true });
           if (!location.pathname.startsWith("/shop/product/"))
             document.title = value.name + " — " + value.description;
-          document.documentElement.style.setProperty("--accent", value.primary);
-          document.documentElement.style.setProperty("--accent-fg", contrastText(value.primary));
-          document.documentElement.style.setProperty("--secondary", value.secondary);
           const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
           if (icon) icon.href = value.favicon;
         })

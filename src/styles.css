@@ -384,32 +384,15 @@ body,
 }
 
 [data-shop] {
-  --accent: #111111;
-  --accent-fg: #ffffff;
-  --line: #111111;
+  --accent: inherit;
+  --accent-fg: inherit;
+  --line: inherit;
   display: block;
   width: 100%;
   min-width: 0;
   max-width: 100%;
   margin-inline: auto;
   box-sizing: border-box;
-}
-
-/* Customers can choose a small accent color while the shop keeps its black and white base. */
-[data-shop][data-shop-theme="ocean"] {
-  --accent: #1d4ed8;
-  --accent-fg: #ffffff;
-  --line: #1d4ed8;
-}
-[data-shop][data-shop-theme="violet"] {
-  --accent: #6d28d9;
-  --accent-fg: #ffffff;
-  --line: #6d28d9;
-}
-[data-shop][data-shop-theme="forest"] {
-  --accent: #047857;
-  --accent-fg: #ffffff;
-  --line: #047857;
 }
 
 [data-shop] *,
@@ -773,68 +756,40 @@ body,
   }
 }
 
-/* Color and mode inherit from the pre-painted document, including auth pages. */
-html[data-shop] {
-  --accent: #6d28d9;
-  --accent-fg: #fff;
-}
+/* One monochrome palette for the entire site; color is reserved for status/icons. */
 html[data-theme="light"] {
-  --bg: #f5f3ff;
-  --fg: #202036;
-  --muted: #47475f;
-  --subtle: #56566e;
+  --bg: #f5f5f5;
+  --surface: #ffffff;
+  --surface-2: #eeeeee;
+  --soft: #eeeeee;
+  --fg: #171717;
+  --muted: #525252;
+  --subtle: #626262;
+  --border: #dedede;
+  --accent: #171717;
+  --accent-fg: #ffffff;
+  --line: #171717;
   --icon-blue: #1d4ed8;
   --icon-purple: #7c3aed;
   --icon-teal: #0f766e;
   --icon-orange: #b45309;
-  --surface: #fff;
-  --surface-2: #ede9fe;
-  --border: #ddd6fe;
 }
 html[data-theme="dark"] {
-  --bg: #0d1020;
-  --surface: #181c30;
-  --surface-2: #242a43;
-  --fg: #f8fafc;
-  --muted: #d0d6e5;
-  --subtle: #bdc6db;
+  --bg: #0b0b0b;
+  --surface: #171717;
+  --surface-2: #252525;
+  --soft: #252525;
+  --fg: #fafafa;
+  --muted: #d4d4d4;
+  --subtle: #b5b5b5;
+  --border: #404040;
+  --accent: #fafafa;
+  --accent-fg: #171717;
+  --line: #fafafa;
   --icon-blue: #93c5fd;
   --icon-purple: #c4b5fd;
   --icon-teal: #5eead4;
   --icon-orange: #fcd34d;
-  --border: #39425e;
-  --soft: #242a43;
-  --accent: #a78bfa;
-  --accent-fg: #17112a;
-}
-.shop-app {
-  --accent: inherit;
-  --accent-fg: inherit;
-  --line: inherit;
-}
-html[data-shop-theme="ocean"] {
-  --accent: #2563eb;
-  --accent-fg: #fff;
-}
-html[data-shop-theme="forest"] {
-  --accent: #047857;
-  --accent-fg: #fff;
-}
-html[data-shop-theme="ink"] {
-  --accent: #18181b;
-  --accent-fg: #fff;
-}
-html[data-theme="dark"][data-shop-theme="ocean"] {
-  --accent: #93c5fd;
-  --accent-fg: #102544;
-}
-html[data-theme="dark"][data-shop-theme="forest"] {
-  --accent: #6ee7b7;
-  --accent-fg: #073d2c;
-}
-html[data-theme="dark"][data-shop-theme="ink"] {
-  --accent: #f1f5f9;
-  --accent-fg: #18181b;
 }
 html[data-theme="dark"] :where(input, select, textarea) {
   color-scheme: dark;
@@ -856,7 +811,7 @@ html[data-theme="dark"] .product-art {
   background: #fff;
 }
 [data-shop] .storefront-hero {
-  background: linear-gradient(120deg, #281445, #4338ca 65%, #0e7490);
+  background: linear-gradient(120deg, #111111, #303030 65%, #111111);
 }
 [data-shop] .storefront-hero > div:first-child {
   opacity: 0.22;
@@ -917,5 +872,177 @@ html[data-theme="dark"] .payment-qr .text-muted {
   font-weight: 600;
 }
 [data-shop] .storefront-hero :where(.text-white\/70, .text-white\/75) {
-  color: #f1efff;
+  color: #f5f5f5;
+}
+
+/* Two transform-only SVG layers: no video, canvas, network requests or animation library. */
+body {
+  position: relative;
+  isolation: isolate;
+}
+.ambient-background {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+.ambient-background::before,
+.ambient-background::after {
+  content: "";
+  position: absolute;
+  inset: -12%;
+  background: url("/images/ambient-grid.svg") center / 760px;
+  opacity: 0.045;
+  animation: ambient-drift 36s ease-in-out infinite alternate;
+}
+.ambient-background::after {
+  background-size: 1100px;
+  opacity: 0.025;
+  animation-duration: 52s;
+  animation-direction: alternate-reverse;
+}
+html[data-theme="dark"] .ambient-background {
+  filter: invert(1);
+}
+.shop-app,
+.admin-app {
+  background: transparent;
+}
+@keyframes ambient-drift {
+  to {
+    transform: translate3d(4%, 3%, 0) rotate(3deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ambient-background::before,
+  .ambient-background::after {
+    animation: none;
+  }
+}
+html[data-theme="dark"]
+  :where(
+    .bg-indigo-50\/50,
+    .bg-violet-50,
+    .bg-sky-50,
+    .bg-indigo-50,
+    .bg-orange-50,
+    .bg-slate-50,
+    .bg-rose-50
+  ) {
+  background-color: var(--surface-2);
+}
+html[data-theme="dark"]
+  :where(
+    .text-violet-900,
+    .text-sky-900,
+    .text-indigo-900,
+    .text-orange-900,
+    .text-slate-900,
+    .text-rose-800,
+    .text-emerald-800,
+    .text-sky-800
+  ) {
+  color: var(--fg);
+}
+.admin-nav-button {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.85rem;
+  text-align: left;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.admin-nav-button:hover {
+  background: var(--surface-2);
+  color: var(--fg);
+}
+.admin-nav-button[aria-current="page"] {
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+.admin-group-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.65rem;
+  background: color-mix(in srgb, var(--group-color) 14%, var(--surface));
+  color: var(--group-color);
+}
+.admin-section-card {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 1.5rem;
+  padding: clamp(1rem, 2vw, 1.5rem);
+}
+.admin-app table th {
+  background: var(--surface-2);
+}
+.admin-app table tbody tr:hover {
+  background: color-mix(in srgb, var(--surface-2) 50%, var(--surface));
+}
+.chat-panel {
+  position: fixed;
+  z-index: 60;
+  right: 1rem;
+  bottom: 6rem;
+  width: min(380px, calc(100vw - 2rem));
+  height: min(520px, calc(100dvh - 8rem));
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 1.5rem;
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: 0 12px 50px #0003;
+}
+.chat-launcher {
+  position: fixed;
+  z-index: 50;
+  right: 1rem;
+  bottom: 6rem;
+}
+@media (min-width: 1024px) {
+  .chat-panel {
+    bottom: 5.5rem;
+  }
+  .chat-launcher {
+    bottom: 1.5rem;
+  }
+}
+/* Keep primary actions legible even when placed inside the black hero. */
+.storefront-hero .bg-accent {
+  background: #fff;
+  color: #171717;
+}
+html[data-theme="dark"] :where(.text-cat-mail, .text-cat-otp, .text-cat-ready, .text-cat-wallet) {
+  color: var(--fg);
+}
+.admin-metric-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.75rem;
+  flex-shrink: 0;
+}
+.admin-record-filters :where(input, select) {
+  width: 100%;
+  align-self: end;
+}
+@media (min-width: 768px) {
+  .admin-app .member-table td:nth-child(2) {
+    min-width: 14rem;
+  }
+}
+@media (max-width: 767px) {
+  .member-table td[data-label="รหัสบัญชี"] {
+    grid-column: 1 / -1;
+  }
 }

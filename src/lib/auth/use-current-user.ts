@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { authClient, authEnabled } from "./client";
 
 /** Normalized user shape used across the app, auth on or off. */
@@ -34,6 +34,10 @@ export type CurrentUserState = {
   isPending: boolean;
 };
 
+const subscribeHydration = () => () => {};
+const clientHydrationSnapshot = () => true;
+const serverHydrationSnapshot = () => false;
+
 /**
  * Current user + loading state. Same behavior in live preview and when deployed:
  *   - Auth enabled -> the real signed-in user; `user` is `null` while
@@ -56,6 +60,13 @@ export type CurrentUserState = {
  * call keeps a stable hook order across every render of a given component.
  */
 export function useCurrentUserState(): CurrentUserState {
+  // Better Auth's cache can resolve before React hydrates. Keep the first
+  // browser render identical to SSR, then show the current session.
+  const hydrated = useSyncExternalStore(
+    subscribeHydration,
+    clientHydrationSnapshot,
+    serverHydrationSnapshot,
+  );
   const session = authEnabled ? authClient.useSession() : { data: null, isPending: false };
   const rawUser = session.data?.user;
   const user = useMemo(
@@ -71,9 +82,11 @@ export function useCurrentUserState(): CurrentUserState {
         : null,
     [rawUser],
   );
-  return authEnabled
-    ? { user, isPending: session.isPending }
-    : { user: DEV_USER, isPending: false };
+  return authEnabled && !hydrated
+    ? { user: null, isPending: true }
+    : authEnabled
+      ? { user, isPending: session.isPending }
+      : { user: DEV_USER, isPending: false };
 }
 
 /**

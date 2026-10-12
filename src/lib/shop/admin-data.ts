@@ -29,7 +29,7 @@ const definitions: Record<
 > = {
   users: {
     permission: "users.read",
-    query: `SELECT u.id,u.name,u.email,u.image,u."createdAt"::text AS created_at,COALESCE(m.rank,'New Member') AS rank,COALESCE(m.rank_color,'#64748b') AS color,COALESCE(m.disabled,false) AS disabled,COALESCE(w.balance,0) AS balance,(SELECT COALESCE(sum(total),0)::int FROM orders WHERE user_id=u.id AND status='completed') AS spending,(SELECT count(*)::int FROM orders WHERE user_id=u.id) AS orders,(SELECT max(created_at)::text FROM login_history WHERE user_id=u.id AND event='auth.login') AS last_login FROM "user" u LEFT JOIN member_profiles m ON m.user_id=u.id LEFT JOIN wallet_accounts w ON w.user_id=u.id`,
+    query: `SELECT u.id,u.name,u.email,u.image,(SELECT string_agg(role_id, ' / ' ORDER BY role_id) FROM user_roles WHERE user_id=u.id) AS roles,u."createdAt"::text AS created_at,COALESCE(m.rank,'New Member') AS rank,COALESCE(m.rank_color,'#64748b') AS color,COALESCE(m.disabled,false) AS disabled,COALESCE(w.balance,0) AS balance,(SELECT COALESCE(sum(total),0)::int FROM orders WHERE user_id=u.id AND status='completed') AS spending,(SELECT count(*)::int FROM orders WHERE user_id=u.id) AS orders,(SELECT max(created_at)::text FROM login_history WHERE user_id=u.id AND event='auth.login') AS last_login FROM "user" u LEFT JOIN member_profiles m ON m.user_id=u.id LEFT JOIN wallet_accounts w ON w.user_id=u.id`,
     search: "id,name,email,rank",
     date: "created_at",
   },

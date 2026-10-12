@@ -1,9 +1,11 @@
+import { AdminNavigation } from "@/components/shop/admin-navigation";
+import { AccountId } from "@/components/shop/account-id";
+import { ShopThemePicker } from "@/components/shop/shop-theme-picker";
 import { AdminCartRequests } from "@/components/shop/admin-cart-requests";
 import { AdminNotifications } from "@/components/shop/admin-notifications";
 import { PrivacyRequestsPanel } from "@/components/shop/privacy-controls";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { BrandMark } from "@/components/brand-mark";
 import { DigitalInventoryEditor } from "@/components/shop/digital-inventory-editor";
 import { ProductEditor } from "@/components/shop/product-editor";
@@ -19,17 +21,12 @@ import {
 } from "@/components/shop/admin-console";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input, Label, NativeSelect } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
 import { z } from "zod";
 import { DataImport } from "@/components/shop/data-import";
 import { Plus, Pencil } from "lucide-react";
 import { getAdminStatus } from "@/lib/shop/admin-gate";
-import {
-  listAllProducts,
-  getShopSettings,
-  saveShopSettings,
-  type ShopSettings,
-} from "@/lib/shop/actions";
+import { listAllProducts } from "@/lib/shop/actions";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { categories, type Product } from "@/lib/shop/catalog";
@@ -65,22 +62,6 @@ const tabs = [
   ["backups", "สำรองข้อมูล", "system.manage"],
   ["campaigns", "กงล้อ / กล่อง", "promotions.manage"],
 ] as const;
-const groupColors: Record<string, string> = {
-  "ภาพรวม": "border-sky-200 bg-sky-50 text-sky-900",
-  "สินค้าและสื่อ": "border-violet-200 bg-violet-50 text-violet-900",
-  "รายการลูกค้า": "border-emerald-200 bg-emerald-50 text-emerald-900",
-  "สมาชิกและความปลอดภัย": "border-indigo-200 bg-indigo-50 text-indigo-900",
-  "การตลาด": "border-orange-200 bg-orange-50 text-orange-900",
-  "ระบบและการตั้งค่า": "border-slate-200 bg-slate-50 text-slate-900",
-};
-const menuGroups = [
-  { label: "ภาพรวม", ids: ["dashboard", "notifications"] },
-  { label: "สินค้าและสื่อ", ids: ["products", "stock", "media"] },
-  { label: "รายการลูกค้า", ids: ["cart-requests", "orders", "claims"] },
-  { label: "สมาชิกและความปลอดภัย", ids: ["users", "sessions", "logins", "privacy", "audit"] },
-  { label: "การตลาด", ids: ["gifts", "coupons", "content", "campaigns"] },
-  { label: "ระบบและการตั้งค่า", ids: ["system", "jobs", "backups", "settings"] },
-];
 function AdminPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -119,96 +100,77 @@ function AdminPage() {
   );
   const active = allowed.some((t) => t[0] === tab) ? tab : (allowed[0]?.[0] ?? "dashboard");
   return (
-    <div data-shop className="min-h-dvh bg-bg text-fg">
-      <header className="border-b border-border">
+    <div data-shop className="admin-app min-h-dvh text-fg">
+      <header className="border-b border-border bg-surface">
         <div className="mx-auto flex max-w-7xl items-center justify-between p-4">
           <BrandMark to="/shop" />
-          <p className="text-sm">หลังบ้าน Veltshop</p>
+          <div className="hidden sm:block">
+            <p className="text-sm font-semibold">ศูนย์จัดการ Veltshop</p>
+            <p className="text-xs text-muted">สินค้า · ลูกค้า · ระบบ</p>
+          </div>
+          <ShopThemePicker />
           <Button asChild variant="ghost">
             <Link to="/shop">หน้าร้าน</Link>
           </Button>
         </div>
       </header>
-      <main className="mx-auto grid max-w-[1440px] gap-6 p-4 sm:p-6 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <nav
-          aria-label="เมนูแอดมิน"
-          className="hidden self-start rounded-2xl bg-surface p-3 shadow-border lg:sticky lg:top-4 lg:grid lg:gap-1"
-        >
-          {menuGroups.map((group) => {
-            const entries = allowed.filter(([id]) => group.ids.includes(id));
-            return entries.length ? (
-              <section key={group.label} className={`min-w-0 rounded-xl border p-2 ${groupColors[group.label]}`}>
-                <h2 className="mb-2 px-2 text-xs font-semibold">{group.label}</h2>
-                <div className="grid gap-1">
-                  {entries.map(([id, label]) => (
-                    <Button key={id} variant={active === id ? "primary" : "ghost"}
-                      className="min-h-11 justify-start text-left text-sm"
-                      aria-current={active === id ? "page" : undefined}
-                      onClick={() => { setTab(id); void navigate({ search: { tab: id } }); }}>
-                      {label}
-                    </Button>
-                  ))}
-                </div>
-              </section>
-            ) : null;
-          })}
-        </nav>
-        <div className="min-w-0">
-          <div className="mb-5 lg:hidden">
-            <Label htmlFor="admin-navigation">เมนูหลังบ้าน</Label>
-            <NativeSelect
-              id="admin-navigation"
-              className="mt-2"
-              value={active}
-              onChange={(e) => {
-                setTab(e.target.value);
-                void navigate({ search: { tab: e.target.value } });
-              }}
-            >
-              {menuGroups.map((group) => {
-                const entries = allowed.filter(([id]) => group.ids.includes(id));
-                return entries.length ? (
-                  <optgroup key={group.label} label={group.label}>
-                    {entries.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-                  </optgroup>
-                ) : null;
-              })}
-            </NativeSelect>
+      <main className="mx-auto max-w-[1440px] p-4 sm:p-6">
+        <section className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-border bg-surface p-5 sm:p-6">
+          <div>
+            <p className="text-xs font-semibold tracking-widest text-muted">VELTSHOP / ADMIN</p>
+            <h1 className="mt-2 text-2xl font-semibold">
+              {allowed.find((t) => t[0] === active)?.[1]}
+            </h1>
+            <p className="mt-1 text-sm text-muted">
+              เลือกงานจากเมนู แล้วจัดการข้อมูลในพื้นที่ด้านขวา
+            </p>
           </div>
-          <p className="mb-1 text-xs tracking-widest text-subtle">จัดการร้าน Veltshop</p>
-          <h1 className="mb-6 text-2xl font-semibold">
-            {allowed.find((t) => t[0] === active)?.[1]}
-          </h1>
-          {active === "dashboard" ? (
-            <RealDashboard />
-          ) : active === "notifications" ? (
-            <AdminNotifications />
-          ) : active === "cart-requests" ? (
-            <AdminCartRequests />
-          ) : active === "products" ? (
-            <ProductsAdmin />
-          ) : active === "settings" ? (
-            <RealSettings />
-          ) : active === "payment-settings" ? (
-            <PaymentSettings />
-          ) : active === "media" ? (
-            <MediaLibrary />
-          ) : active === "campaigns" ? (
-            <CampaignSettings />
-          ) : active === "backups" ? (
-            <BackupPanel />
-          ) : active === "privacy" ? (
-            <PrivacyRequestsPanel />
-          ) : active === "system" ? (
-            <SystemPanel />
-          ) : (
-            <AdminRecords
-              key={active}
-              kind={active as RecordKind}
-              permissions={access.permissions}
-              initialStatus={active === "payments" ? search.status : undefined}
-            />
-          )}
+          <div className="max-w-sm rounded-2xl bg-surface-2 p-3">
+            <p className="mb-1 text-sm font-semibold">
+              {user?.displayName || access.email || "แอดมิน"}
+            </p>
+            <AccountId value={access.userId} label="รหัสแอดมิน" />
+          </div>
+        </section>
+        <div className="grid min-w-0 gap-5 lg:grid-cols-[250px_minmax(0,1fr)]">
+          <AdminNavigation
+            entries={allowed}
+            active={active}
+            onSelect={(id) => {
+              setTab(id);
+              void navigate({ search: { tab: id } });
+            }}
+          />
+          <div className="admin-section-card min-w-0">
+            {active === "dashboard" ? (
+              <RealDashboard />
+            ) : active === "notifications" ? (
+              <AdminNotifications />
+            ) : active === "cart-requests" ? (
+              <AdminCartRequests />
+            ) : active === "products" ? (
+              <ProductsAdmin />
+            ) : active === "settings" ? (
+              <RealSettings />
+            ) : active === "media" ? (
+              <MediaLibrary />
+            ) : active === "campaigns" ? (
+              <CampaignSettings />
+            ) : active === "backups" ? (
+              <BackupPanel />
+            ) : active === "privacy" ? (
+              <PrivacyRequestsPanel />
+            ) : active === "system" ? (
+              <SystemPanel />
+            ) : (
+              <AdminRecords
+                key={active}
+                kind={active as RecordKind}
+                permissions={access.permissions}
+                initialStatus={active === "payments" ? search.status : undefined}
+              />
+            )}
+          </div>
         </div>
       </main>
     </div>
@@ -362,50 +324,5 @@ function ProductsAdmin() {
         onSaved={() => void reload()}
       />
     </div>
-  );
-}
-
-function PaymentSettings() {
-  const [settings, setSettings] = useState<ShopSettings | null>(null);
-  useEffect(() => {
-    void getShopSettings().then(setSettings);
-  }, []);
-  if (!settings) return <p>กำลังโหลด…</p>;
-  return (
-    <form
-      className="max-w-lg space-y-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        void saveShopSettings({ data: settings })
-          .then((r) => {
-            if (r.ok) toast.success("บันทึกแล้ว");
-            else toast.error(r.message);
-          })
-          .catch(() => toast.error("บันทึกไม่สำเร็จ"));
-      }}
-    >
-      {[
-        ["receive_name", "ชื่อผู้รับ"],
-        ["receive_account", "พร้อมเพย์"],
-        ["wallet_phone", "หมายเลข TrueMoney"],
-        ["wallet_fee", "ค่าธรรมเนียม TrueMoney (%)"],
-      ].map(([key, label]) => (
-        <div key={key}>
-          <Label htmlFor={key}>{label}</Label>
-          <Input
-            id={key}
-            value={String(settings[key as keyof ShopSettings])}
-            onChange={(e) =>
-              setSettings({
-                ...settings,
-                [key]: key === "wallet_fee" ? Number(e.target.value) : e.target.value,
-              })
-            }
-          />
-        </div>
-      ))}
-      <p className="text-xs text-muted">เลขพร้อมเพย์ต้องตรงกับค่าปลายทางที่เซิร์ฟเวอร์ตรวจสอบ</p>
-      <Button type="submit">ยืนยันบันทึก</Button>
-    </form>
   );
 }

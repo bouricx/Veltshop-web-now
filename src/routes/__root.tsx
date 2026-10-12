@@ -14,7 +14,7 @@ export const Route = createRootRoute({
       { title: "VeltShop.com — ร้านแอปและบริการดิจิทัล" },
       {
         name: "description",
-        content: "VeltShop.com ร้านแอป บริการดิจิทัล เติมเกม OTP และ SMM ตรวจสลิปอัตโนมัติ",
+        content: "VeltShop.com ร้านสินค้าดิจิทัล ชำระด้วยพร้อมเพย์ แนบสลิปและติดตามคำสั่งซื้อในเว็บ",
       },
       { name: "theme-color", content: "#f6f6f4" },
       { name: "color-scheme", content: "light dark" },
@@ -40,18 +40,18 @@ function Root() {
       suppressHydrationWarning
       data-shop="shop"
       data-theme="light"
-      data-accent="ice"
       style={{ colorScheme: "light" }}
     >
       <head>
         <HeadContent />
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{const t=JSON.parse(localStorage.getItem("velt-theme")||"{}");const r=document.documentElement;r.dataset.theme=t.mode==="dark"?"dark":"light";r.style.colorScheme=r.dataset.theme;const a=localStorage.getItem("veltshop-theme");r.dataset.shopTheme=["ink","ocean","violet","forest"].includes(a)?a:"violet";}catch{}`,
+            __html: `try{const t=JSON.parse(localStorage.getItem("velt-theme")||"{}");const r=document.documentElement;r.dataset.theme=t.mode==="dark"?"dark":"light";r.style.colorScheme=r.dataset.theme;}catch{}`,
           }}
         />
       </head>
       <body className="bg-bg text-fg antialiased">
+        <div className="ambient-background" aria-hidden="true" />
         <PreviewHostBridge />
         <SiteRuntime />
         <AuthProvider>
