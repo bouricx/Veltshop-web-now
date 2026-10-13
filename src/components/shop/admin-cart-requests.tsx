@@ -1,4 +1,6 @@
 import { CartOrderDelivery } from "./cart-order-delivery";
+import { OrderConversation } from "./order-conversation";
+import { AdminDeliveryCorrection } from "./admin-delivery-correction";
 import { AdminCartClaims } from "./cart-claim-panel";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -121,7 +123,16 @@ export function AdminCartRequests() {
         {data?.rows.map((r) => (
           <RequestSummary key={r.id} request={r}>
             {r.status === "done" && r.payment_status === "paid" && r.has_delivery ? (
-              <CartOrderDelivery id={r.id} admin />
+              <CartOrderDelivery key={r.updated_at} id={r.id} admin />
+            ) : null}
+            {r.status === "done" && r.payment_status === "paid" ? (
+              <>
+                <AdminDeliveryCorrection
+                  id={r.id}
+                  onSaved={() => setRevision((value) => value + 1)}
+                />
+                <OrderConversation id={r.id} admin />
+              </>
             ) : null}
             {["pending", "received"].includes(r.status) &&
             ["unpaid", "expired", "rejected", "manual_review"].includes(r.payment_status) ? (

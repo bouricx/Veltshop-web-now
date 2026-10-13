@@ -3,6 +3,7 @@
 import { Pool } from "pg";
 import { randomUUID } from "node:crypto";
 import { encryptInventory, decryptInventory } from "../src/lib/shop/inventory-crypto.server.ts";
+import { supportBinding } from "../src/lib/shop/order-support-service.server.ts";
 const oldKey = process.env.INVENTORY_ENCRYPTION_KEY,
   nextKey = process.env.NEXT_INVENTORY_ENCRYPTION_KEY;
 if (
@@ -21,7 +22,7 @@ let count = 0;
 try {
   await client.query("BEGIN");
   await client.query(
-    "LOCK TABLE products,inventory_items,order_deliveries,payments,site_configuration,private_files,cart_requests,cart_request_payments IN EXCLUSIVE MODE",
+    "LOCK TABLE products,inventory_items,order_deliveries,payments,site_configuration,private_files,cart_requests,cart_request_payments,operation_keys IN EXCLUSIVE MODE",
   );
   const config = (await client.query("SELECT value FROM site_configuration WHERE id=1")).rows[0]
     ?.value;
@@ -64,6 +65,23 @@ try {
         ]);
       count++;
     }
+  }
+  const supportRows = (
+    await client.query(
+      "SELECT user_id,key,result FROM operation_keys WHERE kind IN ('cart_message','cart_delivery_edit') AND result->>'ciphertext' IS NOT NULL",
+    )
+  ).rows;
+  for (const row of supportRows) {
+    const binding = supportBinding(row.result.requestId, row.user_id, row.key);
+    process.env.INVENTORY_ENCRYPTION_KEY = oldKey;
+    const plain = decryptInventory(binding, row.result.ciphertext);
+    process.env.INVENTORY_ENCRYPTION_KEY = nextKey;
+    const ciphertext = encryptInventory(binding, plain).ciphertext;
+    await client.query(
+      "UPDATE operation_keys SET result=jsonb_set(result,'{ciphertext}',$3::jsonb) WHERE user_id=$1 AND key=$2",
+      [row.user_id, row.key, JSON.stringify(ciphertext)],
+    );
+    count++;
   }
   await client.query(
     "INSERT INTO audit_logs(id,actor_id,action,entity_type,entity_id,metadata) VALUES($1,'offline-operator','inventory.key-rotated','system','inventory',$2)",

@@ -1,13 +1,46 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BookOpen, Copy, Eye, EyeOff, KeyRound, PackageCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getMyCartDelivery, getAdminCartDelivery } from "@/lib/shop/cart-requests";
 import { defaultAppUsageGuide } from "@/lib/shop/app-usage-guide";
+import { onShopChange } from "@/lib/shop/realtime-client";
 
 export function CartOrderDelivery({ id, admin = false }: { id: string; admin?: boolean }) {
   const [data, setData] = useState<Awaited<ReturnType<typeof getMyCartDelivery>>>(null);
   const [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
+  const revealed = Boolean(data);
+  useEffect(() => {
+    if (!revealed || admin) return;
+    let active = true,
+      fetching = false;
+    const refresh = async () => {
+      if (fetching || document.hidden) return;
+      fetching = true;
+      try {
+        const value = await getMyCartDelivery({ data: { id } });
+        if (active) {
+          setData(value);
+          if (!value)
+            setMessage("ข้อมูลสินค้าไม่พร้อมใช้งาน กรุณาตรวจรายการล่าสุดหรือติดต่อทีมงาน");
+        }
+      } catch {
+        if (active) {
+          setData(null);
+          setMessage("เปิดดูข้อมูลสินค้าอีกครั้งเพื่อยืนยันข้อมูลล่าสุด");
+        }
+      } finally {
+        fetching = false;
+      }
+    };
+    const timer = setInterval(() => void refresh(), 15000);
+    const unsubscribe = onShopChange(() => void refresh());
+    return () => {
+      active = false;
+      clearInterval(timer);
+      unsubscribe();
+    };
+  }, [revealed, admin, id]);
   async function reveal() {
     if (busy) return;
     setBusy(true);

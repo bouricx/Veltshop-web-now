@@ -7,6 +7,7 @@ import { useState } from "react";
 import { CreditCard, ReceiptText, PackageCheck } from "lucide-react";
 import { CartOrderDelivery } from "./cart-order-delivery";
 import { OrderContactActions } from "./order-contact-actions";
+import { OrderConversation } from "./order-conversation";
 export function RequestSummary({
   request: r,
   children,
@@ -88,10 +89,13 @@ export function RequestSummary({
         </p>
       ) : null}
       {showPayment && r.status === "done" && r.payment_status === "paid" && r.has_delivery ? (
-        <CartOrderDelivery id={r.id} />
+        <CartOrderDelivery key={r.updated_at} id={r.id} />
       ) : null}
       {showPayment && r.status === "done" && r.payment_status === "paid" ? (
-        <CartClaimPanel id={r.id} />
+        <>
+          <OrderConversation id={r.id} />
+          <CartClaimPanel id={r.id} />
+        </>
       ) : null}
       {showPayment && r.status !== "cancelled" ? (
         <details

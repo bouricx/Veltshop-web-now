@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 const labels: Record<string, [string, string]> = {
   "user.created": ["สมาชิกใหม่", "users"],
   "cart.requested": ["รายการใหม่จากตะกร้า", "cart-requests"],
+  "cart.message": ["ลูกค้าส่งข้อความเกี่ยวกับสินค้าที่ได้รับ", "cart-requests"],
   "cart.payment_review": ["มีสลิปรอตรวจยอดเงิน", "cart-requests"],
   "order.created": ["คำสั่งซื้อใหม่", "orders"],
   "order.completed": ["จัดส่งสินค้าแล้ว", "orders"],

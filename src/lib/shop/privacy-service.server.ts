@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import type { Sql } from "../db";
 import { audit, notify } from "./operations-service.server.ts";
 import { CommerceError } from "./commerce.server.ts";
+import { decryptInventory } from "./inventory-crypto.server.ts";
+import { supportBinding } from "./order-support-service.server.ts";
 
 export async function exportPersonalData(sql: Sql, userId: string) {
   const queries: Record<string, string> = {
@@ -20,6 +22,8 @@ export async function exportPersonalData(sql: Sql, userId: string) {
       "SELECT id,reason,amount,(balance_after-amount) AS balance_before,balance_after,order_id,payment_id,created_at FROM wallet_ledger WHERE user_id=$1 ORDER BY created_at,id",
     cartClaims:
       "SELECT result FROM operation_keys WHERE user_id=$1 AND kind='cart_claim' ORDER BY created_at,key",
+    orderMessages:
+      "SELECT o.user_id AS actor_id,o.key,o.result,o.created_at::text FROM operation_keys o JOIN cart_requests r ON r.id=o.result->>'requestId' WHERE o.kind='cart_message' AND r.user_id=$1 ORDER BY o.created_at,o.user_id,o.key",
     claims:
       "SELECT id,order_id,title,message,status,reply,created_at FROM claims WHERE user_id=$1 ORDER BY created_at,id",
     notifications:
@@ -37,7 +41,29 @@ export async function exportPersonalData(sql: Sql, userId: string) {
       const rows = await tx.query(query + " LIMIT 10001", [userId]);
       if (rows.length > 10000)
         throw new CommerceError("ข้อมูลมีจำนวนมาก กรุณาติดต่อทีมงานเพื่อรับสำเนาครบถ้วน");
-      data[key] = rows;
+      data[key] =
+        key === "orderMessages"
+          ? rows.map((value) => {
+              const row = value as {
+                actor_id: string;
+                key: string;
+                created_at: string;
+                result: { requestId: string; role: string; ciphertext?: string };
+              };
+              return {
+                id: row.key,
+                requestId: row.result.requestId,
+                role: row.result.role,
+                createdAt: row.created_at,
+                body: row.result.ciphertext
+                  ? decryptInventory(
+                      supportBinding(row.result.requestId, row.actor_id, row.key),
+                      row.result.ciphertext,
+                    )
+                  : "ข้อความถูกลบตามคำขอปิดบัญชี",
+              };
+            })
+          : rows;
     }
     await audit(tx, userId, "privacy.exported", "user", userId);
     return { version: 1, createdAt: new Date().toISOString(), data };
@@ -89,6 +115,10 @@ export async function reviewDeletion(
       );
       await tx.query(
         "UPDATE cart_requests SET contact='บัญชีที่ปิดแล้ว',note='',delivery_ciphertext=NULL WHERE user_id=$1",
+        [row.user_id],
+      );
+      await tx.query(
+        "UPDATE operation_keys SET result=result-'ciphertext' WHERE kind IN ('cart_message','cart_delivery_edit') AND result->>'requestId' IN (SELECT id FROM cart_requests WHERE user_id=$1)",
         [row.user_id],
       );
       await tx.query(
