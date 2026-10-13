@@ -271,7 +271,9 @@ a {
       var(--glass-shine) 76% 77%,
       transparent 77% 100%
     ),
-    color-mix(in srgb, var(--glass-fill) 86%, transparent);
+    color-mix(in srgb, var(--glass-fill) var(--product-glass-opacity, 72%), transparent);
+  -webkit-backdrop-filter: blur(var(--product-glass-blur, 16px)) saturate(135%);
+  backdrop-filter: blur(var(--product-glass-blur, 16px)) saturate(135%);
 }
 .product-card::after,
 .product-theme-preview::after {
@@ -880,13 +882,24 @@ html[data-theme="dark"]
 }
 [data-shop] .storefront-hero .hero-orbit {
   background:
-    linear-gradient(135deg, transparent 25%, rgb(255 255 255 / 12%) 25% 27%, transparent 27% 66%, rgb(255 255 255 / 7%) 66% 76%, transparent 76%),
+    linear-gradient(
+      135deg,
+      transparent 25%,
+      rgb(255 255 255 / 12%) 25% 27%,
+      transparent 27% 66%,
+      rgb(255 255 255 / 7%) 66% 76%,
+      transparent 76%
+    ),
     linear-gradient(145deg, rgb(124 58 237 / 28%), rgb(14 165 233 / 18%));
   border-color: rgb(196 181 253 / 30%);
 }
 .product-showcase {
   background:
-    radial-gradient(ellipse at 6% 0%, color-mix(in srgb, var(--icon-purple) 10%, transparent), transparent 65%),
+    radial-gradient(
+      ellipse at 6% 0%,
+      color-mix(in srgb, var(--icon-purple) 10%, transparent),
+      transparent 65%
+    ),
     color-mix(in srgb, var(--surface) 75%, transparent);
 }
 .showcase-viewport {
@@ -908,7 +921,9 @@ html[data-theme="dark"]
 }
 .showcase-card {
   width: 208px;
-  transition: border-color 180ms ease, box-shadow 180ms ease;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease;
 }
 .showcase-card:focus-visible {
   outline: 2px solid var(--accent);
@@ -927,16 +942,28 @@ html[data-theme="dark"]
   display: none;
 }
 @keyframes showcase-loop {
-  to { transform: translateX(-50%); }
+  to {
+    transform: translateX(-50%);
+  }
 }
 @media (min-width: 640px) {
-  .showcase-card { width: 232px; }
+  .showcase-card {
+    width: 232px;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .showcase-viewport { overflow-x: auto; mask-image: none; }
-  .showcase-track { animation: none; will-change: auto; }
+  .showcase-viewport {
+    overflow-x: auto;
+    mask-image: none;
+  }
+  .showcase-track {
+    animation: none;
+    will-change: auto;
+  }
   .showcase-strip[aria-hidden="true"],
-  .showcase-strip > li[aria-hidden="true"] { display: none; }
+  .showcase-strip > li[aria-hidden="true"] {
+    display: none;
+  }
 }
 [data-shop] .storefront-hero > div:first-child {
   opacity: 0.22;
@@ -1169,5 +1196,21 @@ html[data-theme="dark"] :where(.text-cat-mail, .text-cat-otp, .text-cat-ready, .
 @media (max-width: 767px) {
   .member-table td[data-label="รหัสบัญชี"] {
     grid-column: 1 / -1;
+  }
+}
+
+/* Keep product details readable when transparency is unavailable or unwanted. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .product-card,
+  .product-theme-preview {
+    background: var(--glass-fill);
+  }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .product-card,
+  .product-theme-preview {
+    background: var(--surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }

@@ -22,6 +22,14 @@ export function SiteRuntime() {
         .then((value) => {
           if (!active) return;
           useSiteConfiguration.setState({ value, loaded: true });
+          document.documentElement.style.setProperty(
+            "--product-glass-opacity",
+            `${value.productGlassOpacity}%`,
+          );
+          document.documentElement.style.setProperty(
+            "--product-glass-blur",
+            `${value.productGlassBlur}px`,
+          );
           if (!location.pathname.startsWith("/shop/product/"))
             document.title = value.name + " — " + value.description;
           const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
