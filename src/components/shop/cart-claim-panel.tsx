@@ -53,7 +53,7 @@ export function CartClaimPanel({ id }: { id: string }) {
               <li key={i.productId} className="text-sm">
                 {i.name} ·{" "}
                 {i.eligible
-                  ? `รับประกันถึง ${new Date(i.end).toLocaleDateString("th-TH")}`
+                  ? `รับประกันถึง ${new Date(i.end).toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok" })}`
                   : i.reason}
               </li>
             ))}

@@ -4,6 +4,7 @@ import { AdminOrderSecret } from "./admin-order-secret";
 import { authClient } from "@/lib/auth/client";
 import { OperationalBrowser } from "./operational-browser";
 import { formatBaht } from "@/lib/utils";
+import { toThaiDateTimeInput, fromThaiDateTimeInput } from "@/lib/shop/meta";
 import { onShopChange } from "@/lib/shop/realtime-client";
 import { getPaymentSlipEvidence } from "@/lib/shop/actions";
 import { addDigitalInventory } from "@/lib/shop/inventory";
@@ -279,7 +280,7 @@ export function AdminRecords({
     page,
     size: 30,
     status,
-    from: from ? new Date(from).toISOString() : null,
+    from: from ? new Date(`${from}T00:00:00+07:00`).toISOString() : null,
     to: to ? new Date(to + "T23:59:59+07:00").toISOString() : null,
     descending,
   };
@@ -293,7 +294,7 @@ export function AdminRecords({
           page,
           size: 30,
           status,
-          from: from ? new Date(from).toISOString() : null,
+          from: from ? new Date(`${from}T00:00:00+07:00`).toISOString() : null,
           to: to ? new Date(to + "T23:59:59+07:00").toISOString() : null,
           descending,
         },
@@ -537,7 +538,7 @@ export function AdminRecords({
             "expiresAt",
             "หมดอายุ (เว้นว่าง = ไม่หมดอายุ)",
             "datetime",
-            row.expires_at ? new Date(String(row.expires_at)).toISOString().slice(0, 16) : "",
+            row.expires_at ? toThaiDateTimeInput(String(row.expires_at)) : "",
           ),
         ],
         run: (v) =>
@@ -547,7 +548,7 @@ export function AdminRecords({
                 id,
                 label: String(v.label),
                 usageLimit: Number(v.usageLimit),
-                expiresAt: v.expiresAt ? new Date(String(v.expiresAt)).toISOString() : null,
+                expiresAt: v.expiresAt ? fromThaiDateTimeInput(String(v.expiresAt)) : null,
               },
             }),
           ),
@@ -839,7 +840,7 @@ function giftAction(): Action {
             productId: v.productId ? String(v.productId) : undefined,
             categoryId: v.categoryId ? String(v.categoryId) : undefined,
             usageLimit: Number(v.usageLimit),
-            expiresAt: v.expiresAt ? new Date(String(v.expiresAt)).toISOString() : null,
+            expiresAt: v.expiresAt ? fromThaiDateTimeInput(String(v.expiresAt)) : null,
           },
         }),
       ),
@@ -873,7 +874,7 @@ function couponAction(row?: Row): Action {
             usageLimit: Number(v.usageLimit),
             perUserLimit: Number(v.perUserLimit),
             active: Boolean(v.active),
-            expiresAt: v.expiresAt ? new Date(String(v.expiresAt)).toISOString() : null,
+            expiresAt: v.expiresAt ? fromThaiDateTimeInput(String(v.expiresAt)) : null,
           },
         }),
       ),
@@ -895,9 +896,9 @@ function contentAction(row?: Row): Action {
         "startsAt",
         "เริ่ม",
         "datetime",
-        row?.starts_at ? String(row.starts_at).slice(0, 16) : "",
+        row?.starts_at ? toThaiDateTimeInput(String(row.starts_at)) : "",
       ),
-      field("endsAt", "สิ้นสุด", "datetime", row?.ends_at ? String(row.ends_at).slice(0, 16) : ""),
+      field("endsAt", "สิ้นสุด", "datetime", row?.ends_at ? toThaiDateTimeInput(String(row.ends_at)) : ""),
     ],
     run: (v) =>
       result(
@@ -912,8 +913,8 @@ function contentAction(row?: Row): Action {
             audience: String(v.audience) as "all" | "members",
             priority: Number(v.priority),
             active: Boolean(v.active),
-            startsAt: v.startsAt ? new Date(String(v.startsAt)).toISOString() : null,
-            endsAt: v.endsAt ? new Date(String(v.endsAt)).toISOString() : null,
+            startsAt: v.startsAt ? fromThaiDateTimeInput(String(v.startsAt)) : null,
+            endsAt: v.endsAt ? fromThaiDateTimeInput(String(v.endsAt)) : null,
           },
         }),
       ),
@@ -1001,7 +1002,7 @@ function ActionDialog({
         >
           {action?.fields.map((f) => (
             <div key={f.name} className="space-y-1">
-              <Label htmlFor={`action-${f.name}`}>{f.label}</Label>
+              <Label htmlFor={`action-${f.name}`}>{f.label}{f.type === "datetime" ? " (เวลาไทย)" : ""}</Label>
               {f.type === "checkbox" ? (
                 <input
                   id={`action-${f.name}`}
@@ -1036,6 +1037,8 @@ function ActionDialog({
               ) : (
                 <Input
                   id={`action-${f.name}`}
+                  required={f.required}
+                  aria-description={f.type === "datetime" ? "เวลาไทย (UTC+7)" : undefined}
                   type={
                     f.type === "datetime"
                       ? "datetime-local"
