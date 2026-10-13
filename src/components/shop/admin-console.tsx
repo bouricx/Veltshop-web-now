@@ -11,7 +11,7 @@ import { addDigitalInventory } from "@/lib/shop/inventory";
 import { DataImport } from "./data-import";
 import { getRewardCampaign, saveRewardCampaign } from "@/lib/shop/rewards";
 import { backupNow, downloadBackup, verifyBackup } from "@/lib/shop/backups";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { toast } from "sonner";
 import {
   adminRecords,
@@ -898,7 +898,12 @@ function contentAction(row?: Row): Action {
         "datetime",
         row?.starts_at ? toThaiDateTimeInput(String(row.starts_at)) : "",
       ),
-      field("endsAt", "สิ้นสุด", "datetime", row?.ends_at ? toThaiDateTimeInput(String(row.ends_at)) : ""),
+      field(
+        "endsAt",
+        "สิ้นสุด",
+        "datetime",
+        row?.ends_at ? toThaiDateTimeInput(String(row.ends_at)) : "",
+      ),
     ],
     run: (v) =>
       result(
@@ -1002,7 +1007,10 @@ function ActionDialog({
         >
           {action?.fields.map((f) => (
             <div key={f.name} className="space-y-1">
-              <Label htmlFor={`action-${f.name}`}>{f.label}{f.type === "datetime" ? " (เวลาไทย)" : ""}</Label>
+              <Label htmlFor={`action-${f.name}`}>
+                {f.label}
+                {f.type === "datetime" ? " (เวลาไทย)" : ""}
+              </Label>
               {f.type === "checkbox" ? (
                 <input
                   id={`action-${f.name}`}
@@ -1432,8 +1440,58 @@ export function RealSettings() {
           .finally(() => setBusy(false));
       }}
     >
+      <fieldset className="rounded-2xl border p-4 space-y-4 sm:col-span-2" disabled={busy}>
+        <legend className="px-2 font-semibold">การ์ดกระจกแบบ iOS</legend>
+        <p className="text-sm text-muted">ปรับสีแต่ละใบได้ที่แก้ไขสินค้า → สีหลักสินค้า / สีขอบ</p>
+        <label className="grid gap-2" htmlFor="glass-opacity">
+          ความทึบของกระจก {value.productGlassOpacity}% (ค่าน้อยจะโปร่งใสมาก)
+          <input
+            id="glass-opacity"
+            type="range"
+            min={40}
+            max={100}
+            step={1}
+            value={value.productGlassOpacity}
+            onChange={(e) => setValue({ ...value, productGlassOpacity: Number(e.target.value) })}
+          />
+        </label>
+        <label className="grid gap-2" htmlFor="glass-blur">
+          ความเบลอพื้นหลัง {value.productGlassBlur} px
+          <input
+            id="glass-blur"
+            type="range"
+            min={0}
+            max={24}
+            step={1}
+            value={value.productGlassBlur}
+            onChange={(e) => setValue({ ...value, productGlassBlur: Number(e.target.value) })}
+          />
+        </label>
+        <div
+          className="rounded-2xl p-6"
+          style={{ background: "linear-gradient(135deg, #38bdf8, #c084fc, #fda4af)" }}
+        >
+          <div
+            className="product-theme-preview rounded-2xl border p-5 text-fg"
+            style={
+              {
+                "--product-color": "#8b5cf6",
+                "--product-glass-opacity": `${value.productGlassOpacity}%`,
+                "--product-glass-blur": `${value.productGlassBlur}px`,
+              } as CSSProperties
+            }
+          >
+            <p className="font-semibold">ตัวอย่างการ์ดสินค้า</p>
+            <p className="text-sm">สีม่วงตัวอย่าง · ข้อความและรูปไม่โปร่งใสตามพื้นหลัง</p>
+            <p className="mt-3 font-semibold">฿199.00</p>
+          </div>
+        </div>
+        <p className="text-xs text-muted">กดยืนยันบันทึกการตั้งค่าด้านล่างเพื่อใช้กับหน้าร้าน</p>
+      </fieldset>
       {Object.entries(value)
-        .filter(([k]) => k !== "primary" && k !== "secondary")
+        .filter(
+          ([k]) => !["primary", "secondary", "productGlassOpacity", "productGlassBlur"].includes(k),
+        )
         .map(([k, v]) => (
           <div key={k} className="space-y-1">
             <Label htmlFor={`setting-${k}`}>{settingLabels[k] ?? k}</Label>

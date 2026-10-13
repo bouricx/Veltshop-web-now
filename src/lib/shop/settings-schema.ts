@@ -53,6 +53,8 @@ export const configurationSchema = z
         "ใช้ข้อมูลบัญชีเพื่อจัดส่งสินค้าและบันทึกธุรกรรม ติดต่อทีมงานเพื่อขอสำเนาหรือลบบัญชี ข้อมูลธุรกรรมที่ต้องเก็บตามข้อกำหนดจะถูกจำกัดการเข้าถึง",
       ),
     maintenance: z.boolean().default(false),
+    productGlassOpacity: z.number().int().min(40).max(100).default(72),
+    productGlassBlur: z.number().int().min(0).max(24).default(16),
     lowStock: z.number().int().min(0).max(100000).default(5),
     vip: z.number().int().min(0).default(500),
     vvip: z.number().int().min(0).default(2000),
