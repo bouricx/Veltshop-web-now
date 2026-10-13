@@ -367,10 +367,10 @@ function ProductCard({
           {
             "--product-color": theme,
             "--product-accent": accent,
-            borderColor: `${product.borderColor ?? theme}45`,
+            "--product-border": product.borderColor ?? theme,
           } as CSSProperties
         }
-        className="product-card group relative flex h-full min-w-0 flex-col overflow-hidden rounded-3xl border border-border bg-surface"
+        className="product-card group relative flex h-full min-w-0 flex-col overflow-hidden rounded-3xl border"
       >
         {canEdit ? (
           <button
@@ -390,7 +390,7 @@ function ProductCard({
             decoding="async"
             width={800}
             height={800}
-            className="product-image h-full w-full rounded-2xl bg-white object-contain transition-transform duration-500 group-hover:scale-[1.03]"
+            className="product-image h-full w-full rounded-2xl object-contain transition-transform duration-500 group-hover:scale-[1.03]"
           />
           <div className="absolute top-5 left-5 right-14 flex flex-wrap gap-1.5">
             {product.badge ? (
