@@ -915,16 +915,21 @@ html[data-theme="dark"]
   outline-offset: 2px;
 }
 .showcase-viewport:hover .showcase-track,
+.showcase-viewport:focus-within .showcase-track,
 .showcase-viewport[data-paused="true"] .showcase-track {
   animation-play-state: paused;
 }
-.showcase-viewport:focus-within {
+.showcase-viewport:has(.showcase-card:focus-visible) {
   overflow-x: auto;
   mask-image: none;
 }
-.showcase-viewport:focus-within .showcase-track {
+.showcase-viewport:has(.showcase-card:focus-visible) .showcase-track {
   animation: none;
   transform: none;
+}
+.showcase-viewport:has(.showcase-card:focus-visible) .showcase-strip[aria-hidden="true"],
+.showcase-viewport:has(.showcase-card:focus-visible) .showcase-strip > li[aria-hidden="true"] {
+  display: none;
 }
 @keyframes showcase-loop {
   to { transform: translateX(-50%); }
@@ -936,6 +941,8 @@ html[data-theme="dark"]
   .showcase-viewport { overflow-x: auto; mask-image: none; }
   .showcase-track { animation: none; will-change: auto; }
   .showcase-motion-toggle { display: none; }
+  .showcase-strip[aria-hidden="true"],
+  .showcase-strip > li[aria-hidden="true"] { display: none; }
 }
 [data-shop] .storefront-hero > div:first-child {
   opacity: 0.22;

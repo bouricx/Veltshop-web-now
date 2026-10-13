@@ -61,7 +61,8 @@ export function ProductShowcase() {
   ).map((category) => [category.id, category.label]));
   const visible = products.filter((product) => product.active !== false && labels.has(product.category)).slice(0, 24);
   // Repeat short catalogs enough to cover the viewport, then duplicate the
-  // complete strip for a seamless loop. Copies are inert and hidden from AT.
+  // complete strip for a seamless loop. Copies skip keyboard/AT navigation
+  // while remaining clickable whenever they move into the visible viewport.
   const repeats = visible.length ? Math.max(1, Math.ceil(6 / visible.length)) : 0;
   const strip = Array.from({ length: repeats }, () => visible).flat();
 
@@ -101,9 +102,9 @@ export function ProductShowcase() {
         <div className="showcase-viewport" data-paused={paused}>
           <div className="showcase-track" style={{ "--showcase-duration": `${Math.max(30, strip.length * 5)}s` } as CSSProperties}>
             {[0, 1].map((copy) => (
-              <ul key={copy} className="showcase-strip" aria-hidden={copy === 1 ? true : undefined} inert={copy === 1}>
+              <ul key={copy} className="showcase-strip" aria-hidden={copy === 1 ? true : undefined}>
                 {strip.map((product, index) => (
-                  <li key={`${product.id}:${index}`} aria-hidden={index >= visible.length ? true : undefined} inert={index >= visible.length}>
+                  <li key={`${product.id}:${index}`} aria-hidden={index >= visible.length ? true : undefined}>
                     <Link
                       to="/shop/product/$id"
                       params={{ id: product.id }}
