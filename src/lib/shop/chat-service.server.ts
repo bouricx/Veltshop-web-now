@@ -2,13 +2,14 @@ import { generateText } from "ai";
 import type { Sql } from "../db";
 import { configuration, limit } from "./operations-service.server.ts";
 import { chatInstructions } from "./chat-policy.ts";
+import { gatewayConfigured } from "./chat-credentials.server.ts";
 
 export async function answerShopQuestion(
   sql: Sql,
   userId: string,
   messages: { role: "user" | "assistant"; content: string }[],
   dependencies = {
-    available: Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN),
+    available: gatewayConfigured(),
     generate: generateText,
   },
 ) {
