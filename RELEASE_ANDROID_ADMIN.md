@@ -22,8 +22,12 @@ trusted-origin tests reject HTTP, lookalike hosts, userinfo, wrong ports and
 file/content/javascript/intent navigation; actual admin tab routes are verified.
 Zip alignment and APK v2/v3 signature verification pass. CI builds unsigned code
 without the private signing key and separately verifies the published release.
-Runtime/device validation must be described from observed evidence, not inferred
-from compilation. The browser backend's existing verification remains enabled.
+The signed release installed on an Android 15 (API 35) AOSP emulator and its
+activity opened with a visible drawn surface and the SECURE window flag. No
+AndroidRuntime fatal exception was observed. This software-only emulator had
+system UI stalls, so complete interactive sign-in, uploads and customer replies
+remain unverified on a physical phone. No production customer messages were
+sent during validation. The browser backend's existing verification remains enabled.
 
 The signing key is private and outside git. Keep it securely for future APK
 updates, and increment both manifest versionCode and versionName for releases.
