@@ -1,6 +1,6 @@
 import { useEffect, useId, useState, type CSSProperties } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowUpRight, Pause, Play, Sparkles } from "lucide-react";
+import { ArrowUpRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductMark } from "./product-mark";
 import { listCategories, listProducts, type CategoryRow } from "@/lib/shop/actions";
@@ -16,7 +16,6 @@ export function ProductShowcase() {
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [paused, setPaused] = useState(false);
   const [revision, setRevision] = useState(0);
 
   useEffect(() => {
@@ -77,12 +76,6 @@ export function ProductShowcase() {
           <p className="mt-1 text-xs text-muted">เลือกสินค้าเพื่อดูรายละเอียดและเงื่อนไข</p>
         </div>
         <div className="flex items-center gap-2">
-          {visible.length > 0 ? (
-            <Button type="button" size="sm" variant="outline" className="showcase-motion-toggle rounded-full" aria-pressed={paused} onClick={() => setPaused(!paused)}>
-              {paused ? <Play className="size-3.5" aria-hidden="true" /> : <Pause className="size-3.5" aria-hidden="true" />}
-              {paused ? "เลื่อนต่อ" : "หยุดเลื่อน"}
-            </Button>
-          ) : null}
           <Link to="/shop/catalog" search={{ cat: "all" }} className="inline-flex min-h-11 items-center gap-1 text-sm font-medium">
             ดูทั้งหมด <ArrowUpRight className="size-4" aria-hidden="true" />
           </Link>
@@ -99,7 +92,7 @@ export function ProductShowcase() {
       ) : visible.length === 0 ? (
         <p className="px-5 py-6 text-sm text-muted">ร้านกำลังเตรียมสินค้า ดูรายการล่าสุดได้ที่หน้าสินค้า</p>
       ) : (
-        <div className="showcase-viewport" data-paused={paused}>
+        <div className="showcase-viewport">
           <div className="showcase-track" style={{ "--showcase-duration": `${Math.max(30, strip.length * 5)}s` } as CSSProperties}>
             {[0, 1].map((copy) => (
               <ul key={copy} className="showcase-strip" aria-hidden={copy === 1 ? true : undefined}>
