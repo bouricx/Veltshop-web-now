@@ -2,9 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { chatInputSchema } from "./chat-policy";
 
-export const chatAvailability = createServerFn({ method: "GET" }).handler(async () => ({
-  available: Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN),
-}));
+export const chatAvailability = createServerFn({ method: "GET" }).handler(async () => {
+  const { gatewayConfigured } = await import("./chat-credentials.server");
+  return { available: gatewayConfigured() };
+});
 
 export const askShopAssistant = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
