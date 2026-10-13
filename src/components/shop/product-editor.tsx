@@ -237,14 +237,14 @@ export function ProductEditor({
             </Field>
           </div>
           <fieldset className="rounded-2xl border border-border p-4 space-y-3">
-            <legend className="px-2 text-sm font-medium">การ์ดโปร่งแสงและสีประจำสินค้า</legend>
+            <legend className="px-2 text-sm font-medium">กระจกย้อมสีและสีประจำสินค้า</legend>
             <p className="text-xs leading-relaxed text-muted">
-              เลือกสีพื้นโปร่งแสงและขอบบางของการ์ด ตัวอักษรปรับตามธีมขาวหรือดำให้อ่านง่าย
+              สีครอบคลุมการ์ดทั้งใบแบบกระจกย้อมสี มีเส้นสะท้อนแสงและขอบกระจก ตัวอักษรปรับตามธีมให้อ่านง่าย
             </p>
             <div className="grid grid-cols-2 gap-3">
               {(
                 [
-                  ["cardColor", "สีพื้นโปร่งแสง / ไอคอน"],
+                  ["cardColor", "สีกระจกทั้งใบ / ไอคอน"],
                   ["borderColor", "สีขอบ"],
                   ["accentColor", "สีปุ่ม / จุดเน้น"],
                   ["badgeColor", "สีป้าย"],
@@ -288,7 +288,7 @@ export function ProductEditor({
                 "--product-border": form.borderColor ?? form.cardColor ?? "#18181b",
               } as CSSProperties}
             >
-              <span className="text-xs text-muted">ตัวอย่างการ์ดโปร่งแสง</span>
+              <span className="text-xs text-muted">ตัวอย่างกระจกย้อมสี</span>
               <p className="mt-1 font-semibold">
                 {form.icon} {form.name || "ชื่อสินค้า"}
               </p>

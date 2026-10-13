@@ -221,18 +221,45 @@ a {
   align-items: stretch;
 }
 .product-art {
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--product-color) 12%, transparent),
-    transparent 75%
-  );
+  background: transparent;
 }
 .product-card,
 .product-theme-preview {
-  border-color: color-mix(in srgb, var(--product-border, var(--product-color)) 30%, var(--border));
+  --glass-tone: 28%;
+  --glass-shine: rgb(255 255 255 / 28%);
+  --glass-soft-shine: rgb(255 255 255 / 10%);
+  --glass-fill: color-mix(in srgb, var(--product-color) var(--glass-tone), var(--surface));
+  --muted: color-mix(in srgb, var(--fg) 82%, var(--surface));
+  --subtle: color-mix(in srgb, var(--fg) 78%, var(--surface));
+  position: relative;
+  border-color: color-mix(in srgb, var(--product-border, var(--product-color)) 65%, var(--border));
   background:
-    linear-gradient(145deg, color-mix(in srgb, var(--product-color) 8%, transparent), transparent 70%),
-    color-mix(in srgb, var(--surface) 80%, transparent);
+    linear-gradient(
+      135deg,
+      transparent 0% 17%,
+      var(--glass-shine) 17% 18.5%,
+      transparent 18.5% 43%,
+      var(--glass-soft-shine) 43% 54%,
+      transparent 54% 76%,
+      var(--glass-shine) 76% 77%,
+      transparent 77% 100%
+    ),
+    color-mix(in srgb, var(--glass-fill) 86%, transparent);
+}
+.product-card::after,
+.product-theme-preview::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 1px solid color-mix(in srgb, var(--product-color) 30%, transparent);
+  border-top-color: var(--glass-shine);
+  border-radius: inherit;
+  pointer-events: none;
+}
+html[data-theme="dark"] :where(.product-card, .product-theme-preview) {
+  --glass-tone: 20%;
+  --glass-shine: rgb(255 255 255 / 10%);
+  --glass-soft-shine: rgb(255 255 255 / 4%);
 }
 @media (hover: hover) {
   .product-card:hover {
