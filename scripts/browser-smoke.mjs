@@ -97,7 +97,7 @@ try {
 
   const viewports = {};
   for (const vp of VIEWPORTS) {
-    const errors = { consoleErrors: [], pageErrors: [] };
+    const errors = { consoleErrors: [], pageErrors: [], failedRequests: [] };
     const page = await browser.newPage({
       viewport: { width: vp.width, height: vp.height },
     });
@@ -105,11 +105,19 @@ try {
       if (msg.type() === "error") errors.consoleErrors.push(msg.text());
     });
     page.on("pageerror", (err) => errors.pageErrors.push(String(err?.message || err)));
+    page.on("requestfailed", (request) => {
+      errors.failedRequests.push({ url: request.url(), error: request.failure()?.errorText });
+    });
     // `domcontentloaded`, not `networkidle`: Vite keeps an HMR websocket open, so
     // networkidle never settles and would burn the whole timeout.
     const resp = await page.goto(url, { waitUntil: "domcontentloaded", timeout: timeoutMs });
     const status = resp?.status() ?? 0;
     await page.waitForTimeout(1000);
+    // A splash must actually release the page before we declare the app usable.
+    // This also catches a stuck SSR overlay when the application never hydrates.
+    const entrySplash = page.locator("[data-entry-splash]");
+    const splashShown = await entrySplash.isVisible();
+    await entrySplash.waitFor({ state: "hidden", timeout: 6000 });
 
     const title = await page.title();
     const hasCanvas = (await page.locator("canvas").count()) > 0;
@@ -134,8 +142,10 @@ try {
       bodyTextHash: normalizedBodyTextHash(bodyText),
       bodyTextPrefix: bodyTextPrefix(bodyText),
       horizontalOverflow,
+      splashShown,
       consoleErrors: errors.consoleErrors,
       pageErrors: errors.pageErrors,
+      failedRequests: errors.failedRequests,
       screenshot: vp.screenshot,
     };
   }
