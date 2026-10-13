@@ -221,7 +221,18 @@ a {
   align-items: stretch;
 }
 .product-art {
-  background: linear-gradient(145deg, color-mix(in srgb, var(--product-color) 10%, white), white);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--product-color) 12%, transparent),
+    transparent 75%
+  );
+}
+.product-card,
+.product-theme-preview {
+  border-color: color-mix(in srgb, var(--product-border, var(--product-color)) 30%, var(--border));
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--product-color) 8%, transparent), transparent 70%),
+    color-mix(in srgb, var(--surface) 80%, transparent);
 }
 @media (hover: hover) {
   .product-card:hover {
@@ -806,9 +817,6 @@ html[data-theme="dark"] :where(.bg-emerald-50, .bg-amber-50, .bg-red-50, .bg-ind
 html[data-theme="dark"]
   :where(.text-emerald-950, .text-amber-950, .text-red-800, .text-emerald-900, .text-amber-900) {
   color: var(--fg);
-}
-html[data-theme="dark"] .product-art {
-  background: #fff;
 }
 [data-shop] .storefront-hero {
   background: linear-gradient(120deg, #111111, #303030 65%, #111111);

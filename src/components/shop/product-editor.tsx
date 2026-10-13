@@ -9,6 +9,7 @@ import {
   isValidElement,
   type FormEvent,
   type ReactNode,
+  type CSSProperties,
 } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -236,11 +237,14 @@ export function ProductEditor({
             </Field>
           </div>
           <fieldset className="rounded-2xl border border-border p-4 space-y-3">
-            <legend className="px-2 text-sm font-medium">ธีมและสีประจำสินค้า</legend>
+            <legend className="px-2 text-sm font-medium">การ์ดโปร่งแสงและสีประจำสินค้า</legend>
+            <p className="text-xs leading-relaxed text-muted">
+              เลือกสีพื้นโปร่งแสงและขอบบางของการ์ด ตัวอักษรปรับตามธีมขาวหรือดำให้อ่านง่าย
+            </p>
             <div className="grid grid-cols-2 gap-3">
               {(
                 [
-                  ["cardColor", "สีหลักสินค้า"],
+                  ["cardColor", "สีพื้นโปร่งแสง / ไอคอน"],
                   ["borderColor", "สีขอบ"],
                   ["accentColor", "สีปุ่ม / จุดเน้น"],
                   ["badgeColor", "สีป้าย"],
@@ -262,7 +266,7 @@ export function ProductEditor({
                     key={color}
                     type="button"
                     aria-label={`ใช้ชุดสี ${color}`}
-                    className="size-9 rounded-full border-4 border-white shadow-border"
+                    className="size-9 rounded-full border-2 border-border shadow-border"
                     style={{ background: color }}
                     onClick={() =>
                       setForm({
@@ -278,13 +282,13 @@ export function ProductEditor({
               )}
             </div>
             <div
-              className="rounded-xl border p-4"
+              className="product-theme-preview rounded-2xl border p-4 text-fg"
               style={{
-                borderColor: form.borderColor ?? form.cardColor,
-                background: `${form.cardColor ?? "#18181b"}0d`,
-              }}
+                "--product-color": form.cardColor ?? "#18181b",
+                "--product-border": form.borderColor ?? form.cardColor ?? "#18181b",
+              } as CSSProperties}
             >
-              <span className="text-xs text-muted">ตัวอย่างธีม</span>
+              <span className="text-xs text-muted">ตัวอย่างการ์ดโปร่งแสง</span>
               <p className="mt-1 font-semibold">
                 {form.icon} {form.name || "ชื่อสินค้า"}
               </p>
