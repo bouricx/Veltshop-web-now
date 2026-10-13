@@ -1,4 +1,5 @@
 import { ProductGrid } from "@/components/shop/product-grid";
+import { ProductShowcase } from "@/components/shop/product-showcase";
 import { AdminContactPicker } from "@/components/shop/admin-contact-picker";
 import { CheckoutGuide } from "@/components/shop/checkout-guide";
 import { onShopChange } from "@/lib/shop/realtime-client";
@@ -134,6 +135,7 @@ function ShopHome() {
           </div>
         </div>
       </section>
+      <ProductShowcase />
       <CheckoutGuide />
       <section className="rounded-3xl bg-surface p-5 shadow-border sm:p-6">
         <div className="mb-4 flex items-center justify-between gap-3">
