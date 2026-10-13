@@ -12,7 +12,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { Flame, Pencil, Search, ShoppingBag, Check, RefreshCw } from "lucide-react";
+import { Flame, Pencil, Search, ShoppingBag, Check, RefreshCw, Columns2, RectangleVertical } from "lucide-react";
 import { toast } from "sonner";
 const CategoryEditor = lazy(() =>
   import("./category-editor").then((m) => ({ default: m.CategoryEditor })),
@@ -42,6 +42,7 @@ export function ProductGrid({
 }) {
   const searchId = useId();
   const [sort, setSort] = useState<CatalogSort>("recommended");
+  const [columns, setColumns] = useState<1 | 2>(2);
   const [inStock, setInStock] = useState(false);
   const [page, setPage] = useState(1);
   const [error, setError] = useState("");
@@ -56,6 +57,24 @@ export function ProductGrid({
   const [search, setSearch] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const { user, isPending } = useCurrentUserState();
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("veltshop-catalog-columns-v1");
+      if (saved === "1" || saved === "2") setColumns(saved === "1" ? 1 : 2);
+    } catch {
+      /* Browsing and layout selection still work when storage is unavailable. */
+    }
+  }, []);
+
+  function chooseColumns(value: 1 | 2) {
+    setColumns(value);
+    try {
+      localStorage.setItem("veltshop-catalog-columns-v1", String(value));
+    } catch {
+      /* Keep the choice for this visit. */
+    }
+  }
 
   useEffect(() => {
     setCat(initialCat);
@@ -137,6 +156,15 @@ export function ProductGrid({
   const pages = Math.max(1, Math.ceil(list.items.length / pageSize));
   const currentPage = Math.min(page, pages);
   const displayed = list.items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const selectableLayout = !featuredOnly && !onlyProductId;
+  const gridClassName = cn(
+    "product-grid-layout mt-6 grid min-w-0 gap-3 sm:gap-4",
+    selectableLayout
+      ? columns === 1
+        ? "grid-cols-1 mx-auto max-w-xl"
+        : "grid-cols-2"
+      : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
+  );
 
   return (
     <div className="min-w-0">
@@ -193,6 +221,26 @@ export function ProductGrid({
             ))}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+            <div role="group" aria-label="จำนวนช่องสินค้า" className="flex items-center gap-2">
+              <span className="text-xs text-muted">แสดงสินค้า</span>
+              <div className="flex gap-1 rounded-xl border border-border bg-bg p-1">
+                {([1, 2] as const).map((value) => (
+                  <Button
+                    key={value}
+                    type="button"
+                    size="sm"
+                    variant={columns === value ? "primary" : "ghost"}
+                    className="gap-1.5 rounded-lg"
+                    aria-label={`แสดงสินค้า ${value} ช่อง`}
+                    aria-pressed={columns === value}
+                    onClick={() => chooseColumns(value)}
+                  >
+                    {value === 1 ? <RectangleVertical className="size-4" aria-hidden="true" /> : <Columns2 className="size-4" aria-hidden="true" />}
+                    {value} ช่อง
+                  </Button>
+                ))}
+              </div>
+            </div>
             <label className="flex min-h-10 items-center gap-2 text-sm text-muted">
               <input
                 type="checkbox"
@@ -234,7 +282,8 @@ export function ProductGrid({
         <div
           role="status"
           aria-label="กำลังโหลดสินค้า"
-          className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+          className={gridClassName}
+          data-columns={selectableLayout ? columns : undefined}
         >
           {[0, 1, 2].map((n) => (
             <div key={n} className="overflow-hidden rounded-3xl bg-surface shadow-border">
@@ -268,7 +317,7 @@ export function ProductGrid({
           ) : null}
         </div>
       ) : (
-        <div className="product-grid-layout stagger-in mt-6 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+        <div className={cn(gridClassName, "stagger-in")} data-columns={selectableLayout ? columns : undefined}>
           {displayed.map((p) => (
             <ProductCard key={p.id} product={p} canEdit={isAdmin} onEdit={() => setEditing(p)} />
           ))}
