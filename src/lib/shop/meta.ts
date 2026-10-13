@@ -28,10 +28,19 @@ export const monthShort = [
 ];
 
 export function formatThaiClock(d: Date) {
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  const ss = String(d.getSeconds()).padStart(2, "0");
-  const buddhist = d.getFullYear() + 543;
-  const date = `${dayShort[d.getDay()]} ${d.getDate()} ${monthShort[d.getMonth()]} ${buddhist}`;
+  const thai = new Date(d.getTime() + 7 * 3600000);
+  const hh = String(thai.getUTCHours()).padStart(2, "0");
+  const mm = String(thai.getUTCMinutes()).padStart(2, "0");
+  const ss = String(thai.getUTCSeconds()).padStart(2, "0");
+  const buddhist = thai.getUTCFullYear() + 543;
+  const date = `${dayShort[thai.getUTCDay()]} ${thai.getUTCDate()} ${monthShort[thai.getUTCMonth()]} ${buddhist}`;
   return { time: `${hh}:${mm}:${ss}`, date };
+}
+
+export function toThaiDateTimeInput(value: string) {
+  return new Date(new Date(value).getTime() + 7 * 3600000).toISOString().slice(0, 16);
+}
+
+export function fromThaiDateTimeInput(value: string) {
+  return new Date(`${value}+07:00`).toISOString();
 }

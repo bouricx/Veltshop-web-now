@@ -171,6 +171,7 @@ export function ProductEditor({
                 type="number"
                 min={0}
                 value={form.price}
+                required
                 onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
               />
             </Field>
