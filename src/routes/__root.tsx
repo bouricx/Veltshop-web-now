@@ -2,6 +2,7 @@ import { SiteRuntime } from "@/lib/shop/site-state";
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
+import { EntrySplash } from "@/components/entry-splash";
 import { ThemeProvider } from "@/lib/theme";
 import { Toaster } from "sonner";
 import appCss from "../styles.css?url";
@@ -14,7 +15,8 @@ export const Route = createRootRoute({
       { title: "VeltShop.com — ร้านแอปและบริการดิจิทัล" },
       {
         name: "description",
-        content: "VeltShop.com ร้านสินค้าดิจิทัล ชำระด้วยพร้อมเพย์ แนบสลิปและติดตามคำสั่งซื้อในเว็บ",
+        content:
+          "VeltShop.com ร้านสินค้าดิจิทัล ชำระด้วยพร้อมเพย์ แนบสลิปและติดตามคำสั่งซื้อในเว็บ",
       },
       { name: "theme-color", content: "#f6f6f4" },
       { name: "color-scheme", content: "light dark" },
@@ -51,6 +53,7 @@ function Root() {
         />
       </head>
       <body className="bg-bg text-fg antialiased">
+        <EntrySplash />
         <div className="ambient-background" aria-hidden="true" />
         <PreviewHostBridge />
         <SiteRuntime />
