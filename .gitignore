@@ -17,6 +17,11 @@ public/uploads/products/*
 # Build output
 dist/
 build/
+android-admin/build/
+*.jks
+*.keystore
+*.p12
+*.idsig
 
 # Local tools/files
 .grok/

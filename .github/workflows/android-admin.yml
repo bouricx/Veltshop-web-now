@@ -1,0 +1,30 @@
+name: Android admin verification
+on:
+  pull_request:
+    paths: ['android-admin/**', 'public/downloads/**', '.github/workflows/android-admin.yml']
+  push:
+    branches: [main]
+    paths: ['android-admin/**', 'public/downloads/**', '.github/workflows/android-admin.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    name: Android package and navigation security
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - name: Install pinned Android SDK packages
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Test trusted-origin and admin navigation
+        run: bash android-admin/test.sh
+      - name: Compile independent native Android package
+        run: bash android-admin/build.sh --unsigned
+      - name: Verify published signed APK
+        run: $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose public/downloads/veltshop-admin-1.0.0.apk
