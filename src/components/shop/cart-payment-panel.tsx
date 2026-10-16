@@ -7,6 +7,7 @@ import {
   Loader2,
   QrCode,
   RefreshCw,
+  X,
   Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,8 @@ export function CartPaymentPanel({
   const [message, setMessage] = useState("");
   const [reload, setReload] = useState(0);
   const [now, setNow] = useState(Date.now());
+  const [confirmation, setConfirmation] = useState<"success" | "pending" | "error" | null>(null);
+  const [confirmationReference, setConfirmationReference] = useState("");
   const serverOffset = useRef(0),
     submitting = useRef(false),
     loadVersion = useRef(0);
@@ -136,6 +139,8 @@ export function CartPaymentPanel({
       if (result.ok || ("pending" in result && result.pending)) {
         setMessage(result.message);
         setFile(null);
+        setConfirmation(result.ok ? "success" : "pending");
+        setConfirmationReference("reference" in result && result.reference ? result.reference : "");
       } else setError(result.message);
       if ("status" in result && result.status)
         setInfo((previous) =>
@@ -143,6 +148,7 @@ export function CartPaymentPanel({
         );
     } catch {
       setError("ยังยืนยันผลการส่งไม่ได้ กรุณาโหลดสถานะก่อนส่งซ้ำ และอย่าโอนเงินซ้ำ");
+      setConfirmation("error");
     } finally {
       submitting.current = false;
       setBusy(false);
@@ -186,40 +192,45 @@ export function CartPaymentPanel({
     );
   if (["paid", "manual_review", "verifying"].includes(status))
     return (
-      <div
-        role="status"
-        className={`mt-4 rounded-xl border p-4 ${status === "paid" ? "border-emerald-200 bg-emerald-50 text-emerald-950" : "border-amber-200 bg-amber-50 text-amber-950"}`}
-      >
-        <div className="flex items-start gap-3">
-          {status === "paid" ? (
-            <CheckCircle2 className="size-5 shrink-0" aria-hidden="true" />
-          ) : (
-            <Clock3 className="size-5 shrink-0" aria-hidden="true" />
-          )}
-          <div>
-            <p className="font-semibold">
-              {status === "paid"
-                ? "ยืนยันได้รับเงินแล้ว"
-                : status === "manual_review"
-                  ? "รับสลิปแล้ว · รอแอดมินตรวจยอดเงิน"
-                  : "กำลังตรวจสอบสลิป"}
-            </p>
-            <p className="mt-1 text-sm">
-              {status === "paid"
-                ? info.order_status === "done"
-                  ? "ร้านจัดส่งรายการนี้เรียบร้อยแล้ว"
-                  : "ร้านจะดำเนินการจัดส่ง โดยปกติ 5–10 นาทีหลังยืนยัน"
-                : "ไม่ต้องโอนหรือส่งสลิปซ้ำ สถานะจะอัปเดตอัตโนมัติ"}
-            </p>
+      <>
+        <div
+          role="status"
+          className={`payment-status-card mt-4 rounded-2xl border p-4 ${status === "paid" ? "border-emerald-200 bg-emerald-50 text-emerald-950" : "border-amber-200 bg-amber-50 text-amber-950"}`}
+        >
+          <div className="flex items-start gap-3">
+            {status === "paid" ? (
+              <CheckCircle2 className="size-5 shrink-0" aria-hidden="true" />
+            ) : (
+              <Clock3 className="size-5 shrink-0" aria-hidden="true" />
+            )}
+            <div>
+              <p className="font-semibold">
+                {status === "paid"
+                  ? "ยืนยันได้รับเงินแล้ว"
+                  : status === "manual_review"
+                    ? "รับสลิปแล้ว · รอแอดมินตรวจยอดเงิน"
+                    : "กำลังตรวจสอบสลิป"}
+              </p>
+              <p className="mt-1 text-sm">
+                {status === "paid"
+                  ? info.order_status === "done"
+                    ? "ร้านจัดส่งรายการนี้เรียบร้อยแล้ว"
+                    : "ร้านจะดำเนินการจัดส่ง โดยปกติ 5–10 นาทีหลังยืนยัน"
+                  : "ไม่ต้องโอนหรือส่งสลิปซ้ำ สถานะจะอัปเดตอัตโนมัติ"}
+              </p>
+            </div>
           </div>
+          {error ? <p role="alert" className="mt-3 text-sm">{error}</p> : null}
+          {status !== "paid" || error ? refresh : null}
         </div>
-        {error ? (
-          <p role="alert" className="mt-3 text-sm">
-            {error}
-          </p>
+        {confirmation ? (
+          <PaymentConfirmation
+            kind={confirmation}
+            reference={confirmationReference}
+            onClose={() => setConfirmation(null)}
+          />
         ) : null}
-        {status !== "paid" || error ? refresh : null}
-      </div>
+      </>
     );
   return (
     <section
@@ -363,7 +374,7 @@ export function CartPaymentPanel({
           }}
         />
         <p className="mt-2 text-xs text-muted">
-          PNG, JPG หรือ WebP ไม่เกิน 3 MB · ภาพต้องเห็น QR บนสลิปครบ
+          PNG, JPG หรือ WebP ไม่เกิน 3 MB · ระบบจะอ่าน QR และตรวจเลขอ้างอิงธุรกรรมให้โดยอัตโนมัติ
         </p>
         {preview && file ? (
           <div className="mt-3 flex min-w-0 items-center gap-3 rounded-xl bg-surface-2 p-3">
@@ -406,6 +417,51 @@ export function CartPaymentPanel({
               : "ส่งสลิปและตรวจสอบการโอน"}
         </Button>
       </div>
+      {confirmation ? (
+        <PaymentConfirmation
+          kind={confirmation}
+          reference={confirmationReference}
+          onClose={() => setConfirmation(null)}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function PaymentConfirmation({
+  kind,
+  reference,
+  onClose,
+}: {
+  kind: "success" | "pending" | "error";
+  reference: string;
+  onClose: () => void;
+}) {
+  const success = kind === "success";
+  const pending = kind === "pending";
+  return (
+    <div className="payment-confirmation" role="dialog" aria-modal="true" aria-labelledby="payment-confirmation-title">
+      <button type="button" className="payment-confirmation-backdrop" aria-label="ปิดหน้าต่าง" onClick={onClose} />
+      <div className="payment-confirmation-card">
+        <button type="button" className="payment-confirmation-close" aria-label="ปิด" onClick={onClose}>
+          <X className="size-4" aria-hidden="true" />
+        </button>
+        <div className={`payment-confirmation-icon ${success ? "is-success" : pending ? "is-pending" : "is-error"}`}>
+          {success ? <CheckCircle2 className="size-10" aria-hidden="true" /> : pending ? <Clock3 className="size-10" aria-hidden="true" /> : <X className="size-10" aria-hidden="true" />}
+        </div>
+        <h3 id="payment-confirmation-title" className="mt-5 text-xl font-bold">
+          {success ? "ยืนยันการโอนสำเร็จ" : pending ? "รับสลิปแล้ว" : "ตรวจสอบยังไม่สำเร็จ"}
+        </h3>
+        <p className="mt-2 text-center text-sm leading-6 text-muted">
+          {success
+            ? "ระบบตรวจยอด ผู้รับเงิน และเลขอ้างอิงจากสลิปแล้ว ร้านกำลังเตรียมจัดส่ง"
+            : pending
+              ? "ระบบส่งสลิปให้แอดมินตรวจสอบแล้ว ไม่ต้องโอนหรือส่งซ้ำ"
+              : "กรุณาตรวจสอบภาพสลิป แล้วลองใหม่อีกครั้ง หรือติดต่อแอดมินร้าน"}
+        </p>
+        {reference ? <p className="mt-4 rounded-xl bg-surface-2 px-3 py-2 text-center text-xs text-muted">เลขอ้างอิง: <strong className="font-mono text-fg">{reference}</strong></p> : null}
+        <Button type="button" className="mt-5 w-full" onClick={onClose}>เข้าใจแล้ว</Button>
+      </div>
+    </div>
   );
 }

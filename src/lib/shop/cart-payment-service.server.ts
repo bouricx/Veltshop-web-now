@@ -198,6 +198,7 @@ export async function verifyCartRequestSlip(
     return {
       ok: true as const,
       status: "paid",
+      reference: result.reference,
       message: `ตรวจสลิปผ่านแล้ว · ยอด ${request.total} บาท · ร้านจะดำเนินการจัดส่งภายใน 5–10 นาที`,
     };
   } catch (error) {

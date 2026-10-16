@@ -41,8 +41,8 @@ const tiles: {
     icon: ShoppingCart,
   },
   {
-    label: "แอพพรีเมียม",
-    hint: "PREMIUM",
+    label: "แอพดูหนัง",
+    hint: "MOVIES & SERIES",
     to: "/shop/catalog",
     search: { cat: "stream" },
     tint: "bg-cat-premium/12 text-cat-premium",
