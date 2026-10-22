@@ -449,7 +449,7 @@ function ProductCard({
             "--product-border": product.borderColor ?? theme,
           } as CSSProperties
         }
-        className="product-card group relative flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border"
+        className="product-card liquid-glass-card group relative flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border"
       >
         {canEdit ? (
           <button
