@@ -16,11 +16,14 @@ export function StoreContent() {
       });
     load();
     const unsubscribe = onShopChange(load);
-    const timer = setInterval(load, 15000);
+    const timer = setInterval(() => { if (!document.hidden) load(); }, 60000);
+    const visible = () => { if (!document.hidden) load(); };
+    document.addEventListener("visibilitychange", visible);
     return () => {
       active = false;
       clearInterval(timer);
       unsubscribe();
+      document.removeEventListener("visibilitychange", visible);
     };
   }, [signedIn, user?.id]);
   const banners = content.filter((c) => c.kind === "banner");

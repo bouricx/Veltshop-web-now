@@ -121,11 +121,16 @@ export function ProductGrid({
     };
     void load();
     const unsubscribe = onShopChange(() => void load());
-    const timer = setInterval(() => void load(), 15000);
+    const timer = setInterval(() => {
+      if (!document.hidden) void load();
+    }, 60000);
+    const visible = () => { if (!document.hidden) void load(); };
+    document.addEventListener("visibilitychange", visible);
     return () => {
       active = false;
       clearInterval(timer);
       unsubscribe();
+      document.removeEventListener("visibilitychange", visible);
     };
   }, []);
   useEffect(() => {
