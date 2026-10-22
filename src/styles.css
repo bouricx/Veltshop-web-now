@@ -762,6 +762,55 @@ body,
 [data-shop] .catalog-controls {
   border: 1px solid var(--border);
   box-shadow: 0 6px 24px rgb(15 23 42 / 4%);
+  content-visibility: auto;
+  contain-intrinsic-size: 220px;
+}
+[data-shop] .catalog-category-row {
+  scrollbar-width: none;
+  mask-image: linear-gradient(to right, transparent 0, black 16px, black calc(100% - 16px), transparent 100%);
+  padding-inline: 4px;
+}
+[data-shop] .catalog-category-row::-webkit-scrollbar {
+  display: none;
+}
+[data-shop] .catalog-category-row > * {
+  flex: 0 0 auto;
+}
+[data-shop] .catalog-result-count {
+  border: 1px solid var(--border);
+}
+[data-shop] .catalog-intro {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 34%),
+    var(--surface);
+}
+[data-shop] .catalog-intro::after {
+  content: "";
+  position: absolute;
+  right: 5%;
+  bottom: -65px;
+  width: 180px;
+  height: 130px;
+  border: 1px solid color-mix(in srgb, var(--accent) 10%, transparent);
+  border-radius: 999px;
+  transform: rotate(-14deg);
+  pointer-events: none;
+}
+[data-shop] .catalog-trust-row {
+  position: relative;
+  z-index: 1;
+}
+[data-shop] .catalog-trust-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  padding: 0.45rem 0.7rem;
+  white-space: nowrap;
 }
 [data-shop] :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
   transition:
@@ -782,6 +831,8 @@ body,
 }
 [data-shop] .product-card {
   box-shadow: 0 4px 18px rgb(15 23 42 / 5%);
+  content-visibility: auto;
+  contain-intrinsic-size: 440px;
   transition:
     transform 220ms ease,
     box-shadow 220ms ease,
@@ -790,6 +841,10 @@ body,
 [data-shop] .product-card:focus-within {
   border-color: var(--accent);
   box-shadow: 0 8px 26px rgb(15 23 42 / 9%);
+}
+[data-shop] .product-card-content {
+  position: relative;
+  z-index: 1;
 }
 [data-shop] .product-action {
   transition:

@@ -12,7 +12,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { Flame, Pencil, Search, ShoppingBag, Check, RefreshCw, Columns2, RectangleVertical } from "lucide-react";
+import { Flame, Pencil, Search, ShoppingBag, Check, RefreshCw, Columns2, RectangleVertical, X, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 const CategoryEditor = lazy(() =>
   import("./category-editor").then((m) => ({ default: m.CategoryEditor })),
@@ -170,6 +170,17 @@ export function ProductGrid({
     <div className="min-w-0">
       {!featuredOnly && !onlyProductId ? (
         <div className="catalog-controls space-y-4 rounded-3xl bg-surface p-4 sm:p-5 shadow-border">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-muted uppercase">
+                <SlidersHorizontal className="size-3.5" aria-hidden="true" /> ค้นพบสินค้า
+              </p>
+              <p className="mt-1 text-sm text-muted">ค้นหาและกรองรายการที่ตรงกับคุณ</p>
+            </div>
+            <span className="catalog-result-count rounded-full bg-surface-2 px-3 py-1 text-xs font-medium text-muted" aria-live="polite">
+              {list.items.length} รายการ
+            </span>
+          </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="min-w-0 flex-1">
               <Label htmlFor={searchId}>ค้นหาสินค้า</Label>
@@ -180,8 +191,18 @@ export function ProductGrid({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="ชื่อสินค้า หมวด รายละเอียด หรือรหัส"
-                  className="pl-10"
+                  className="pl-10 pr-11"
                 />
+                {search ? (
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted transition hover:bg-surface-2 hover:text-fg"
+                    onClick={() => setSearch("")}
+                    aria-label="ล้างคำค้นหา"
+                  >
+                    <X className="size-4" aria-hidden="true" />
+                  </button>
+                ) : null}
               </div>
             </div>
             <div className="sm:w-48">
@@ -200,7 +221,7 @@ export function ProductGrid({
               </NativeSelect>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="catalog-category-row flex gap-2 overflow-x-auto pb-1" aria-label="หมวดหมู่สินค้า">
             <CatChip active={cat === "all"} onClick={() => setCat("all")}>
               ทั้งหมด
             </CatChip>
@@ -250,9 +271,18 @@ export function ProductGrid({
               />
               เฉพาะสินค้าพร้อมขาย
             </label>
-            <p className="text-xs text-muted" aria-live="polite">
-              พบ {list.items.length} รายการ
-            </p>
+            <div className="flex items-center gap-2 text-xs text-muted" aria-live="polite">
+              <span>พบ {list.items.length} รายการ</span>
+              {(search || cat !== "all" || inStock) ? (
+                <button
+                  type="button"
+                  className="font-medium text-fg underline decoration-border underline-offset-4 transition hover:text-accent"
+                  onClick={() => { setSearch(""); setCat("all"); setInStock(false); }}
+                >
+                  ล้างตัวกรอง
+                </button>
+              ) : null}
+            </div>
             {isAdmin ? (
               <div className="flex gap-2">
                 <Button size="sm" variant="secondary" onClick={() => setEditingCats(true)}>
@@ -462,7 +492,7 @@ function ProductCard({
             ) : null}
           </div>
         </div>
-        <div className="flex flex-1 flex-col p-5 pt-2">
+        <div className="product-card-content flex flex-1 flex-col p-5 pt-2">
           <div className="flex min-w-0 items-center gap-2.5">
             <ProductMark
               name={product.name}
